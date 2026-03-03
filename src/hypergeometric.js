@@ -8,9 +8,15 @@
  *   k = lands drawn
  */
 
+const logFactorialCache = [0, 0]; // logFactorial(0) = logFactorial(1) = 0
+
 function logFactorial(n) {
-  let sum = 0;
-  for (let i = 2; i <= n; i++) sum += Math.log(i);
+  if (n < logFactorialCache.length) return logFactorialCache[n];
+  let sum = logFactorialCache[logFactorialCache.length - 1];
+  for (let i = logFactorialCache.length; i <= n; i++) {
+    sum += Math.log(i);
+    logFactorialCache[i] = sum;
+  }
   return sum;
 }
 
