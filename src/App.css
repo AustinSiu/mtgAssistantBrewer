@@ -1,0 +1,205 @@
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+h1 {
+  font-size: 1.8rem;
+  margin-bottom: 0.25rem;
+}
+
+h2 {
+  font-size: 1.3rem;
+  margin-top: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+h3 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: #888;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.hint {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+/* ---- Form ---- */
+
+.form {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.field label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.field input[type="number"] {
+  width: 100px;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1a1a1a;
+  color: inherit;
+  font-size: 1rem;
+}
+
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.preset {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1a1a1a;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.preset:hover {
+  border-color: #646cff;
+}
+
+.preset.active {
+  background: #646cff;
+  border-color: #646cff;
+  color: #fff;
+}
+
+/* ---- Tables ---- */
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.summary-table,
+.dist-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-table th,
+.dist-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 2px solid #444;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #aaa;
+}
+
+.summary-table td,
+.dist-table td {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid #333;
+}
+
+.summary-table tbody tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.summary-table tbody tr:hover {
+  background: #2a2a3a;
+}
+
+.summary-table tbody tr.selected {
+  background: #2a2a4a;
+}
+
+/* ---- Bar chart ---- */
+
+.bar-col {
+  width: 40%;
+}
+
+.bar-cell {
+  padding-right: 1rem;
+}
+
+.bar {
+  height: 16px;
+  background: #646cff;
+  border-radius: 3px;
+  min-width: 1px;
+  transition: width 0.2s;
+}
+
+/* ---- Detail panel ---- */
+
+.detail {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: #1e1e2e;
+}
+
+/* ---- Light mode ---- */
+
+@media (prefers-color-scheme: light) {
+  .field input[type="number"] {
+    background: #fff;
+    border-color: #ccc;
+  }
+
+  .preset {
+    background: #f0f0f0;
+    border-color: #ccc;
+  }
+
+  .preset.active {
+    background: #646cff;
+    border-color: #646cff;
+    color: #fff;
+  }
+
+  .summary-table th,
+  .dist-table th {
+    border-bottom-color: #ccc;
+    color: #666;
+  }
+
+  .summary-table td,
+  .dist-table td {
+    border-bottom-color: #eee;
+  }
+
+  .summary-table tbody tr:hover {
+    background: #f0f0ff;
+  }
+
+  .summary-table tbody tr.selected {
+    background: #e8e8ff;
+  }
+
+  .detail {
+    background: #f8f8ff;
+    border-color: #ddd;
+  }
+}
