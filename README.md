@@ -10,6 +10,14 @@ Calculate the expected number of lands in your opening hand and each subsequent 
 - Per-turn expected lands and mana-screw probability
 - Click any row to expand the full probability distribution
 
+## Goal
+
+- Optimize for the player and what they want, not for everyone. Go weird — don't just chase the ideas already sandblasted smooth by reality (e.g. EDHREC). Ref: Hank Green's ["Why Is Everything Boring Now?"](https://www.youtube.com/watch?v=NEDFUjqU7lE)
+
+## Future Enhancements
+
+- Use the [Scryfall tagger](https://tagger.scryfall.com/) for similar cards instead of EDHREC for "high relevance" / "played together" suggestions
+
 ## Getting Started
 
 ```
