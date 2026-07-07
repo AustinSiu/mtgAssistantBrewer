@@ -5,12 +5,13 @@ import "./App.css";
 function App() {
   const [deckSize, setDeckSize] = useState(60);
   const [lands, setLands] = useState(24);
+  const [handSize, setHandSize] = useState(7);
   const [expandedStep, setExpandedStep] = useState(null);
 
   const steps = useMemo(() => {
-    if (deckSize < 1 || lands < 0 || lands > deckSize) return [];
-    return calculateDrawSteps(deckSize, lands);
-  }, [deckSize, lands]);
+    if (deckSize < 1 || lands < 0 || lands > deckSize || handSize < 1) return [];
+    return calculateDrawSteps(deckSize, lands, handSize);
+  }, [deckSize, lands, handSize]);
 
   function handleDeckSize(value) {
     const n = Math.max(1, Number(value) || 1);
@@ -56,6 +57,21 @@ function App() {
             >
               100
             </button>
+          </div>
+        </div>
+
+        <div className="field">
+          <label htmlFor="handSize">Hand Size</label>
+          <div className="input-row">
+            {[7, 6, 5, 4].map((size) => (
+              <button
+                key={size}
+                className={handSize === size ? "preset active" : "preset"}
+                onClick={() => setHandSize(size)}
+              >
+                {size}
+              </button>
+            ))}
           </div>
         </div>
 
