@@ -46,7 +46,8 @@ describe('LandCalculator', () => {
 
   it('opening hand row shows correct expected lands', () => {
     render(<LandCalculator />);
-    const row = screen.getByText('Opening Hand').closest('tr');
+    const table = screen.getByRole('table');
+    const row = within(table).getByText('Opening Hand').closest('tr');
     expect(within(row).getByText('2.80')).toBeInTheDocument();
   });
 
@@ -54,7 +55,8 @@ describe('LandCalculator', () => {
     render(<LandCalculator />);
     expect(screen.queryByText(/cards seen/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Opening Hand').closest('tr'));
+    const table = screen.getByRole('table');
+    fireEvent.click(within(table).getByText('Opening Hand').closest('tr'));
 
     expect(screen.getByText(/7 cards seen/)).toBeInTheDocument();
     expect(screen.getByText('Distribution')).toBeInTheDocument();
@@ -62,7 +64,8 @@ describe('LandCalculator', () => {
 
   it('clicking the same row again hides the detail panel', () => {
     render(<LandCalculator />);
-    const openingRow = screen.getByText('Opening Hand').closest('tr');
+    const table = screen.getByRole('table');
+    const openingRow = within(table).getByText('Opening Hand').closest('tr');
     fireEvent.click(openingRow);
     expect(screen.getByText(/7 cards seen/)).toBeInTheDocument();
     fireEvent.click(openingRow);
@@ -90,5 +93,25 @@ describe('LandCalculator', () => {
     const inputRow = screen.getByLabelText('Deck Size').closest('.input-row');
     fireEvent.click(within(inputRow).getByRole('button', { name: '100' }));
     expect(screen.getByLabelText(/Lands in Deck/)).toHaveValue(24);
+  });
+
+  it('hand size 7 is active by default', () => {
+    render(<LandCalculator />);
+    const handField = screen.getByText('Hand Size').closest('.field');
+    const btn7 = within(handField).getByRole('button', { name: '7' });
+    expect(btn7).toHaveClass('active');
+  });
+
+  it('clicking mulligan to 6 updates results', () => {
+    render(<LandCalculator />);
+    const handField = screen.getByText('Hand Size').closest('.field');
+    fireEvent.click(within(handField).getByRole('button', { name: '6' }));
+
+    const table = screen.getByRole('table');
+    const row = within(table).getByText('Opening Hand').closest('tr');
+    // 6 cards from 60-card deck with 24 lands: E = 6*24/60 = 2.40
+    expect(within(row).getByText('2.40')).toBeInTheDocument();
+    // Cards seen should be 6
+    expect(within(row).getByText('6')).toBeInTheDocument();
   });
 });

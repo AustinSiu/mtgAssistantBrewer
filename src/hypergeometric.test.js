@@ -141,4 +141,21 @@ describe('calculateDrawSteps', () => {
     const steps = calculateDrawSteps(60, 24);
     expect(steps[0].p0).toBeCloseTo(0.0216, 4);
   });
+
+  it('respects custom hand size (mulligan to 6)', () => {
+    const steps = calculateDrawSteps(60, 24, 6);
+    expect(steps[0].cardsSeen).toBe(6);
+    expect(steps[0].ev).toBeCloseTo(2.4, 10);
+    expect(steps[1].cardsSeen).toBe(7);
+  });
+
+  it('produces consistent results across repeated calls (memoization)', () => {
+    const a = calculateDrawSteps(60, 24);
+    const b = calculateDrawSteps(60, 24);
+    expect(a[0].ev).toBe(b[0].ev);
+    expect(a[0].p0).toBe(b[0].p0);
+    for (let i = 0; i < a[0].probs.length; i++) {
+      expect(a[0].probs[i]).toBe(b[0].probs[i]);
+    }
+  });
 });
