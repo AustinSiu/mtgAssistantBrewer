@@ -4,6 +4,37 @@
   padding: 2rem 1rem;
 }
 
+/* ---- Tabs ---- */
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #333;
+  padding-bottom: 0.75rem;
+}
+
+.tab {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1a1a1a;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+  border-color: #646cff;
+}
+
+.tab.active {
+  background: #646cff;
+  border-color: #646cff;
+  color: #fff;
+}
+
 h1 {
   font-size: 1.8rem;
   margin-bottom: 0.25rem;
@@ -87,6 +118,119 @@ h3 {
   color: #fff;
 }
 
+/* ---- Deck brewer form ---- */
+
+.deck-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.deck-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.row-num {
+  width: 1.6rem;
+  text-align: right;
+  color: #888;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.deck-row input {
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1a1a1a;
+  color: inherit;
+  font-size: 0.95rem;
+  min-width: 0;
+}
+
+.deck-row .card-name {
+  flex: 2;
+}
+
+.deck-row .card-category {
+  flex: 1;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.submit {
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid #646cff;
+  background: #646cff;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+
+.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #ff6b6b;
+  margin-top: 1rem;
+}
+
+/* ---- Lookup results ---- */
+
+.static-row {
+  cursor: default;
+}
+
+.summary-table tbody tr.static-row:hover {
+  background: transparent;
+}
+
+.results-table a {
+  color: #8b92ff;
+}
+
+.mana-cost {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-exact {
+  background: #1e3a2a;
+  color: #6fdc8c;
+}
+
+.badge-fuzzy {
+  background: #3a331e;
+  color: #e8c468;
+}
+
+.badge-none {
+  background: #3a1e1e;
+  color: #ff8a8a;
+}
+
 /* ---- Tables ---- */
 
 .table-wrap {
@@ -166,6 +310,45 @@ h3 {
   .field input[type="number"] {
     background: #fff;
     border-color: #ccc;
+  }
+
+  .tabs {
+    border-bottom-color: #ddd;
+  }
+
+  .tab {
+    background: #f0f0f0;
+    border-color: #ccc;
+  }
+
+  .tab.active {
+    background: #646cff;
+    border-color: #646cff;
+    color: #fff;
+  }
+
+  .deck-row input {
+    background: #fff;
+    border-color: #ccc;
+  }
+
+  .results-table a {
+    color: #4a52d4;
+  }
+
+  .badge-exact {
+    background: #dff5e5;
+    color: #1a7a38;
+  }
+
+  .badge-fuzzy {
+    background: #f8f0d5;
+    color: #8a6d1a;
+  }
+
+  .badge-none {
+    background: #fde3e3;
+    color: #c03030;
   }
 
   .preset {
