@@ -1,35 +1,49 @@
 import { useState } from "react";
+import React from "react";
 import {
   lookupCollection,
   lookupFuzzy,
   rateLimitDelay,
   cardManaCost,
   cardTypeLine,
+  cardColorIdentity,
+  cardManaValue,
+  searchCards,
 } from "./scryfall";
 
 export const CARD_COUNT = 33;
 
-// Placeholder suggestions until the real category list is defined.
-const CATEGORY_SUGGESTIONS = [
-  "Land",
-  "Ramp",
-  "Card Draw",
-  "Removal",
-  "Board Wipe",
-  "Win Condition",
-  "Protection",
-  "Synergy",
-  "Other",
-];
+// Map user-facing categories to Scryfall functional oracle tags
+const CATEGORY_TO_TAG = {
+  Ramp: "ramp",
+  "Mana Rock": "mana-rock",
+  "Card Draw": "card-draw",
+  Tutor: "tutor",
+  Removal: "targeted-removal",
+  "Board Wipe": "board-wipe",
+  Counterspell: "counterspell",
+  Protection: "protection",
+  "Token Generator": "token-generator",
+  Reanimation: "reanimation",
+  "Grave Hate": "grave-hate",
+  Blink: "blink",
+  "Cost Reducer": "cost-reducer",
+  Aristocrat: "aristocrat",
+  Anthem: "anthem",
+};
+
+const CATEGORY_SUGGESTIONS = Object.keys(CATEGORY_TO_TAG);
 
 const emptyRows = () =>
   Array.from({ length: CARD_COUNT }, () => ({ name: "", category: "" }));
 
 function DeckBrewer() {
+  const [commander, setCommander] = useState("");
   const [rows, setRows] = useState(emptyRows);
   const [status, setStatus] = useState("idle"); // idle | loading | done | error
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
+  const [commanderCard, setCommanderCard] = useState(null);
 
   const filledCount = rows.filter((row) => row.name.trim()).length;
 
@@ -40,10 +54,12 @@ function DeckBrewer() {
   }
 
   function clearAll() {
+    setCommander("");
     setRows(emptyRows());
     setResults(null);
     setStatus("idle");
     setError(null);
+    setCommanderCard(null);
   }
 
   async function handleSubmit(e) {
@@ -62,6 +78,16 @@ function DeckBrewer() {
     setResults(null);
 
     try {
+      // Look up the commander if provided to get color identity
+      let commanderColorIdentity = "";
+      if (commander.trim()) {
+        const cmdCard = await lookupFuzzy(commander.trim());
+        if (cmdCard) {
+          setCommanderCard(cmdCard);
+          commanderColorIdentity = cardColorIdentity(cmdCard);
+        }
+      }
+
       const { data = [], not_found: notFound = [] } = await lookupCollection(
         filled.map((row) => row.name)
       );
@@ -89,6 +115,28 @@ function DeckBrewer() {
         }
       }
 
+      // For each card with a matching tag, fetch up to 3 similar cards
+      for (const entry of matched) {
+        if (!entry.card) continue;
+        const tag = CATEGORY_TO_TAG[entry.category];
+        if (!tag) continue;
+
+        const mv = cardManaValue(entry.card);
+        // Build query: oracle tag, mana value, and optionally filter by commander color identity
+        let query = `otag:${tag} mv:${mv}`;
+        if (commanderColorIdentity) {
+          query += ` id<=${commanderColorIdentity}`;
+        }
+        query += " order:edhrec";
+
+        await rateLimitDelay();
+        const { data: similar = [] } = await searchCards(query);
+        // Exclude the card itself and take the first 3
+        entry.similarCards = similar
+          .filter((s) => s.name.toLowerCase() !== entry.card.name.toLowerCase())
+          .slice(0, 3);
+      }
+
       setResults(matched);
       setStatus("done");
     } catch (err) {
@@ -107,6 +155,23 @@ function DeckBrewer() {
       </p>
 
       <form className="deck-form" onSubmit={handleSubmit}>
+        <div className="form-section">
+          <label htmlFor="commander">Commander (optional)</label>
+          <input
+            id="commander"
+            type="text"
+            placeholder="Commander card name"
+            value={commander}
+            onChange={(e) => setCommander(e.target.value)}
+            disabled={status === "loading"}
+          />
+          {commanderCard && (
+            <p className="hint">
+              Color identity: <strong>{cardColorIdentity(commanderCard) || "C"}</strong>
+            </p>
+          )}
+        </div>
+
         <div className="deck-grid">
           {rows.map((row, i) => (
             <div className="deck-row" key={i}>
@@ -211,6 +276,7 @@ function CategorySummary({ results }) {
 }
 
 function LookupResults({ results }) {
+  const [expandedIndex, setExpandedIndex] = useState(null);
   const foundCount = results.filter((r) => r.card).length;
 
   return (
@@ -232,43 +298,90 @@ function LookupResults({ results }) {
             </tr>
           </thead>
           <tbody>
-            {results.map((r) => (
-              <tr key={r.index} className="static-row">
-                <td>{r.index + 1}</td>
-                <td>
-                  {r.card ? (
-                    <a
-                      href={r.card.scryfall_uri}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {r.card.name}
-                    </a>
-                  ) : (
-                    r.name
-                  )}
-                  {r.matchType === "fuzzy" && (
-                    <span className="hint"> (entered: {r.name})</span>
-                  )}
-                </td>
-                <td className="mana-cost">{r.card ? cardManaCost(r.card) : ""}</td>
-                <td>{r.card ? cardTypeLine(r.card) : ""}</td>
-                <td>{r.category || <span className="hint">—</span>}</td>
-                <td>
-                  {r.card ? (
-                    <span className={`badge badge-${r.matchType}`}>
-                      {r.matchType === "fuzzy" ? "fuzzy" : "found"}
-                    </span>
-                  ) : (
-                    <span className="badge badge-none">not found</span>
-                  )}
-                </td>
-              </tr>
+            {results.map((r, idx) => (
+              <React.Fragment key={r.index}>
+                <tr
+                  className={`static-row ${
+                    r.similarCards && r.similarCards.length > 0
+                      ? "expandable"
+                      : ""
+                  }`}
+                  onClick={() =>
+                    r.similarCards &&
+                    r.similarCards.length > 0 &&
+                    setExpandedIndex(expandedIndex === idx ? null : idx)
+                  }
+                >
+                  <td>{r.index + 1}</td>
+                  <td>
+                    {r.card ? (
+                      <a
+                        href={r.card.scryfall_uri}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {r.card.name}
+                      </a>
+                    ) : (
+                      r.name
+                    )}
+                    {r.matchType === "fuzzy" && (
+                      <span className="hint"> (entered: {r.name})</span>
+                    )}
+                  </td>
+                  <td className="mana-cost">
+                    {r.card ? cardManaCost(r.card) : ""}
+                  </td>
+                  <td>{r.card ? cardTypeLine(r.card) : ""}</td>
+                  <td>{r.category || <span className="hint">—</span>}</td>
+                  <td>
+                    {r.card ? (
+                      <span className={`badge badge-${r.matchType}`}>
+                        {r.matchType === "fuzzy" ? "fuzzy" : "found"}
+                      </span>
+                    ) : (
+                      <span className="badge badge-none">not found</span>
+                    )}
+                  </td>
+                </tr>
+                {expandedIndex === idx && r.similarCards && (
+                  <tr key={`similar-${r.index}`}>
+                    <td colSpan="6" className="similar-cards-cell">
+                      <SimilarCardsDetail similar={r.similarCards} />
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
       </div>
     </>
+  );
+}
+
+function SimilarCardsDetail({ similar }) {
+  return (
+    <div className="similar-cards">
+      <h4>Similar Cards (same tag &amp; mana value)</h4>
+      {similar.length > 0 ? (
+        <div className="similar-grid">
+          {similar.map((card) => (
+            <div key={card.id} className="similar-card">
+              <a href={card.scryfall_uri} target="_blank" rel="noreferrer">
+                {card.name}
+              </a>
+              <div className="card-details">
+                <span className="mana-cost">{cardManaCost(card)}</span>
+                <span className="card-type">{cardTypeLine(card)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="hint">No similar cards found with this tag and mana value.</p>
+      )}
+    </div>
   );
 }
 

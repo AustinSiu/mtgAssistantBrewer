@@ -65,3 +65,27 @@ export function cardTypeLine(card) {
   }
   return "";
 }
+
+/** Color identity as a string: w,u,b,r,g,c (in WUBRG order) */
+export function cardColorIdentity(card) {
+  return (card.color_identity ?? []).join("");
+}
+
+/** Mana value (converted mana cost). */
+export function cardManaValue(card) {
+  return card.cmc ?? 0;
+}
+
+/** Search Scryfall for cards matching criteria using advanced query syntax. */
+export async function searchCards(query) {
+  const res = await fetch(
+    `${API_BASE}/cards/search?q=${encodeURIComponent(query)}&unique=cards`,
+    { headers: { Accept: "application/json" } }
+  );
+  if (!res.ok) {
+    if (res.status === 404) return { data: [] };
+    throw new Error(`Scryfall search failed (HTTP ${res.status})`);
+  }
+  const json = await res.json();
+  return { data: json.data ?? [] };
+}
