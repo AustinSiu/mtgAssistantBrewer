@@ -259,22 +259,13 @@ h3 {
 
 /* ---- Similar cards ---- */
 
-.results-table tbody tr.expandable {
-  cursor: pointer;
-  user-select: none;
-}
-
-.results-table tbody tr.expandable:hover {
-  background: #2a2a3a;
-}
-
-.similar-cards-cell {
-  padding: 1rem !important;
-  background: #0a0a0a;
+.summary-table td.similar-cards-cell {
+  padding: 0.75rem 1rem;
+  background: #16161e;
 }
 
 .similar-cards {
-  padding: 1rem 0;
+  padding: 0.25rem 0;
 }
 
 .similar-cards h4 {
@@ -495,9 +486,13 @@ h3 {
     border-color: #ccc;
   }
 
+  .summary-table td.similar-cards-cell {
+    background: #f4f4fa;
+  }
+
   .similar-card {
     border-color: #ddd;
-    background: #f8f8ff;
+    background: #fff;
   }
 
   .similar-card:hover {

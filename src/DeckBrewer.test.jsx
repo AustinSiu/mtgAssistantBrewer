@@ -76,9 +76,74 @@ describe('DeckBrewer', () => {
       expect(screen.getByText('Scryfall Results')).toBeInTheDocument();
     });
 
+    const [url, options] = fetch.mock.calls[0];
+    expect(url).toBe('https://api.scryfall.com/cards/collection');
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({
+      identifiers: [{ name: 'Llanowar Elves' }, { name: 'Sol Ring' }],
+    });
+
     expect(screen.getByRole('link', { name: 'Llanowar Elves' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sol Ring' })).toBeInTheDocument();
     expect(screen.getByText('2 of 2 cards found')).toBeInTheDocument();
+  });
+
+  it('shows up to 3 similar cards per tagged card, filtered by commander identity', async () => {
+    fetch
+      // Commander fuzzy lookup
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockCard('Ghired, Conclave Exile', { color_identity: ['G', 'R', 'W'] }),
+      })
+      // Collection lookup
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: [mockCard('Llanowar Elves', { cmc: 1 })],
+          not_found: [],
+        }),
+      })
+      // Similar-cards search: 4 results, one of which is the card itself
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: [
+            mockCard('Llanowar Elves', { cmc: 1 }),
+            mockCard('Elvish Mystic', { cmc: 1 }),
+            mockCard('Fyndhorn Elves', { cmc: 1 }),
+            mockCard('Arbor Elf', { cmc: 1 }),
+          ],
+        }),
+      });
+
+    render(<DeckBrewer />);
+    fireEvent.change(screen.getByLabelText('Commander (optional)'), {
+      target: { value: 'Ghired' },
+    });
+    fireEvent.change(screen.getByLabelText('Card 1 name'), {
+      target: { value: 'Llanowar Elves' },
+    });
+    fireEvent.change(screen.getByLabelText('Card 1 category'), {
+      target: { value: 'ramp' }, // lowercase on purpose: matching is case-insensitive
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Look Up Cards' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Scryfall Results')).toBeInTheDocument();
+    });
+
+    const searchUrl = fetch.mock.calls[2][0];
+    expect(searchUrl).toContain('https://api.scryfall.com/cards/search');
+    expect(decodeURIComponent(searchUrl)).toContain(
+      'otag:ramp mv:1 id<=GRW order:edhrec'
+    );
+
+    // The card itself is excluded; the next 3 suggestions are shown.
+    expect(screen.getByRole('link', { name: 'Elvish Mystic' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Fyndhorn Elves' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Arbor Elf' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Llanowar Elves' })).toHaveLength(1);
+    expect(screen.getByText('Color identity:')).toBeInTheDocument();
   });
 
   it('shows a category breakdown after lookup', async () => {

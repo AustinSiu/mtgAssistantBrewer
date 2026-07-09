@@ -1,5 +1,4 @@
-import { useState } from "react";
-import React from "react";
+import { Fragment, useState } from "react";
 import {
   lookupCollection,
   lookupFuzzy,
@@ -33,6 +32,14 @@ const CATEGORY_TO_TAG = {
 };
 
 const CATEGORY_SUGGESTIONS = Object.keys(CATEGORY_TO_TAG);
+
+// Case-insensitive category → tag lookup so "ramp" works as well as "Ramp".
+const TAG_BY_CATEGORY = new Map(
+  Object.entries(CATEGORY_TO_TAG).map(([label, tag]) => [
+    label.toLowerCase(),
+    tag,
+  ])
+);
 
 const emptyRows = () =>
   Array.from({ length: CARD_COUNT }, () => ({ name: "", category: "" }));
@@ -78,14 +85,17 @@ function DeckBrewer() {
     setResults(null);
 
     try {
-      // Look up the commander if provided to get color identity
-      let commanderColorIdentity = "";
+      // Look up the commander if provided to get its color identity.
+      let ciFilter = "";
       if (commander.trim()) {
         const cmdCard = await lookupFuzzy(commander.trim());
+        setCommanderCard(cmdCard);
         if (cmdCard) {
-          setCommanderCard(cmdCard);
-          commanderColorIdentity = cardColorIdentity(cmdCard);
+          // A colorless commander still restricts the deck to id<=c.
+          ciFilter = ` id<=${cardColorIdentity(cmdCard) || "c"}`;
         }
+      } else {
+        setCommanderCard(null);
       }
 
       const { data = [], not_found: notFound = [] } = await lookupCollection(
@@ -115,25 +125,29 @@ function DeckBrewer() {
         }
       }
 
-      // For each card with a matching tag, fetch up to 3 similar cards
+      // For each tagged card, fetch up to 3 alternatives: same functional
+      // tag, same mana value, inside the commander's color identity.
+      // Identical queries are only fetched once, and cards already in the
+      // deck are not suggested.
+      const deckNames = new Set(
+        matched.filter((e) => e.card).map((e) => e.card.name.toLowerCase())
+      );
+      const searchCache = new Map();
       for (const entry of matched) {
         if (!entry.card) continue;
-        const tag = CATEGORY_TO_TAG[entry.category];
+        const tag = TAG_BY_CATEGORY.get(entry.category.toLowerCase());
         if (!tag) continue;
 
         const mv = cardManaValue(entry.card);
-        // Build query: oracle tag, mana value, and optionally filter by commander color identity
-        let query = `otag:${tag} mv:${mv}`;
-        if (commanderColorIdentity) {
-          query += ` id<=${commanderColorIdentity}`;
+        const query = `otag:${tag} mv:${mv}${ciFilter} order:edhrec`;
+        if (!searchCache.has(query)) {
+          await rateLimitDelay();
+          const { data: found = [] } = await searchCards(query);
+          searchCache.set(query, found);
         }
-        query += " order:edhrec";
-
-        await rateLimitDelay();
-        const { data: similar = [] } = await searchCards(query);
-        // Exclude the card itself and take the first 3
-        entry.similarCards = similar
-          .filter((s) => s.name.toLowerCase() !== entry.card.name.toLowerCase())
+        entry.similarCards = searchCache
+          .get(query)
+          .filter((s) => !deckNames.has(s.name.toLowerCase()))
           .slice(0, 3);
       }
 
@@ -276,7 +290,6 @@ function CategorySummary({ results }) {
 }
 
 function LookupResults({ results }) {
-  const [expandedIndex, setExpandedIndex] = useState(null);
   const foundCount = results.filter((r) => r.card).length;
 
   return (
@@ -298,20 +311,9 @@ function LookupResults({ results }) {
             </tr>
           </thead>
           <tbody>
-            {results.map((r, idx) => (
-              <React.Fragment key={r.index}>
-                <tr
-                  className={`static-row ${
-                    r.similarCards && r.similarCards.length > 0
-                      ? "expandable"
-                      : ""
-                  }`}
-                  onClick={() =>
-                    r.similarCards &&
-                    r.similarCards.length > 0 &&
-                    setExpandedIndex(expandedIndex === idx ? null : idx)
-                  }
-                >
+            {results.map((r) => (
+              <Fragment key={r.index}>
+                <tr className="static-row">
                   <td>{r.index + 1}</td>
                   <td>
                     {r.card ? (
@@ -344,14 +346,14 @@ function LookupResults({ results }) {
                     )}
                   </td>
                 </tr>
-                {expandedIndex === idx && r.similarCards && (
-                  <tr key={`similar-${r.index}`}>
+                {r.similarCards && (
+                  <tr>
                     <td colSpan="6" className="similar-cards-cell">
                       <SimilarCardsDetail similar={r.similarCards} />
                     </td>
                   </tr>
                 )}
-              </React.Fragment>
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -363,7 +365,7 @@ function LookupResults({ results }) {
 function SimilarCardsDetail({ similar }) {
   return (
     <div className="similar-cards">
-      <h4>Similar Cards (same tag &amp; mana value)</h4>
+      <h4>Similar cards (same tag &amp; mana value)</h4>
       {similar.length > 0 ? (
         <div className="similar-grid">
           {similar.map((card) => (
