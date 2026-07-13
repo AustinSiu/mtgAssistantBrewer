@@ -408,6 +408,7 @@ h3 {
   font-size: 0.8rem;
   color: #aaa;
   min-width: 160px;
+  max-width: 300px;
   padding-top: 0.25rem;
 }
 

@@ -125,6 +125,9 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await page.click('button[aria-label="Suggest alternatives for 33 A card 1"]');
   await expect(page.getByRole("link", { name: "Mana Vault" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Sol Ring" })).toHaveCount(0);
+  await expect(
+    page.getByText(/Suggestions are always driven by 33 A/)
+  ).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/05-suggestions.png` });
 
   // 6. Take a suggestion into a new sub-deck: 33 B appears, seeded with it

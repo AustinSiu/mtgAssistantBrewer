@@ -369,6 +369,7 @@ function DeckBrewer() {
                       title="Set as active sub-deck"
                     >
                       {SUB_DECK_NAMES[si]}
+                      {si === 0 && <span className="th-hint"> main</span>}
                       {si === activeIdx && (
                         <span className="badge-active">active</span>
                       )}
@@ -435,6 +436,7 @@ function DeckBrewer() {
                         )}
                         entry={lookup?.get(sd.cards[i].trim().toLowerCase())}
                         canSuggest={
+                          si === 0 && // suggestions are always driven by the main sub-deck
                           !!lookup &&
                           !!tagForCategory(slot.tag) &&
                           !!lookup.get(sd.cards[i].trim().toLowerCase())?.card
@@ -631,6 +633,12 @@ function SuggestionStrip({ suggestion, subDecks, onTake }) {
         <br />
         <span className="hint">
           otag:{source.tag} · mv={source.mv}
+        </span>
+        <br />
+        <span className="hint">
+          Suggestions are always driven by {SUB_DECK_NAMES[0]}, the main
+          sub-deck — if the sub-decks stay consistent, its card stands in
+          for the whole slot.
         </span>
       </div>
       {loading && <span className="hint">Searching…</span>}

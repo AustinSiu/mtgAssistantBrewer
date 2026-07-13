@@ -137,6 +137,15 @@ describe('DeckBrewer', () => {
     expect(within(rockRow).getAllByRole('cell').map((c) => c.textContent)).toEqual([
       'Mana Rock', '1', '1', '1',
     ]);
+
+    // Suggestions are driven by the main sub-deck only: 33 A gets the
+    // suggest button, 33 B does not even though its cell resolved too.
+    expect(
+      screen.getByRole('button', { name: 'Suggest alternatives for 33 A card 1' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Suggest alternatives for 33 B card 1' })
+    ).not.toBeInTheDocument();
   });
 
   it('suggests alternatives excluding cards already in the deck, and takes into another sub-deck', async () => {
