@@ -1,35 +1,56 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   lookupCollection,
   lookupFuzzy,
   rateLimitDelay,
   cardManaCost,
   cardTypeLine,
+  cardColorIdentity,
+  cardManaValue,
+  searchCards,
 } from "./scryfall";
 
 export const CARD_COUNT = 33;
 
-// Placeholder suggestions until the real category list is defined.
-const CATEGORY_SUGGESTIONS = [
-  "Land",
-  "Ramp",
-  "Card Draw",
-  "Removal",
-  "Board Wipe",
-  "Win Condition",
-  "Protection",
-  "Synergy",
-  "Other",
-];
+// Map user-facing categories to Scryfall functional oracle tags
+const CATEGORY_TO_TAG = {
+  Ramp: "ramp",
+  "Mana Rock": "mana-rock",
+  "Card Draw": "card-draw",
+  Tutor: "tutor",
+  Removal: "targeted-removal",
+  "Board Wipe": "board-wipe",
+  Counterspell: "counterspell",
+  Protection: "protection",
+  "Token Generator": "token-generator",
+  Reanimation: "reanimation",
+  "Grave Hate": "grave-hate",
+  Blink: "blink",
+  "Cost Reducer": "cost-reducer",
+  Aristocrat: "aristocrat",
+  Anthem: "anthem",
+};
+
+const CATEGORY_SUGGESTIONS = Object.keys(CATEGORY_TO_TAG);
+
+// Case-insensitive category → tag lookup so "ramp" works as well as "Ramp".
+const TAG_BY_CATEGORY = new Map(
+  Object.entries(CATEGORY_TO_TAG).map(([label, tag]) => [
+    label.toLowerCase(),
+    tag,
+  ])
+);
 
 const emptyRows = () =>
   Array.from({ length: CARD_COUNT }, () => ({ name: "", category: "" }));
 
 function DeckBrewer() {
+  const [commander, setCommander] = useState("");
   const [rows, setRows] = useState(emptyRows);
   const [status, setStatus] = useState("idle"); // idle | loading | done | error
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
+  const [commanderCard, setCommanderCard] = useState(null);
 
   const filledCount = rows.filter((row) => row.name.trim()).length;
 
@@ -40,10 +61,12 @@ function DeckBrewer() {
   }
 
   function clearAll() {
+    setCommander("");
     setRows(emptyRows());
     setResults(null);
     setStatus("idle");
     setError(null);
+    setCommanderCard(null);
   }
 
   async function handleSubmit(e) {
@@ -62,6 +85,19 @@ function DeckBrewer() {
     setResults(null);
 
     try {
+      // Look up the commander if provided to get its color identity.
+      let ciFilter = "";
+      if (commander.trim()) {
+        const cmdCard = await lookupFuzzy(commander.trim());
+        setCommanderCard(cmdCard);
+        if (cmdCard) {
+          // A colorless commander still restricts the deck to id<=c.
+          ciFilter = ` id<=${cardColorIdentity(cmdCard) || "c"}`;
+        }
+      } else {
+        setCommanderCard(null);
+      }
+
       const { data = [], not_found: notFound = [] } = await lookupCollection(
         filled.map((row) => row.name)
       );
@@ -89,6 +125,32 @@ function DeckBrewer() {
         }
       }
 
+      // For each tagged card, fetch up to 3 alternatives: same functional
+      // tag, same mana value, inside the commander's color identity.
+      // Identical queries are only fetched once, and cards already in the
+      // deck are not suggested.
+      const deckNames = new Set(
+        matched.filter((e) => e.card).map((e) => e.card.name.toLowerCase())
+      );
+      const searchCache = new Map();
+      for (const entry of matched) {
+        if (!entry.card) continue;
+        const tag = TAG_BY_CATEGORY.get(entry.category.toLowerCase());
+        if (!tag) continue;
+
+        const mv = cardManaValue(entry.card);
+        const query = `otag:${tag} mv:${mv}${ciFilter} order:edhrec`;
+        if (!searchCache.has(query)) {
+          await rateLimitDelay();
+          const { data: found = [] } = await searchCards(query);
+          searchCache.set(query, found);
+        }
+        entry.similarCards = searchCache
+          .get(query)
+          .filter((s) => !deckNames.has(s.name.toLowerCase()))
+          .slice(0, 3);
+      }
+
       setResults(matched);
       setStatus("done");
     } catch (err) {
@@ -107,6 +169,23 @@ function DeckBrewer() {
       </p>
 
       <form className="deck-form" onSubmit={handleSubmit}>
+        <div className="form-section">
+          <label htmlFor="commander">Commander (optional)</label>
+          <input
+            id="commander"
+            type="text"
+            placeholder="Commander card name"
+            value={commander}
+            onChange={(e) => setCommander(e.target.value)}
+            disabled={status === "loading"}
+          />
+          {commanderCard && (
+            <p className="hint">
+              Color identity: <strong>{cardColorIdentity(commanderCard) || "C"}</strong>
+            </p>
+          )}
+        </div>
+
         <div className="deck-grid">
           {rows.map((row, i) => (
             <div className="deck-row" key={i}>
@@ -233,42 +312,78 @@ function LookupResults({ results }) {
           </thead>
           <tbody>
             {results.map((r) => (
-              <tr key={r.index} className="static-row">
-                <td>{r.index + 1}</td>
-                <td>
-                  {r.card ? (
-                    <a
-                      href={r.card.scryfall_uri}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {r.card.name}
-                    </a>
-                  ) : (
-                    r.name
-                  )}
-                  {r.matchType === "fuzzy" && (
-                    <span className="hint"> (entered: {r.name})</span>
-                  )}
-                </td>
-                <td className="mana-cost">{r.card ? cardManaCost(r.card) : ""}</td>
-                <td>{r.card ? cardTypeLine(r.card) : ""}</td>
-                <td>{r.category || <span className="hint">—</span>}</td>
-                <td>
-                  {r.card ? (
-                    <span className={`badge badge-${r.matchType}`}>
-                      {r.matchType === "fuzzy" ? "fuzzy" : "found"}
-                    </span>
-                  ) : (
-                    <span className="badge badge-none">not found</span>
-                  )}
-                </td>
-              </tr>
+              <Fragment key={r.index}>
+                <tr className="static-row">
+                  <td>{r.index + 1}</td>
+                  <td>
+                    {r.card ? (
+                      <a
+                        href={r.card.scryfall_uri}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {r.card.name}
+                      </a>
+                    ) : (
+                      r.name
+                    )}
+                    {r.matchType === "fuzzy" && (
+                      <span className="hint"> (entered: {r.name})</span>
+                    )}
+                  </td>
+                  <td className="mana-cost">
+                    {r.card ? cardManaCost(r.card) : ""}
+                  </td>
+                  <td>{r.card ? cardTypeLine(r.card) : ""}</td>
+                  <td>{r.category || <span className="hint">—</span>}</td>
+                  <td>
+                    {r.card ? (
+                      <span className={`badge badge-${r.matchType}`}>
+                        {r.matchType === "fuzzy" ? "fuzzy" : "found"}
+                      </span>
+                    ) : (
+                      <span className="badge badge-none">not found</span>
+                    )}
+                  </td>
+                </tr>
+                {r.similarCards && (
+                  <tr>
+                    <td colSpan="6" className="similar-cards-cell">
+                      <SimilarCardsDetail similar={r.similarCards} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>
       </div>
     </>
+  );
+}
+
+function SimilarCardsDetail({ similar }) {
+  return (
+    <div className="similar-cards">
+      <h4>Similar cards (same tag &amp; mana value)</h4>
+      {similar.length > 0 ? (
+        <div className="similar-grid">
+          {similar.map((card) => (
+            <div key={card.id} className="similar-card">
+              <a href={card.scryfall_uri} target="_blank" rel="noreferrer">
+                {card.name}
+              </a>
+              <div className="card-details">
+                <span className="mana-cost">{cardManaCost(card)}</span>
+                <span className="card-type">{cardTypeLine(card)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="hint">No similar cards found with this tag and mana value.</p>
+      )}
+    </div>
   );
 }
 
