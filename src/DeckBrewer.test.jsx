@@ -1,29 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import DeckBrewer, { CARD_COUNT } from './DeckBrewer';
-
-function mockCard(name, overrides = {}) {
-  return {
-    name,
-    mana_cost: '{1}{G}',
-    type_line: 'Creature — Elf Druid',
-    scryfall_uri: `https://scryfall.com/card/test/${encodeURIComponent(name)}`,
-    cmc: 2,
-    color_identity: ['G'],
-    id: `id-${name}`,
-    ...overrides,
-  };
-}
-
-const CATALOG = [
-  "Atraxa, Praetors' Voice",
-  'Llanowar Elves',
-  'Elvish Mystic',
-  'Sol Ring',
-  'Counterspell',
-  'Beast Within',
-  'Not A Real Card',
-];
+import { clearAutocompleteCache } from './scryfall';
+import { card as mockCard, catalogMatches } from '../test/fixtures';
 
 const ok = (data) => ({ ok: true, json: async () => data });
 
@@ -39,13 +18,11 @@ function setupFetch(routes) {
   });
 }
 
-// Serves name suggestions from CATALOG; tests layer lookup routes on top.
+// Serves name suggestions from the shared catalog; tests layer lookup
+// routes on top.
 const autocompleteRoute = [
   'cards/autocomplete',
-  (url) => {
-    const q = url.split('q=')[1].toLowerCase();
-    return ok({ data: CATALOG.filter((n) => n.toLowerCase().includes(q)) });
-  },
+  (url) => ok({ data: catalogMatches(url.split('q=')[1]) }),
 ];
 
 // Types into an autocomplete field and commits a name from the suggestions.
@@ -56,6 +33,7 @@ async function pick(label, typed, fullName) {
 
 describe('DeckBrewer', () => {
   beforeEach(() => {
+    clearAutocompleteCache();
     vi.stubGlobal('fetch', vi.fn());
     setupFetch([autocompleteRoute]);
   });
