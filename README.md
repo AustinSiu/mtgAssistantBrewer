@@ -31,6 +31,21 @@ npm run dev
 npm test
 ```
 
+## E2E & PR Screenshots
+
+The Playwright suite drives the full customer journey against the production
+build and writes the screenshots (`docs/screenshots/`) that every pull
+request description must embed (see `.claude/skills/pr-screenshots/`):
+
+```
+npx playwright install chromium   # first time only
+npm run build
+npm run e2e
+```
+
+Scryfall responses are stubbed for determinism; set `SCRYFALL_LIVE=1` to hit
+the real API.
+
 ## CLI Version
 
 A standalone Python script is also included:
