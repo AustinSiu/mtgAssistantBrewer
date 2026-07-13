@@ -29,6 +29,7 @@ export const CATALOG = [
   "Rhystic Study",
   "Wrath of God",
   "Beast Within",
+  "Mountain",
   "Not A Real Card",
 ];
 

@@ -36,79 +36,101 @@ const TAG_BY_CATEGORY = new Map(
   ])
 );
 
+/** Scryfall oracle tag for a slot's category, or undefined if none maps. */
+export function tagForCategory(category) {
+  return TAG_BY_CATEGORY.get(category.trim().toLowerCase());
+}
+
 /**
- * The full deck-brew lookup pipeline. Takes the commander name and the raw
- * form rows ({ name, category }) and returns:
- *
- *   commanderCard — the resolved commander (or null),
- *   results       — one entry per non-empty row: { index, name, category,
- *                   card, matchType: "exact"|"fuzzy"|"none",
- *                   similarCards?: Card[] (only on tagged rows) }
+ * The only cards exempt from the Commander singleton rule — the same basic
+ * land may appear in any number of sub-decks.
  */
-export async function brewDeck({ commander, rows }) {
-  const filled = rows
-    .map((row, index) => ({
-      index,
-      name: row.name.trim(),
-      category: row.category.trim(),
-    }))
-    .filter((row) => row.name);
+export const BASIC_LAND_NAMES = new Set(
+  ["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"].flatMap(
+    (n) => [n.toLowerCase(), `snow-covered ${n.toLowerCase()}`]
+  )
+);
 
-  // The commander lookup and the batch lookup are independent.
-  const [commanderCard, { data = [], not_found: notFound = [] }] =
-    await Promise.all([
-      lookupFuzzy(commander.trim()),
-      lookupCollection(filled.map((row) => row.name)),
-    ]);
+// Scryfall's collection endpoint takes at most 75 identifiers per request.
+const COLLECTION_CHUNK = 75;
 
-  // `data` preserves request order for the names that were found, so
-  // walk the requested rows and consume it as a queue.
-  const missed = new Set(notFound.map((id) => id.name.toLowerCase()));
-  const queue = [...data];
-  const results = filled.map((row) => {
-    if (missed.has(row.name.toLowerCase())) {
-      return { ...row, card: null, matchType: "none" };
+/**
+ * Resolve the commander plus every unique card name in the matrix.
+ *
+ * Returns { commanderCard, cardsByName } where cardsByName maps the
+ * lowercased input name to { card, matchType: "exact"|"fuzzy"|"none" }.
+ */
+export async function lookupDeckCards({ commander, names }) {
+  const unique = [...new Map(names.map((n) => [n.toLowerCase(), n])).values()];
+
+  const chunks = [];
+  for (let i = 0; i < unique.length; i += COLLECTION_CHUNK) {
+    chunks.push(unique.slice(i, i + COLLECTION_CHUNK));
+  }
+
+  // The commander lookup and the batch lookups are independent.
+  const [commanderCard, ...collections] = await Promise.all([
+    lookupFuzzy(commander.trim()),
+    ...chunks.map((chunk) => lookupCollection(chunk)),
+  ]);
+
+  const cardsByName = new Map();
+  chunks.forEach((chunk, i) => {
+    const { data = [], not_found: notFound = [] } = collections[i];
+    const missed = new Set(notFound.map((id) => id.name.toLowerCase()));
+    // `data` preserves request order for the names that were found, so
+    // walk the requested chunk and consume it as a queue.
+    const queue = [...data];
+    for (const name of chunk) {
+      const key = name.toLowerCase();
+      if (missed.has(key)) {
+        cardsByName.set(key, { card: null, matchType: "none" });
+      } else {
+        cardsByName.set(key, {
+          card: queue.shift() ?? null,
+          matchType: "exact",
+        });
+      }
     }
-    return { ...row, card: queue.shift() ?? null, matchType: "exact" };
   });
 
   // Retry misses with fuzzy matching, one at a time to respect Scryfall's
   // rate-limit guidance. Names come from autocomplete so this should be
   // rare, but it still catches spellings the collection endpoint rejects
   // (e.g. single faces of double-faced cards).
-  for (const entry of results) {
+  for (const [key, entry] of cardsByName) {
     if (entry.card) continue;
     await rateLimitDelay();
-    const card = await lookupFuzzy(entry.name);
+    const card = await lookupFuzzy(key);
     if (card) {
-      entry.card = card;
-      entry.matchType = "fuzzy";
+      cardsByName.set(key, { card, matchType: "fuzzy" });
     }
   }
 
-  // For each tagged card, fetch up to 3 alternatives filling the same role.
-  // Identical queries are only fetched once, and cards already in the deck
-  // are not suggested.
-  const deckNames = new Set(
-    results.filter((e) => e.card).map((e) => e.card.name.toLowerCase())
-  );
-  const searchCache = new Map();
-  for (const entry of results) {
-    if (!entry.card) continue;
-    const tag = TAG_BY_CATEGORY.get(entry.category.toLowerCase());
-    if (!tag) continue;
+  return { commanderCard, cardsByName };
+}
 
-    const query = buildSimilarQuery(tag, cardManaValue(entry.card), commanderCard);
-    if (!searchCache.has(query)) {
-      await rateLimitDelay();
-      const { data: found = [] } = await searchCards(query);
-      searchCache.set(query, found);
-    }
-    entry.similarCards = searchCache
-      .get(query)
-      .filter((s) => !deckNames.has(s.name.toLowerCase()))
-      .slice(0, 3);
+// Similar-card results are stable per query; fetched once per session.
+const similarCache = new Map();
+
+/** Test hook: reset the module-level similar-cards cache between tests. */
+export function clearSimilarCache() {
+  similarCache.clear();
+}
+
+/**
+ * Up to 3 alternatives filling the same role as `card`: same oracle tag,
+ * same mana value, inside the commander's color identity — excluding names
+ * already used anywhere in the deck (Commander singleton).
+ */
+export async function fetchSimilar({ card, tag, commanderCard, excludeNames }) {
+  const query = buildSimilarQuery(tag, cardManaValue(card), commanderCard);
+  if (!similarCache.has(query)) {
+    const { data: found = [] } = await searchCards(query);
+    similarCache.set(query, found);
   }
-
-  return { commanderCard, results };
+  return similarCache
+    .get(query)
+    .filter((s) => !excludeNames.has(s.name.toLowerCase()))
+    .slice(0, 3);
 }
