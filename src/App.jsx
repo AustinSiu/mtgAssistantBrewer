@@ -27,7 +27,7 @@ function App() {
       <div hidden={tab !== "brewer"}>
         <DeckBrewer />
       </div>
-      <div hidden={tab !== "calculator"}>
+      <div hidden={tab !== "calculator"} className="calc-pane">
         <LandCalculator />
       </div>
     </div>

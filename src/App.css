@@ -1,7 +1,12 @@
 .app {
-  max-width: 720px;
+  max-width: 1140px;
   margin: 0 auto;
   padding: 2rem 1rem;
+}
+
+.calc-pane > div {
+  max-width: 720px;
+  margin: 0 auto;
 }
 
 /* ---- Tabs ---- */
@@ -62,7 +67,7 @@ h3 {
   font-size: 0.85rem;
 }
 
-/* ---- Form ---- */
+/* ---- Calculator form ---- */
 
 .form {
   display: flex;
@@ -118,7 +123,7 @@ h3 {
   color: #fff;
 }
 
-/* ---- Commander input ---- */
+/* ---- Commander section ---- */
 
 .form-section {
   margin-bottom: 1.5rem;
@@ -176,6 +181,7 @@ h3 {
   max-height: 240px;
   overflow-y: auto;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  min-width: 220px;
 }
 
 .suggestions li {
@@ -199,46 +205,297 @@ h3 {
   background: transparent;
 }
 
-/* ---- Deck brewer form ---- */
+/* ---- Matrix ---- */
 
-.deck-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+.matrix-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
-.deck-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
 }
 
-.row-num {
-  width: 1.6rem;
-  text-align: right;
+.matrix-table th {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 2px solid #444;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #aaa;
+  white-space: nowrap;
+}
+
+.th-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  color: #666;
+  font-weight: 400;
+}
+
+.matrix-table th.sub-col {
+  border-bottom-width: 3px;
+}
+
+.matrix-table th.col-0 {
+  border-bottom-color: #5a9e63;
+}
+
+.matrix-table th.col-1 {
+  border-bottom-color: #c06a55;
+}
+
+.matrix-table th.col-2 {
+  border-bottom-color: #8b7fd4;
+}
+
+.sub-name {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sub-name:hover {
+  color: #646cff;
+}
+
+.badge-active {
+  background: #646cff;
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  font-size: 0.65rem;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 0.4rem;
+}
+
+.sub-remove {
+  background: none;
+  border: none;
+  color: #777;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-left: 0.4rem;
+  padding: 0 0.15rem;
+}
+
+.sub-remove:hover {
+  color: #ff8a8a;
+}
+
+.matrix-table td {
+  padding: 0.25rem 0.3rem;
+  border-bottom: 1px solid #2a2a2a;
+  vertical-align: top;
+}
+
+.matrix-table td.num {
   color: #888;
-  font-size: 0.85rem;
+  text-align: right;
+  font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+  padding-top: 0.6rem;
+  width: 1.8rem;
 }
 
-.deck-row input {
-  padding: 0.4rem 0.6rem;
+.matrix-table input {
+  padding: 0.35rem 0.5rem;
   border-radius: 6px;
   border: 1px solid #555;
   background: #1a1a1a;
   color: inherit;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   min-width: 0;
+  width: 100%;
 }
 
-.deck-row .autocomplete {
-  flex: 2;
+.note-col,
+.tag-col {
+  width: 13%;
 }
 
-.deck-row .card-category {
+.cell-td.active {
+  background: rgba(100, 108, 255, 0.08);
+}
+
+.cell-td.flagged input {
+  border-color: #e8a33d;
+}
+
+.cell-td.dup input,
+.cell-td.notfound input {
+  border-color: #d9534f;
+}
+
+.cell-wrap {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.cell-wrap .autocomplete {
   flex: 1;
 }
+
+.suggest-btn {
+  background: none;
+  border: 1px solid #555;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.35rem;
+  line-height: 1;
+}
+
+.suggest-btn:hover {
+  border-color: #646cff;
+}
+
+.cell-note {
+  font-size: 0.72rem;
+  margin-top: 0.15rem;
+  line-height: 1.3;
+}
+
+.flag-note {
+  color: #e8a33d;
+}
+
+.dup-note {
+  color: #ff8a8a;
+}
+
+.dismiss {
+  background: none;
+  border: 1px solid #e8a33d;
+  color: #e8a33d;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  margin-left: 0.35rem;
+  padding: 0 0.3rem;
+}
+
+.dismiss:hover {
+  background: #e8a33d;
+  color: #1a1a1a;
+}
+
+/* ---- Suggestion strip ---- */
+
+.sugg-row td {
+  background: #16161e;
+  padding: 0.5rem 0.75rem;
+}
+
+.sugg-strip {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.sugg-label {
+  font-size: 0.8rem;
+  color: #aaa;
+  min-width: 160px;
+  padding-top: 0.25rem;
+}
+
+.sugg {
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #1a1a2a;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.83rem;
+}
+
+.sugg a {
+  color: #8b92ff;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.sugg a:hover {
+  text-decoration: underline;
+}
+
+.sugg .meta {
+  color: #999;
+  font-size: 0.76rem;
+  margin: 0.15rem 0 0.4rem;
+}
+
+.take {
+  border: 1px solid #646cff;
+  color: #8b92ff;
+  background: transparent;
+  border-radius: 5px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  margin-right: 0.3rem;
+}
+
+.take:hover {
+  background: #646cff;
+  color: #fff;
+}
+
+/* ---- Modal ---- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.modal {
+  background: #1e1e2e;
+  border: 1px solid #444;
+  border-radius: 10px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
+  padding: 1.1rem 1.25rem;
+  max-width: 480px;
+}
+
+.modal h3 {
+  margin-top: 0;
+}
+
+.modal p {
+  font-size: 0.88rem;
+  color: #bbb;
+}
+
+.modal .actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.dont-warn {
+  display: block;
+  margin-top: 0.8rem;
+  font-size: 0.78rem;
+  color: #888;
+}
+
+/* ---- Form actions ---- */
 
 .form-actions {
   display: flex;
@@ -270,8 +527,6 @@ h3 {
   margin-top: 1rem;
 }
 
-/* ---- Lookup results ---- */
-
 .static-row {
   cursor: default;
 }
@@ -280,104 +535,12 @@ h3 {
   background: transparent;
 }
 
-.results-table a {
-  color: #8b92ff;
-}
-
 .mana-cost {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-.badge {
-  display: inline-block;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.badge-exact {
-  background: #1e3a2a;
-  color: #6fdc8c;
-}
-
-.badge-fuzzy {
-  background: #3a331e;
-  color: #e8c468;
-}
-
-.badge-none {
-  background: #3a1e1e;
-  color: #ff8a8a;
-}
-
-/* ---- Similar cards ---- */
-
-.summary-table td.similar-cards-cell {
-  padding: 0.75rem 1rem;
-  background: #16161e;
-}
-
-.similar-cards {
-  padding: 0.25rem 0;
-}
-
-.similar-cards h4 {
-  margin: 0 0 0.75rem 0;
-  font-size: 0.95rem;
-  color: #8b92ff;
-}
-
-.similar-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.75rem;
-}
-
-.similar-card {
-  padding: 0.75rem;
-  border: 1px solid #444;
-  border-radius: 6px;
-  background: #1a1a2a;
-  transition: border-color 0.15s;
-}
-
-.similar-card:hover {
-  border-color: #646cff;
-}
-
-.similar-card a {
-  color: #8b92ff;
-  text-decoration: none;
-  display: block;
-  font-weight: 500;
-  margin-bottom: 0.5rem;
-}
-
-.similar-card a:hover {
-  text-decoration: underline;
-}
-
-.card-details {
-  display: flex;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  color: #aaa;
-  flex-wrap: wrap;
-}
-
-.card-details .mana-cost {
-  font-weight: 500;
-  color: #ccc;
-}
-
-.card-details .card-type {
-  flex: 1;
-  text-align: right;
-}
-
-/* ---- Tables ---- */
+/* ---- Tables (calculator + composition summary) ---- */
 
 .table-wrap {
   overflow-x: auto;
@@ -473,28 +636,103 @@ h3 {
     color: #fff;
   }
 
-  .deck-row input {
+  .form-section {
+    border-bottom-color: #ddd;
+  }
+
+  .form-section input[type="text"] {
     background: #fff;
     border-color: #ccc;
   }
 
-  .results-table a {
+  .required {
+    color: #c03030;
+  }
+
+  .suggestions {
+    background: #fff;
+    border-color: #ccc;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  .suggestions li:hover,
+  .suggestions li.highlighted {
+    background: #e8e8ff;
+  }
+
+  .suggestions li.no-match:hover {
+    background: transparent;
+  }
+
+  .matrix-table th {
+    border-bottom-color: #ccc;
+    color: #666;
+  }
+
+  .matrix-table td {
+    border-bottom-color: #eee;
+  }
+
+  .matrix-table input {
+    background: #fff;
+    border-color: #ccc;
+  }
+
+  .cell-td.active {
+    background: rgba(100, 108, 255, 0.07);
+  }
+
+  .cell-td.flagged input {
+    border-color: #b07a1a;
+  }
+
+  .flag-note {
+    color: #b07a1a;
+  }
+
+  .dup-note {
+    color: #c03030;
+  }
+
+  .dismiss {
+    border-color: #b07a1a;
+    color: #b07a1a;
+  }
+
+  .dismiss:hover {
+    background: #b07a1a;
+    color: #fff;
+  }
+
+  .suggest-btn {
+    border-color: #ccc;
+  }
+
+  .sugg-row td {
+    background: #f4f4fa;
+  }
+
+  .sugg {
+    background: #fff;
+    border-color: #ddd;
+  }
+
+  .sugg a,
+  .take {
     color: #4a52d4;
   }
 
-  .badge-exact {
-    background: #dff5e5;
-    color: #1a7a38;
+  .take:hover {
+    color: #fff;
   }
 
-  .badge-fuzzy {
-    background: #f8f0d5;
-    color: #8a6d1a;
+  .modal {
+    background: #fff;
+    border-color: #ddd;
   }
 
-  .badge-none {
-    background: #fde3e3;
-    color: #c03030;
+  .modal p {
+    color: #555;
   }
 
   .preset {
@@ -530,62 +768,5 @@ h3 {
   .detail {
     background: #f8f8ff;
     border-color: #ddd;
-  }
-
-  .form-section {
-    border-bottom-color: #ddd;
-  }
-
-  .form-section input[type="text"] {
-    background: #fff;
-    border-color: #ccc;
-  }
-
-  .required {
-    color: #c03030;
-  }
-
-  .suggestions {
-    background: #fff;
-    border-color: #ccc;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-  }
-
-  .suggestions li:hover,
-  .suggestions li.highlighted {
-    background: #e8e8ff;
-  }
-
-  .suggestions li.no-match:hover {
-    background: transparent;
-  }
-
-  .summary-table td.similar-cards-cell {
-    background: #f4f4fa;
-  }
-
-  .similar-card {
-    border-color: #ddd;
-    background: #fff;
-  }
-
-  .similar-card:hover {
-    border-color: #646cff;
-  }
-
-  .similar-card a {
-    color: #4a52d4;
-  }
-
-  .card-details {
-    color: #666;
-  }
-
-  .card-details .mana-cost {
-    color: #333;
-  }
-
-  .similar-cards h4 {
-    color: #4a52d4;
   }
 }
