@@ -24,4 +24,8 @@ dist-ssr
 *.sw?
 
 # Claude Code
-.claude
+.claude/settings.local.json
+
+# Playwright
+test-results/
+playwright-report/
