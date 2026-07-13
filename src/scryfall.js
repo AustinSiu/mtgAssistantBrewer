@@ -1,5 +1,12 @@
 const API_BASE = "https://api.scryfall.com";
 
+/** GET a Scryfall API path with the standard headers. */
+function scryfallGet(path) {
+  return fetch(`${API_BASE}${path}`, {
+    headers: { Accept: "application/json" },
+  });
+}
+
 /**
  * Look up a batch of card names (up to 75) in a single request using
  * Scryfall's collection endpoint. Names must match exactly
@@ -29,13 +36,14 @@ export async function lookupCollection(names) {
  * finds no (or an ambiguous) match.
  */
 export async function lookupFuzzy(name) {
-  const res = await fetch(
-    `${API_BASE}/cards/named?fuzzy=${encodeURIComponent(name)}`,
-    { headers: { Accept: "application/json" } }
-  );
+  const res = await scryfallGet(`/cards/named?fuzzy=${encodeURIComponent(name)}`);
   if (!res.ok) return null;
   return res.json();
 }
+
+// Autocomplete results for a given partial are stable, so identical queries
+// (same field re-typed, or any of the 34 name fields) are served from memory.
+const autocompleteCache = new Map();
 
 /**
  * Card-name autocompletion. Returns up to 20 catalog names matching the
@@ -43,13 +51,21 @@ export async function lookupFuzzy(name) {
  * failure — suggestions are best-effort.
  */
 export async function autocompleteCardNames(partial) {
-  const res = await fetch(
-    `${API_BASE}/cards/autocomplete?q=${encodeURIComponent(partial)}`,
-    { headers: { Accept: "application/json" } }
+  const key = partial.toLowerCase();
+  if (autocompleteCache.has(key)) return autocompleteCache.get(key);
+  const res = await scryfallGet(
+    `/cards/autocomplete?q=${encodeURIComponent(partial)}`
   );
-  if (!res.ok) return [];
+  if (!res.ok) return []; // failures are not cached
   const json = await res.json();
-  return json.data ?? [];
+  const names = json.data ?? [];
+  autocompleteCache.set(key, names);
+  return names;
+}
+
+/** Test hook: reset the module-level autocomplete cache between tests. */
+export function clearAutocompleteCache() {
+  autocompleteCache.clear();
 }
 
 /** Scryfall asks for 50-100ms between requests. */
@@ -91,11 +107,22 @@ export function cardManaValue(card) {
   return card.cmc ?? 0;
 }
 
+/**
+ * Query for cards filling the same functional role: same oracle tag, same
+ * mana value, and (when a commander is given) inside its color identity —
+ * a colorless commander still restricts to id<=c.
+ */
+export function buildSimilarQuery(tag, manaValue, commanderCard) {
+  const ci = commanderCard
+    ? ` id<=${cardColorIdentity(commanderCard) || "c"}`
+    : "";
+  return `otag:${tag} mv:${manaValue}${ci} order:edhrec`;
+}
+
 /** Search Scryfall for cards matching criteria using advanced query syntax. */
 export async function searchCards(query) {
-  const res = await fetch(
-    `${API_BASE}/cards/search?q=${encodeURIComponent(query)}&unique=cards`,
-    { headers: { Accept: "application/json" } }
+  const res = await scryfallGet(
+    `/cards/search?q=${encodeURIComponent(query)}&unique=cards`
   );
   if (!res.ok) {
     if (res.status === 404) return { data: [] };

@@ -7,63 +7,47 @@ import { test, expect } from "@playwright/test";
 // deterministic and works offline. Set SCRYFALL_LIVE=1 to skip the stubs
 // and exercise the real API (subject to rate limits and data drift).
 
+import { card, catalogMatches } from "../test/fixtures.js";
+
 const SCREENSHOT_DIR = "docs/screenshots";
 
-const card = (name, mana_cost, type_line, cmc, color_identity) => ({
-  name,
-  mana_cost,
-  type_line,
-  cmc,
-  color_identity,
-  id: `id-${name}`,
-  scryfall_uri: `https://scryfall.com/card/x/${encodeURIComponent(name)}`,
-});
-
-const CATALOG = [
-  "Atraxa, Grand Unifier",
-  "Atraxa, Praetors' Voice",
-  "Llanowar Elves",
-  "Sol Ring",
-  "Swords to Plowshares",
-  "Counterspell",
-  "Cultivate",
-  "Rhystic Study",
-  "Wrath of God",
-  "Beast Within",
-];
+const instant = (name, mana_cost, cmc, color_identity) =>
+  card(name, { mana_cost, type_line: "Instant", cmc, color_identity });
+const sorcery = (name, mana_cost, cmc, color_identity) =>
+  card(name, { mana_cost, type_line: "Sorcery", cmc, color_identity });
 
 const SUGGESTIONS = {
   "otag:mana-rock mv:1": [
-    card("Mana Vault", "{1}", "Artifact", 1, []),
-    card("Sol Talisman", "{1}", "Artifact", 1, []),
+    card("Mana Vault", { mana_cost: "{1}", type_line: "Artifact", cmc: 1, color_identity: [] }),
+    card("Sol Talisman", { mana_cost: "{1}", type_line: "Artifact", cmc: 1, color_identity: [] }),
   ],
   "otag:targeted-removal mv:1": [
-    card("Path to Exile", "{W}", "Instant", 1, ["W"]),
-    card("Condemn", "{W}", "Instant", 1, ["W"]),
-    card("Fatal Push", "{B}", "Instant", 1, ["B"]),
+    instant("Path to Exile", "{W}", 1, ["W"]),
+    instant("Condemn", "{W}", 1, ["W"]),
+    instant("Fatal Push", "{B}", 1, ["B"]),
   ],
   "otag:counterspell mv:2": [
-    card("Negate", "{1}{U}", "Instant", 2, ["U"]),
-    card("Arcane Denial", "{1}{U}", "Instant", 2, ["U"]),
-    card("Remand", "{1}{U}", "Instant", 2, ["U"]),
+    instant("Negate", "{1}{U}", 2, ["U"]),
+    instant("Arcane Denial", "{1}{U}", 2, ["U"]),
+    instant("Remand", "{1}{U}", 2, ["U"]),
   ],
   "otag:ramp mv:3": [
-    card("Kodama's Reach", "{2}{G}", "Sorcery — Arcane", 3, ["G"]),
-    card("Harrow", "{2}{G}", "Instant", 3, ["G"]),
-    card("Grow from the Ashes", "{2}{G}", "Sorcery", 3, ["G"]),
+    sorcery("Kodama's Reach", "{2}{G}", 3, ["G"]),
+    instant("Harrow", "{2}{G}", 3, ["G"]),
+    sorcery("Grow from the Ashes", "{2}{G}", 3, ["G"]),
   ],
   "otag:card-draw mv:3": [
-    card("Phyrexian Arena", "{1}{B}{B}", "Enchantment", 3, ["B"]),
-    card("Verity Circle", "{2}{U}", "Enchantment", 3, ["U"]),
+    card("Phyrexian Arena", { mana_cost: "{1}{B}{B}", type_line: "Enchantment", cmc: 3, color_identity: ["B"] }),
+    card("Verity Circle", { mana_cost: "{2}{U}", type_line: "Enchantment", cmc: 3, color_identity: ["U"] }),
   ],
   "otag:board-wipe mv:4": [
-    card("Day of Judgment", "{2}{W}{W}", "Sorcery", 4, ["W"]),
-    card("Damnation", "{2}{B}{B}", "Sorcery", 4, ["B"]),
-    card("Languish", "{2}{B}{B}", "Sorcery", 4, ["B"]),
+    sorcery("Day of Judgment", "{2}{W}{W}", 4, ["W"]),
+    sorcery("Damnation", "{2}{B}{B}", 4, ["B"]),
+    sorcery("Languish", "{2}{B}{B}", 4, ["B"]),
   ],
   "otag:targeted-removal mv:3": [
-    card("Generous Gift", "{2}{W}", "Instant", 3, ["W"]),
-    card("Anguished Unmaking", "{1}{W}{B}", "Instant", 3, ["W", "B"]),
+    instant("Generous Gift", "{2}{W}", 3, ["W"]),
+    instant("Anguished Unmaking", "{1}{W}{B}", 3, ["W", "B"]),
   ],
 };
 
@@ -73,20 +57,16 @@ async function stubScryfall(page) {
     // "otag%3Aramp", which naive matching silently misses.
     const url = decodeURIComponent(route.request().url());
     if (url.includes("/cards/autocomplete")) {
-      const q = url.split("q=")[1].toLowerCase();
-      return route.fulfill({
-        json: { data: CATALOG.filter((n) => n.toLowerCase().includes(q)) },
-      });
+      return route.fulfill({ json: { data: catalogMatches(url.split("q=")[1]) } });
     }
     if (url.includes("fuzzy=Atraxa")) {
       return route.fulfill({
-        json: card(
-          "Atraxa, Praetors' Voice",
-          "{G}{W}{U}{B}",
-          "Legendary Creature — Phyrexian Angel Horror",
-          4,
-          ["W", "U", "B", "G"]
-        ),
+        json: card("Atraxa, Praetors' Voice", {
+          mana_cost: "{G}{W}{U}{B}",
+          type_line: "Legendary Creature — Phyrexian Angel Horror",
+          cmc: 4,
+          color_identity: ["W", "U", "B", "G"],
+        }),
       });
     }
     if (url.includes("/cards/collection")) {
@@ -94,13 +74,13 @@ async function stubScryfall(page) {
       return route.fulfill({
         json: {
           data: [
-            card("Sol Ring", "{1}", "Artifact", 1, []),
-            card("Swords to Plowshares", "{W}", "Instant", 1, ["W"]),
-            card("Counterspell", "{U}{U}", "Instant", 2, ["U"]),
-            card("Cultivate", "{2}{G}", "Sorcery", 3, ["G"]),
-            card("Rhystic Study", "{2}{U}", "Enchantment", 3, ["U"]),
-            card("Wrath of God", "{2}{W}{W}", "Sorcery", 4, ["W"]),
-            card("Beast Within", "{2}{G}", "Instant", 3, ["G"]),
+            card("Sol Ring", { mana_cost: "{1}", type_line: "Artifact", cmc: 1, color_identity: [] }),
+            instant("Swords to Plowshares", "{W}", 1, ["W"]),
+            instant("Counterspell", "{U}{U}", 2, ["U"]),
+            sorcery("Cultivate", "{2}{G}", 3, ["G"]),
+            card("Rhystic Study", { mana_cost: "{2}{U}", type_line: "Enchantment", cmc: 3, color_identity: ["U"] }),
+            sorcery("Wrath of God", "{2}{W}{W}", 4, ["W"]),
+            instant("Beast Within", "{2}{G}", 3, ["G"]),
           ],
           not_found: [],
         },

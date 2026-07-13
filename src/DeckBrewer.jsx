@@ -1,46 +1,9 @@
 import { Fragment, useState } from "react";
 import CardNameInput from "./CardNameInput";
-import {
-  lookupCollection,
-  lookupFuzzy,
-  rateLimitDelay,
-  cardManaCost,
-  cardTypeLine,
-  cardColorIdentity,
-  cardManaValue,
-  searchCards,
-} from "./scryfall";
+import { brewDeck, CATEGORY_SUGGESTIONS } from "./brew";
+import { cardManaCost, cardTypeLine, cardColorIdentity } from "./scryfall";
 
 export const CARD_COUNT = 33;
-
-// Map user-facing categories to Scryfall functional oracle tags
-const CATEGORY_TO_TAG = {
-  Ramp: "ramp",
-  "Mana Rock": "mana-rock",
-  "Card Draw": "card-draw",
-  Tutor: "tutor",
-  Removal: "targeted-removal",
-  "Board Wipe": "board-wipe",
-  Counterspell: "counterspell",
-  Protection: "protection",
-  "Token Generator": "token-generator",
-  Reanimation: "reanimation",
-  "Grave Hate": "grave-hate",
-  Blink: "blink",
-  "Cost Reducer": "cost-reducer",
-  Aristocrat: "aristocrat",
-  Anthem: "anthem",
-};
-
-const CATEGORY_SUGGESTIONS = Object.keys(CATEGORY_TO_TAG);
-
-// Case-insensitive category → tag lookup so "ramp" works as well as "Ramp".
-const TAG_BY_CATEGORY = new Map(
-  Object.entries(CATEGORY_TO_TAG).map(([label, tag]) => [
-    label.toLowerCase(),
-    tag,
-  ])
-);
 
 const emptyRows = () =>
   Array.from({ length: CARD_COUNT }, () => ({ name: "", category: "" }));
@@ -54,6 +17,8 @@ function DeckBrewer() {
   const [commanderCard, setCommanderCard] = useState(null);
 
   const filledCount = rows.filter((row) => row.name.trim()).length;
+  const hasCommander = commander.trim() !== "";
+  const canSubmit = hasCommander && filledCount > 0;
 
   function updateRow(index, field, value) {
     setRows((prev) =>
@@ -72,83 +37,16 @@ function DeckBrewer() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const filled = rows
-      .map((row, index) => ({
-        index,
-        name: row.name.trim(),
-        category: row.category.trim(),
-      }))
-      .filter((row) => row.name);
-    if (filled.length === 0 || !commander.trim()) return;
+    if (!canSubmit) return;
 
     setStatus("loading");
     setError(null);
     setResults(null);
 
     try {
-      // Look up the commander to get its color identity.
-      let ciFilter = "";
-      const cmdCard = await lookupFuzzy(commander.trim());
-      setCommanderCard(cmdCard);
-      if (cmdCard) {
-        // A colorless commander still restricts the deck to id<=c.
-        ciFilter = ` id<=${cardColorIdentity(cmdCard) || "c"}`;
-      }
-
-      const { data = [], not_found: notFound = [] } = await lookupCollection(
-        filled.map((row) => row.name)
-      );
-
-      // `data` preserves request order for the names that were found, so
-      // walk the requested rows and consume it as a queue.
-      const missed = new Set(notFound.map((id) => id.name.toLowerCase()));
-      const queue = [...data];
-      const matched = filled.map((row) => {
-        if (missed.has(row.name.toLowerCase())) {
-          return { ...row, card: null, matchType: "none" };
-        }
-        return { ...row, card: queue.shift() ?? null, matchType: "exact" };
-      });
-
-      // Retry misses with fuzzy matching (catches typos), one at a time to
-      // respect Scryfall's rate-limit guidance.
-      for (const entry of matched) {
-        if (entry.card) continue;
-        await rateLimitDelay();
-        const card = await lookupFuzzy(entry.name);
-        if (card) {
-          entry.card = card;
-          entry.matchType = "fuzzy";
-        }
-      }
-
-      // For each tagged card, fetch up to 3 alternatives: same functional
-      // tag, same mana value, inside the commander's color identity.
-      // Identical queries are only fetched once, and cards already in the
-      // deck are not suggested.
-      const deckNames = new Set(
-        matched.filter((e) => e.card).map((e) => e.card.name.toLowerCase())
-      );
-      const searchCache = new Map();
-      for (const entry of matched) {
-        if (!entry.card) continue;
-        const tag = TAG_BY_CATEGORY.get(entry.category.toLowerCase());
-        if (!tag) continue;
-
-        const mv = cardManaValue(entry.card);
-        const query = `otag:${tag} mv:${mv}${ciFilter} order:edhrec`;
-        if (!searchCache.has(query)) {
-          await rateLimitDelay();
-          const { data: found = [] } = await searchCards(query);
-          searchCache.set(query, found);
-        }
-        entry.similarCards = searchCache
-          .get(query)
-          .filter((s) => !deckNames.has(s.name.toLowerCase()))
-          .slice(0, 3);
-      }
-
-      setResults(matched);
+      const brewed = await brewDeck({ commander, rows });
+      setCommanderCard(brewed.commanderCard);
+      setResults(brewed.results);
       setStatus("done");
     } catch (err) {
       setError(err.message);
@@ -218,7 +116,7 @@ function DeckBrewer() {
         <div className="form-actions">
           <span className="hint">
             {filledCount} of {CARD_COUNT} cards entered
-            {!commander.trim() && " — commander required"}
+            {!hasCommander && " — commander required"}
           </span>
           <button
             type="button"
@@ -231,9 +129,7 @@ function DeckBrewer() {
           <button
             type="submit"
             className="submit"
-            disabled={
-              filledCount === 0 || !commander.trim() || status === "loading"
-            }
+            disabled={!canSubmit || status === "loading"}
           >
             {status === "loading" ? "Looking up…" : "Look Up Cards"}
           </button>
