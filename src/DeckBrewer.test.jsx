@@ -15,71 +15,151 @@ function mockCard(name, overrides = {}) {
   };
 }
 
+const CATALOG = [
+  "Atraxa, Praetors' Voice",
+  'Llanowar Elves',
+  'Elvish Mystic',
+  'Sol Ring',
+  'Counterspell',
+  'Beast Within',
+  'Not A Real Card',
+];
+
+const ok = (data) => ({ ok: true, json: async () => data });
+
+// Routes fetch calls by URL substring (matched against the decoded URL).
+// Later setupFetch calls override earlier ones.
+function setupFetch(routes) {
+  fetch.mockImplementation(async (url, options = {}) => {
+    const decoded = decodeURIComponent(String(url));
+    for (const [pattern, respond] of routes) {
+      if (decoded.includes(pattern)) return respond(decoded, options);
+    }
+    return { ok: false, status: 404, json: async () => ({}) };
+  });
+}
+
+// Serves name suggestions from CATALOG; tests layer lookup routes on top.
+const autocompleteRoute = [
+  'cards/autocomplete',
+  (url) => {
+    const q = url.split('q=')[1].toLowerCase();
+    return ok({ data: CATALOG.filter((n) => n.toLowerCase().includes(q)) });
+  },
+];
+
+// Types into an autocomplete field and commits a name from the suggestions.
+async function pick(label, typed, fullName) {
+  fireEvent.change(screen.getByLabelText(label), { target: { value: typed } });
+  fireEvent.mouseDown(await screen.findByRole('option', { name: fullName }));
+}
+
 describe('DeckBrewer', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    setupFetch([autocompleteRoute]);
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it(`renders ${CARD_COUNT} card name and category inputs`, () => {
+  it(`renders a commander field and ${CARD_COUNT} card name and category inputs`, () => {
     render(<DeckBrewer />);
+    expect(screen.getByLabelText('Commander')).toBeInTheDocument();
     expect(screen.getAllByPlaceholderText('Card name')).toHaveLength(CARD_COUNT);
     expect(screen.getAllByPlaceholderText('Category')).toHaveLength(CARD_COUNT);
   });
 
-  it('disables submit until a card name is entered', () => {
+  it('requires both a commander and at least one card before submitting', async () => {
     render(<DeckBrewer />);
     const submit = screen.getByRole('button', { name: 'Look Up Cards' });
     expect(submit).toBeDisabled();
+    expect(screen.getByText(/commander required/)).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Card 1 name'), {
-      target: { value: 'Llanowar Elves' },
-    });
-    expect(submit).toBeEnabled();
+    await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
+    expect(screen.queryByText(/commander required/)).not.toBeInTheDocument();
+    expect(submit).toBeDisabled(); // still no cards
+
+    await pick('Card 1 name', 'llanowar', 'Llanowar Elves');
     expect(screen.getByText(`1 of ${CARD_COUNT} cards entered`)).toBeInTheDocument();
+    expect(submit).toBeEnabled();
   });
 
-  it('submits filled rows to the Scryfall collection endpoint and shows results', async () => {
-    fetch.mockImplementationOnce(async () => ({
-      ok: true,
-      json: async () => ({
+  it('shows suggestions while typing and commits the clicked one', async () => {
+    render(<DeckBrewer />);
+    fireEvent.change(screen.getByLabelText('Card 1 name'), {
+      target: { value: 'elv' },
+    });
+    // Both Llanowar Elves and Elvish Mystic match "elv"
+    const llanowar = await screen.findByRole('option', { name: 'Llanowar Elves' });
+    expect(screen.getByRole('option', { name: 'Elvish Mystic' })).toBeInTheDocument();
+
+    fireEvent.mouseDown(llanowar);
+    expect(screen.getByLabelText('Card 1 name')).toHaveValue('Llanowar Elves');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('does not persist free text that was never selected', async () => {
+    render(<DeckBrewer />);
+    const input = screen.getByLabelText('Card 1 name');
+    fireEvent.change(input, { target: { value: 'atraxa the great' } });
+    fireEvent.blur(input);
+    expect(input).toHaveValue('');
+    expect(screen.getByText(`0 of ${CARD_COUNT} cards entered — commander required`)).toBeInTheDocument();
+  });
+
+  it('commits on blur when the text exactly matches a suggestion', async () => {
+    render(<DeckBrewer />);
+    const input = screen.getByLabelText('Card 1 name');
+    fireEvent.change(input, { target: { value: 'sol ring' } });
+    await screen.findByRole('option', { name: 'Sol Ring' });
+    fireEvent.blur(input);
+    expect(input).toHaveValue('Sol Ring');
+    expect(screen.getByText(new RegExp(`1 of ${CARD_COUNT} cards entered`))).toBeInTheDocument();
+  });
+
+  it('supports keyboard selection with arrows and Enter', async () => {
+    render(<DeckBrewer />);
+    const input = screen.getByLabelText('Card 1 name');
+    fireEvent.change(input, { target: { value: 'elv' } });
+    await screen.findByRole('option', { name: 'Llanowar Elves' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(input).toHaveValue('Elvish Mystic');
+  });
+
+  it('submits committed rows to the collection endpoint and shows results', async () => {
+    setupFetch([
+      autocompleteRoute,
+      ['cards/named?fuzzy=Atraxa', () => ok(mockCard("Atraxa, Praetors' Voice", { color_identity: ['W', 'U', 'B', 'G'] }))],
+      ['cards/collection', () => ok({
         data: [
-          mockCard('Llanowar Elves', { cmc: 1, color_identity: ['G'] }),
+          mockCard('Llanowar Elves', { cmc: 1 }),
           mockCard('Sol Ring', { mana_cost: '{1}', type_line: 'Artifact', cmc: 1, color_identity: [] }),
         ],
         not_found: [],
-      }),
-    }));
-    // Mock for Ramp tag search for Llanowar Elves
-    fetch.mockImplementationOnce(async () => ({
-      ok: true,
-      json: async () => ({ data: [] }),
-    }));
-    // No mock for Sol Ring search (not in the CATEGORY_TO_TAG map by category name)
+      })],
+      ['cards/search', () => ok({ data: [] })],
+    ]);
 
     render(<DeckBrewer />);
-    fireEvent.change(screen.getByLabelText('Card 1 name'), {
-      target: { value: 'Llanowar Elves' },
-    });
+    await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
+    await pick('Card 1 name', 'llanowar', 'Llanowar Elves');
     fireEvent.change(screen.getByLabelText('Card 1 category'), {
       target: { value: 'Ramp' },
     });
-    fireEvent.change(screen.getByLabelText('Card 3 name'), {
-      target: { value: 'Sol Ring' },
-    });
+    await pick('Card 3 name', 'sol ring', 'Sol Ring');
     fireEvent.click(screen.getByRole('button', { name: 'Look Up Cards' }));
 
     await waitFor(() => {
       expect(screen.getByText('Scryfall Results')).toBeInTheDocument();
     });
 
-    const [url, options] = fetch.mock.calls[0];
-    expect(url).toBe('https://api.scryfall.com/cards/collection');
-    expect(options.method).toBe('POST');
-    expect(JSON.parse(options.body)).toEqual({
+    const collectionCall = fetch.mock.calls.find(([u]) => String(u).includes('collection'));
+    expect(collectionCall[1].method).toBe('POST');
+    expect(JSON.parse(collectionCall[1].body)).toEqual({
       identifiers: [{ name: 'Llanowar Elves' }, { name: 'Sol Ring' }],
     });
 
@@ -88,88 +168,24 @@ describe('DeckBrewer', () => {
     expect(screen.getByText('2 of 2 cards found')).toBeInTheDocument();
   });
 
-  it('shows up to 3 similar cards per tagged card, filtered by commander identity', async () => {
-    fetch
-      // Commander fuzzy lookup
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockCard('Ghired, Conclave Exile', { color_identity: ['G', 'R', 'W'] }),
-      })
-      // Collection lookup
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          data: [mockCard('Llanowar Elves', { cmc: 1 })],
-          not_found: [],
-        }),
-      })
-      // Similar-cards search: 4 results, one of which is the card itself
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          data: [
-            mockCard('Llanowar Elves', { cmc: 1 }),
-            mockCard('Elvish Mystic', { cmc: 1 }),
-            mockCard('Fyndhorn Elves', { cmc: 1 }),
-            mockCard('Arbor Elf', { cmc: 1 }),
-          ],
-        }),
-      });
-
-    render(<DeckBrewer />);
-    fireEvent.change(screen.getByLabelText('Commander (optional)'), {
-      target: { value: 'Ghired' },
-    });
-    fireEvent.change(screen.getByLabelText('Card 1 name'), {
-      target: { value: 'Llanowar Elves' },
-    });
-    fireEvent.change(screen.getByLabelText('Card 1 category'), {
-      target: { value: 'ramp' }, // lowercase on purpose: matching is case-insensitive
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Look Up Cards' }));
-
-    await waitFor(() => {
-      expect(screen.getByText('Scryfall Results')).toBeInTheDocument();
-    });
-
-    const searchUrl = fetch.mock.calls[2][0];
-    expect(searchUrl).toContain('https://api.scryfall.com/cards/search');
-    expect(decodeURIComponent(searchUrl)).toContain(
-      'otag:ramp mv:1 id<=GRW order:edhrec'
-    );
-
-    // The card itself is excluded; the next 3 suggestions are shown.
-    expect(screen.getByRole('link', { name: 'Elvish Mystic' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Fyndhorn Elves' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Arbor Elf' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Llanowar Elves' })).toHaveLength(1);
-    expect(screen.getByText('Color identity:')).toBeInTheDocument();
-  });
-
   it('shows a category breakdown after lookup', async () => {
-    fetch.mockImplementationOnce(async () => ({
-      ok: true,
-      json: async () => ({
+    setupFetch([
+      autocompleteRoute,
+      ['cards/named?fuzzy=Atraxa', () => ok(mockCard("Atraxa, Praetors' Voice"))],
+      ['cards/collection', () => ok({
         data: [mockCard('Llanowar Elves'), mockCard('Elvish Mystic')],
         not_found: [],
-      }),
-    }));
-    // Mock searches for similar cards (Ramp for Llanowar, none for uncategorized Elvish)
-    fetch.mockImplementationOnce(async () => ({
-      ok: true,
-      json: async () => ({ data: [] }),
-    }));
+      })],
+      ['cards/search', () => ok({ data: [] })],
+    ]);
 
     render(<DeckBrewer />);
-    fireEvent.change(screen.getByLabelText('Card 1 name'), {
-      target: { value: 'Llanowar Elves' },
-    });
+    await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
+    await pick('Card 1 name', 'llanowar', 'Llanowar Elves');
     fireEvent.change(screen.getByLabelText('Card 1 category'), {
       target: { value: 'Ramp' },
     });
-    fireEvent.change(screen.getByLabelText('Card 2 name'), {
-      target: { value: 'Elvish Mystic' },
-    });
+    await pick('Card 2 name', 'elvish', 'Elvish Mystic');
     fireEvent.click(screen.getByRole('button', { name: 'Look Up Cards' }));
 
     await waitFor(() => {
@@ -183,27 +199,29 @@ describe('DeckBrewer', () => {
     expect(panel.getAllByText('50.0%')).toHaveLength(2);
   });
 
-  it('falls back to fuzzy lookup for names the collection endpoint misses', async () => {
-    fetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          data: [],
-          not_found: [{ name: 'Lanowar Elfs' }],
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockCard('Llanowar Elves'),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: [] }),
-      });
+  it('shows up to 3 similar cards per tagged card, filtered by commander identity', async () => {
+    setupFetch([
+      autocompleteRoute,
+      ['cards/named?fuzzy=Atraxa', () => ok(mockCard("Atraxa, Praetors' Voice", { color_identity: ['W', 'U', 'B', 'G'] }))],
+      ['cards/collection', () => ok({
+        data: [mockCard('Llanowar Elves', { cmc: 1 })],
+        not_found: [],
+      })],
+      ['cards/search', () => ok({
+        data: [
+          mockCard('Llanowar Elves', { cmc: 1 }),
+          mockCard('Elvish Mystic', { cmc: 1 }),
+          mockCard('Fyndhorn Elves', { cmc: 1 }),
+          mockCard('Arbor Elf', { cmc: 1 }),
+        ],
+      })],
+    ]);
 
     render(<DeckBrewer />);
-    fireEvent.change(screen.getByLabelText('Card 1 name'), {
-      target: { value: 'Lanowar Elfs' },
+    await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
+    await pick('Card 1 name', 'llanowar', 'Llanowar Elves');
+    fireEvent.change(screen.getByLabelText('Card 1 category'), {
+      target: { value: 'ramp' }, // lowercase on purpose: matching is case-insensitive
     });
     fireEvent.click(screen.getByRole('button', { name: 'Look Up Cards' }));
 
@@ -211,26 +229,32 @@ describe('DeckBrewer', () => {
       expect(screen.getByText('Scryfall Results')).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('link', { name: 'Llanowar Elves' })).toBeInTheDocument();
-    expect(screen.getByText('(entered: Lanowar Elfs)')).toBeInTheDocument();
-    expect(screen.getByText('fuzzy')).toBeInTheDocument();
+    const searchCall = fetch.mock.calls.find(([u]) => String(u).includes('cards/search'));
+    expect(decodeURIComponent(String(searchCall[0]))).toContain(
+      'otag:ramp mv:1 id<=WUBG order:edhrec'
+    );
+
+    expect(screen.getByRole('link', { name: 'Elvish Mystic' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Fyndhorn Elves' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Arbor Elf' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Llanowar Elves' })).toHaveLength(1);
+    expect(screen.getByText('Color identity:')).toBeInTheDocument();
   });
 
-  it('marks cards not found anywhere', async () => {
-    fetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          data: [],
-          not_found: [{ name: 'Not A Real Card' }],
-        }),
-      })
-      .mockResolvedValueOnce({ ok: false, status: 404 });
+  it('marks cards the lookup cannot resolve anywhere', async () => {
+    setupFetch([
+      autocompleteRoute,
+      ['cards/named?fuzzy=Atraxa', () => ok(mockCard("Atraxa, Praetors' Voice"))],
+      ['cards/named?fuzzy=Not A Real Card', () => ({ ok: false, status: 404, json: async () => ({}) })],
+      ['cards/collection', () => ok({
+        data: [],
+        not_found: [{ name: 'Not A Real Card' }],
+      })],
+    ]);
 
     render(<DeckBrewer />);
-    fireEvent.change(screen.getByLabelText('Card 1 name'), {
-      target: { value: 'Not A Real Card' },
-    });
+    await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
+    await pick('Card 1 name', 'not a real', 'Not A Real Card');
     fireEvent.click(screen.getByRole('button', { name: 'Look Up Cards' }));
 
     await waitFor(() => {
@@ -239,13 +263,16 @@ describe('DeckBrewer', () => {
     expect(screen.getByText('0 of 1 cards found')).toBeInTheDocument();
   });
 
-  it('shows an error message when the request fails', async () => {
-    fetch.mockResolvedValueOnce({ ok: false, status: 500 });
+  it('shows an error message when the lookup request fails', async () => {
+    setupFetch([
+      autocompleteRoute,
+      ['cards/named?fuzzy=Atraxa', () => ok(mockCard("Atraxa, Praetors' Voice"))],
+      ['cards/collection', () => ({ ok: false, status: 500, json: async () => ({}) })],
+    ]);
 
     render(<DeckBrewer />);
-    fireEvent.change(screen.getByLabelText('Card 1 name'), {
-      target: { value: 'Sol Ring' },
-    });
+    await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
+    await pick('Card 1 name', 'sol ring', 'Sol Ring');
     fireEvent.click(screen.getByRole('button', { name: 'Look Up Cards' }));
 
     await waitFor(() => {

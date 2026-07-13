@@ -133,15 +133,70 @@ h3 {
   margin-bottom: 0.5rem;
 }
 
+.form-section .autocomplete {
+  max-width: 400px;
+}
+
 .form-section input[type="text"] {
   width: 100%;
-  max-width: 400px;
   padding: 0.5rem 0.6rem;
   border-radius: 6px;
   border: 1px solid #555;
   background: #1a1a1a;
   color: inherit;
   font-size: 1rem;
+}
+
+.required {
+  color: #ff8a8a;
+}
+
+/* ---- Autocomplete ---- */
+
+.autocomplete {
+  position: relative;
+}
+
+.autocomplete input {
+  width: 100%;
+}
+
+.suggestions {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: #1a1a1a;
+  border: 1px solid #555;
+  border-radius: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.suggestions li {
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.suggestions li:hover,
+.suggestions li.highlighted {
+  background: #2a2a4a;
+}
+
+.suggestions li.no-match {
+  color: #888;
+  cursor: default;
+}
+
+.suggestions li.no-match:hover {
+  background: transparent;
 }
 
 /* ---- Deck brewer form ---- */
@@ -177,7 +232,7 @@ h3 {
   min-width: 0;
 }
 
-.deck-row .card-name {
+.deck-row .autocomplete {
   flex: 2;
 }
 
@@ -484,6 +539,25 @@ h3 {
   .form-section input[type="text"] {
     background: #fff;
     border-color: #ccc;
+  }
+
+  .required {
+    color: #c03030;
+  }
+
+  .suggestions {
+    background: #fff;
+    border-color: #ccc;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  .suggestions li:hover,
+  .suggestions li.highlighted {
+    background: #e8e8ff;
+  }
+
+  .suggestions li.no-match:hover {
+    background: transparent;
   }
 
   .summary-table td.similar-cards-cell {

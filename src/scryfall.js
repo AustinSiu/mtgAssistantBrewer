@@ -37,6 +37,21 @@ export async function lookupFuzzy(name) {
   return res.json();
 }
 
+/**
+ * Card-name autocompletion. Returns up to 20 catalog names matching the
+ * partial input (Scryfall requires at least 2 characters), or [] on any
+ * failure — suggestions are best-effort.
+ */
+export async function autocompleteCardNames(partial) {
+  const res = await fetch(
+    `${API_BASE}/cards/autocomplete?q=${encodeURIComponent(partial)}`,
+    { headers: { Accept: "application/json" } }
+  );
+  if (!res.ok) return [];
+  const json = await res.json();
+  return json.data ?? [];
+}
+
 /** Scryfall asks for 50-100ms between requests. */
 export function rateLimitDelay(ms = 100) {
   return new Promise((resolve) => setTimeout(resolve, ms));

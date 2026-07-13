@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import CardNameInput from "./CardNameInput";
 import {
   lookupCollection,
   lookupFuzzy,
@@ -78,24 +79,20 @@ function DeckBrewer() {
         category: row.category.trim(),
       }))
       .filter((row) => row.name);
-    if (filled.length === 0) return;
+    if (filled.length === 0 || !commander.trim()) return;
 
     setStatus("loading");
     setError(null);
     setResults(null);
 
     try {
-      // Look up the commander if provided to get its color identity.
+      // Look up the commander to get its color identity.
       let ciFilter = "";
-      if (commander.trim()) {
-        const cmdCard = await lookupFuzzy(commander.trim());
-        setCommanderCard(cmdCard);
-        if (cmdCard) {
-          // A colorless commander still restricts the deck to id<=c.
-          ciFilter = ` id<=${cardColorIdentity(cmdCard) || "c"}`;
-        }
-      } else {
-        setCommanderCard(null);
+      const cmdCard = await lookupFuzzy(commander.trim());
+      setCommanderCard(cmdCard);
+      if (cmdCard) {
+        // A colorless commander still restricts the deck to id<=c.
+        ciFilter = ` id<=${cardColorIdentity(cmdCard) || "c"}`;
       }
 
       const { data = [], not_found: notFound = [] } = await lookupCollection(
@@ -163,20 +160,23 @@ function DeckBrewer() {
     <div>
       <h1>Deck Brewer</h1>
       <p className="subtitle">
-        Enter up to {CARD_COUNT} cards — a third of a Commander deck (excluding
-        the commander) — and tag each with a category. Submitting looks every
+        Pick your commander, then enter up to {CARD_COUNT} cards — a third of
+        the deck — tagging each with a category. Card names autocomplete from
+        Scryfall; only suggested names can be saved. Submitting looks every
         card up on Scryfall.
       </p>
 
       <form className="deck-form" onSubmit={handleSubmit}>
         <div className="form-section">
-          <label htmlFor="commander">Commander (optional)</label>
-          <input
+          <label htmlFor="commander">
+            Commander <span className="required">*</span>
+          </label>
+          <CardNameInput
             id="commander"
-            type="text"
+            ariaLabel="Commander"
             placeholder="Commander card name"
             value={commander}
-            onChange={(e) => setCommander(e.target.value)}
+            onCommit={setCommander}
             disabled={status === "loading"}
           />
           {commanderCard && (
@@ -190,13 +190,12 @@ function DeckBrewer() {
           {rows.map((row, i) => (
             <div className="deck-row" key={i}>
               <span className="row-num">{i + 1}</span>
-              <input
-                type="text"
-                className="card-name"
+              <CardNameInput
+                ariaLabel={`Card ${i + 1} name`}
                 placeholder="Card name"
-                aria-label={`Card ${i + 1} name`}
                 value={row.name}
-                onChange={(e) => updateRow(i, "name", e.target.value)}
+                onCommit={(name) => updateRow(i, "name", name)}
+                disabled={status === "loading"}
               />
               <input
                 type="text"
@@ -219,6 +218,7 @@ function DeckBrewer() {
         <div className="form-actions">
           <span className="hint">
             {filledCount} of {CARD_COUNT} cards entered
+            {!commander.trim() && " — commander required"}
           </span>
           <button
             type="button"
@@ -231,7 +231,9 @@ function DeckBrewer() {
           <button
             type="submit"
             className="submit"
-            disabled={filledCount === 0 || status === "loading"}
+            disabled={
+              filledCount === 0 || !commander.trim() || status === "loading"
+            }
           >
             {status === "loading" ? "Looking up…" : "Look Up Cards"}
           </button>
