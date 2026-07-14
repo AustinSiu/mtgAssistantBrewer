@@ -97,6 +97,18 @@ export function cardTypeLine(card) {
   return "";
 }
 
+/**
+ * Type line without subtypes — just the supertypes and card types before the
+ * em dash (e.g. "Legendary Creature — Angel" -> "Legendary Creature").
+ */
+export function cardTypeLabel(card) {
+  return cardTypeLine(card)
+    .split(" // ")
+    .map((face) => face.split("—")[0].trim())
+    .filter(Boolean)
+    .join(" // ");
+}
+
 /** Color identity as a string: w,u,b,r,g,c (in WUBRG order) */
 export function cardColorIdentity(card) {
   return (card.color_identity ?? []).join("");

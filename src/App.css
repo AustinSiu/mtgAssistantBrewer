@@ -721,9 +721,20 @@ h3 {
 
 .list-table {
   width: 100%;
+  min-width: 700px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
+
+/* Fixed column widths so every group's rows line up vertically. */
+.list-table .col-qty { width: 4.6rem; }
+.list-table .col-mana { width: 118px; }
+.list-table .col-type { width: 148px; }
+.list-table .col-tag { width: 7rem; }
+.list-table .col-price { width: 4.5rem; }
+.list-table .col-actions { width: 3.4rem; }
+/* col-name has no fixed width and absorbs the remaining space. */
 
 .list-table td {
   padding: 0.3rem 0.5rem;
@@ -733,7 +744,6 @@ h3 {
 
 .qty-cell {
   white-space: nowrap;
-  width: 4.5rem;
 }
 
 .qty-cell .step {
@@ -753,6 +763,12 @@ h3 {
   min-width: 1.2rem;
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+
+.name-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .name-cell a {
@@ -786,7 +802,7 @@ h3 {
 
 .mana-cell {
   white-space: nowrap;
-  width: 1%;
+  overflow: hidden;
 }
 
 .mana-cost-pips {
@@ -810,6 +826,8 @@ h3 {
   color: #aaa;
   font-size: 0.82rem;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tag-cell .tag-input {

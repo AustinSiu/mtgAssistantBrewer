@@ -6,7 +6,7 @@ import { parseDecklist, groupEntries, deckStats, isBasicLand } from "./decklist"
 import {
   lookupCollection,
   cardManaCostAll,
-  cardTypeLine,
+  cardTypeLabel,
   cardPriceUsd,
 } from "./scryfall";
 
@@ -319,6 +319,15 @@ function DeckGroup({
       </h3>
       <div className="table-wrap">
         <table className="list-table">
+          <colgroup>
+            <col className="col-qty" />
+            <col className="col-name" />
+            <col className="col-mana" />
+            <col className="col-type" />
+            <col className="col-tag" />
+            <col className="col-price" />
+            <col className="col-actions" />
+          </colgroup>
           <tbody>
             {group.entries.map((e) => {
               const dup = dupNames.has(e.name.toLowerCase());
@@ -364,7 +373,7 @@ function DeckGroup({
                     {e.card && <ManaCost cost={cardManaCostAll(e.card)} />}
                   </td>
                   <td className="type-cell">
-                    {e.card ? cardTypeLine(e.card) : ""}
+                    {e.card ? cardTypeLabel(e.card) : ""}
                   </td>
                   <td className="tag-cell">
                     <input
