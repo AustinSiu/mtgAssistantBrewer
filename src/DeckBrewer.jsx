@@ -3,10 +3,10 @@ import CardNameInput from "./CardNameInput";
 import {
   CATEGORY_SUGGESTIONS,
   tagForCategory,
-  BASIC_LAND_NAMES,
   lookupDeckCards,
   fetchSimilar,
 } from "./brew";
+import { duplicateNonBasics } from "./decklist";
 import { cardManaCost, cardTypeLine, cardColorIdentity, cardManaValue } from "./scryfall";
 
 export const CARD_COUNT = 33;
@@ -75,17 +75,11 @@ function DeckBrewer() {
   const canSubmit = hasCommander && filledCount > 0;
 
   // Commander singleton: any non-basic name used in 2+ cells is a conflict.
-  const duplicateNames = (() => {
-    const counts = new Map();
-    for (const sd of subDecks) {
-      for (const name of sd.cards) {
-        const key = name.trim().toLowerCase();
-        if (!key || BASIC_LAND_NAMES.has(key)) continue;
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-      }
-    }
-    return new Set([...counts.entries()].filter(([, n]) => n > 1).map(([k]) => k));
-  })();
+  const duplicateNames = duplicateNonBasics(
+    subDecks.flatMap((sd) =>
+      sd.cards.filter((c) => c.trim()).map((name) => ({ name }))
+    )
+  );
 
   function filledCellsInRow(slot, exceptIdx = -1) {
     return subDecks.flatMap((sd, si) =>

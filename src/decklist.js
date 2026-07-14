@@ -1,10 +1,8 @@
 import { BASIC_LAND_NAMES } from "./brew";
-import {
-  cardPrimaryType,
-  cardPriceUsd,
-  cardManaValue,
-  cardTypeLine,
-} from "./scryfall";
+import { cardPriceUsd, cardManaValue, cardTypeLine } from "./scryfall";
+
+/** A Commander deck is 100 cards including the commander. */
+export const COMMANDER_TARGET = 100;
 
 /**
  * Parse a pasted decklist into { name, qty } rows.
@@ -30,8 +28,7 @@ export function parseDecklist(text) {
     // Strip a trailing " (SET) 123" or " (SET)" printing hint.
     const name = m[2].replace(/\s*\([^)]*\)\s*[\dA-Za-z-]*\s*$/, "").trim();
     if (!name) continue;
-    // A bare count-less header like "Creatures (35)" collapses to "Creatures";
-    // require the name to contain a letter and not be a pure section word.
+    // Ignore non-card residue such as a bare number line ("123").
     if (!/[a-zA-Z]/.test(name)) continue;
 
     const key = name.toLowerCase();
@@ -51,6 +48,20 @@ export function isBasicLand(name) {
 }
 
 /**
+ * Names (lowercased) that break Commander singleton: a non-basic card whose
+ * total copies across `items` exceed one. Each item is { name, qty? }.
+ */
+export function duplicateNonBasics(items) {
+  const counts = new Map();
+  for (const { name, qty = 1 } of items) {
+    const key = name.trim().toLowerCase();
+    if (!key || isBasicLand(key)) continue;
+    counts.set(key, (counts.get(key) ?? 0) + qty);
+  }
+  return new Set([...counts].filter(([, n]) => n > 1).map(([k]) => k));
+}
+
+/**
  * Group resolved entries for display.
  *
  * entries: [{ id, name, qty, tag, commander, card }]  (card may be null)
@@ -60,13 +71,10 @@ export function isBasicLand(name) {
  * The commander (if any) is always its own leading group.
  */
 export function groupEntries(entries, mode) {
+  // A Map keeps its groups in insertion order for free.
   const groups = new Map();
-  const order = [];
   const ensure = (label) => {
-    if (!groups.has(label)) {
-      groups.set(label, []);
-      order.push(label);
-    }
+    if (!groups.has(label)) groups.set(label, []);
     return groups.get(label);
   };
 
@@ -87,33 +95,57 @@ export function groupEntries(entries, mode) {
     ensure(label).push(e);
   }
 
-  const result = order.map((label) => {
-    const groupEntries = groups.get(label);
-    return {
-      label,
-      entries: sortEntries(groupEntries, mode),
-      count: groupEntries.reduce((n, e) => n + e.qty, 0),
-      price: groupEntries.reduce(
-        (sum, e) => sum + e.qty * (e.card ? cardPriceUsd(e.card) ?? 0 : 0),
-        0
-      ),
-    };
-  });
+  const result = [...groups.entries()].map(([label, groupEntries]) => ({
+    label,
+    entries: sortEntries(groupEntries, mode),
+    count: groupEntries.reduce((n, e) => n + e.qty, 0),
+    price: groupEntries.reduce(
+      (sum, e) => sum + e.qty * (e.card ? cardPriceUsd(e.card) ?? 0 : 0),
+      0
+    ),
+  }));
 
   return sortGroups(result, mode);
 }
 
-const TYPE_PLURAL = {
-  Creature: "Creatures",
-  Instant: "Instants",
-  Sorcery: "Sorceries",
-  Artifact: "Artifacts",
-  Enchantment: "Enchantments",
-  Planeswalker: "Planeswalkers",
-  Battle: "Battles",
-  Land: "Lands",
-  Other: "Other",
-};
+// The card-type taxonomy lives here in the domain layer. Two orderings that
+// legitimately differ: DETECTION priority (a card can be several types — an
+// "Artifact Creature" classifies as Creature) and the group DISPLAY order.
+const CARD_TYPES = [
+  { type: "Creature", plural: "Creatures" },
+  { type: "Planeswalker", plural: "Planeswalkers" },
+  { type: "Battle", plural: "Battles" },
+  { type: "Instant", plural: "Instants" },
+  { type: "Sorcery", plural: "Sorceries" },
+  { type: "Artifact", plural: "Artifacts" },
+  { type: "Enchantment", plural: "Enchantments" },
+  { type: "Land", plural: "Lands" },
+];
+
+// Detection priority when a card carries several types.
+const DETECTION_ORDER = [
+  "Battle",
+  "Planeswalker",
+  "Creature",
+  "Sorcery",
+  "Instant",
+  "Artifact",
+  "Enchantment",
+  "Land",
+];
+
+/** Primary card type from the type line (before the em dash), or "Other". */
+function cardPrimaryType(card) {
+  const line = cardTypeLine(card);
+  for (const t of DETECTION_ORDER) {
+    if (line.includes(t)) return t;
+  }
+  return "Other";
+}
+
+const TYPE_PLURAL = Object.fromEntries(
+  CARD_TYPES.map(({ type, plural }) => [type, plural])
+);
 function pluralType(type) {
   return TYPE_PLURAL[type] ?? type;
 }
@@ -121,14 +153,7 @@ function pluralType(type) {
 // Display order for type groups (Commander/Unresolved handled separately).
 const TYPE_GROUP_ORDER = [
   "Commander",
-  "Creatures",
-  "Planeswalkers",
-  "Battles",
-  "Instants",
-  "Sorceries",
-  "Artifacts",
-  "Enchantments",
-  "Lands",
+  ...CARD_TYPES.map((t) => t.plural),
   "Other",
   "Unresolved",
 ];

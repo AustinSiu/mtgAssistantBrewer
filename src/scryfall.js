@@ -120,41 +120,6 @@ export function cardPriceUsd(card) {
   return usd == null ? null : Number(usd);
 }
 
-/** Combined mana cost string, both faces of a DFC joined with " // ". */
-export function cardManaCostAll(card) {
-  if (card.mana_cost != null && card.mana_cost !== "") return card.mana_cost;
-  if (card.card_faces?.length) {
-    return card.card_faces
-      .map((f) => f.mana_cost)
-      .filter((m) => m)
-      .join(" // ");
-  }
-  return "";
-}
-
-/**
- * Primary card type (Creature, Instant, Land, …) derived from the type line,
- * for grouping. Returns "Other" when nothing matches.
- */
-const TYPE_ORDER = [
-  "Battle",
-  "Planeswalker",
-  "Creature",
-  "Sorcery",
-  "Instant",
-  "Artifact",
-  "Enchantment",
-  "Land",
-];
-export function cardPrimaryType(card) {
-  const line = cardTypeLine(card);
-  // A card can be several types (e.g. Artifact Creature); pick by priority.
-  for (const t of TYPE_ORDER) {
-    if (line.includes(t)) return t;
-  }
-  return "Other";
-}
-
 /** Mana value (converted mana cost). */
 export function cardManaValue(card) {
   return card.cmc ?? 0;
