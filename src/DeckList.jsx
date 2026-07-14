@@ -1,17 +1,22 @@
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import CardNameInput from "./CardNameInput";
 import ManaCost from "./ManaCost";
 import { CATEGORY_SUGGESTIONS } from "./brew";
-import { parseDecklist, groupEntries, deckStats, isBasicLand } from "./decklist";
+import {
+  parseDecklist,
+  groupEntries,
+  deckStats,
+  duplicateNonBasics,
+  COMMANDER_TARGET,
+} from "./decklist";
 import {
   lookupCollection,
-  cardManaCostAll,
+  cardManaCost,
   cardTypeLabel,
   cardPriceUsd,
 } from "./scryfall";
 
 const STORAGE_KEY = "mtgBrewer.decklist.v1";
-const COMMANDER_TARGET = 100;
 const COLLECTION_CHUNK = 75;
 const WUBRG = ["W", "U", "B", "R", "G", "C"];
 
@@ -80,18 +85,14 @@ function DeckList() {
         const found = new Map();
         for (let i = 0; i < missing.length; i += COLLECTION_CHUNK) {
           const chunk = missing.slice(i, i + COLLECTION_CHUNK);
-          const { data = [], not_found: notFound = [] } =
-            await lookupCollection(chunk);
+          const { data = [] } = await lookupCollection(chunk);
           for (const card of data) found.set(card.name.toLowerCase(), card);
-          // Record the requested (lowercased) names so misses aren't re-fetched.
-          const gotByRequest = new Set(
-            data.map((c) => c.name.toLowerCase())
-          );
+          // Any requested name we didn't get back is a miss; store null so it
+          // isn't re-fetched.
           for (const name of chunk) {
             const key = name.toLowerCase();
-            if (!gotByRequest.has(key) && !found.has(key)) found.set(key, null);
+            if (!found.has(key)) found.set(key, null);
           }
-          for (const id of notFound) found.set(id.name.toLowerCase(), null);
         }
         if (cancelled) return;
         setCards((prev) => {
@@ -119,17 +120,7 @@ function DeckList() {
   const stats = deckStats(resolved);
 
   // Non-basic cards whose total copies exceed 1 break Commander singleton.
-  const dupNames = (() => {
-    const counts = new Map();
-    for (const e of entries) {
-      if (isBasicLand(e.name)) continue;
-      counts.set(
-        e.name.toLowerCase(),
-        (counts.get(e.name.toLowerCase()) ?? 0) + e.qty
-      );
-    }
-    return new Set([...counts.entries()].filter(([, n]) => n > 1).map(([k]) => k));
-  })();
+  const dupNames = duplicateNonBasics(entries);
 
   function addCard(name) {
     setEntries((prev) => {
@@ -332,6 +323,7 @@ function DeckGroup({
             {group.entries.map((e) => {
               const dup = dupNames.has(e.name.toLowerCase());
               const notFound = e.card === null;
+              const price = e.card ? cardPriceUsd(e.card) : null;
               return (
                 <tr key={e.id} className={notFound ? "notfound-row" : ""}>
                   <td className="qty-cell">
@@ -370,7 +362,7 @@ function DeckGroup({
                     {notFound && <span className="dup-flag">not found</span>}
                   </td>
                   <td className="mana-cell">
-                    {e.card && <ManaCost cost={cardManaCostAll(e.card)} />}
+                    {e.card && <ManaCost cost={cardManaCost(e.card)} />}
                   </td>
                   <td className="type-cell">
                     {e.card ? cardTypeLabel(e.card) : ""}
@@ -387,9 +379,7 @@ function DeckGroup({
                     />
                   </td>
                   <td className="price-cell">
-                    {e.card && cardPriceUsd(e.card) != null
-                      ? `$${cardPriceUsd(e.card).toFixed(2)}`
-                      : "—"}
+                    {price != null ? `$${price.toFixed(2)}` : "—"}
                   </td>
                   <td className="actions-cell">
                     <button

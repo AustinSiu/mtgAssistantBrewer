@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { parseDecklist, groupEntries, deckStats, isBasicLand } from "./decklist";
+import {
+  parseDecklist,
+  groupEntries,
+  deckStats,
+  isBasicLand,
+  duplicateNonBasics,
+} from "./decklist";
 import { card } from "../test/fixtures";
 
 describe("parseDecklist", () => {
@@ -32,6 +38,19 @@ describe("isBasicLand", () => {
     expect(isBasicLand("Forest")).toBe(true);
     expect(isBasicLand("snow-covered island")).toBe(true);
     expect(isBasicLand("Sol Ring")).toBe(false);
+  });
+});
+
+describe("duplicateNonBasics", () => {
+  it("flags non-basic names past one copy, summing qty, exempting basics", () => {
+    const dups = duplicateNonBasics([
+      { name: "Sol Ring", qty: 2 },
+      { name: "Cultivate" }, // qty defaults to 1
+      { name: "Forest", qty: 20 },
+      { name: "Llanowar Elves" },
+      { name: "llanowar elves" }, // case-insensitive, two singles => dup
+    ]);
+    expect(dups).toEqual(new Set(["sol ring", "llanowar elves"]));
   });
 });
 
