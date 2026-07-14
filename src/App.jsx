@@ -1,7 +1,14 @@
 import { useState } from "react";
 import DeckBrewer from "./DeckBrewer";
+import DeckList from "./DeckList";
 import LandCalculator from "./LandCalculator";
 import "./App.css";
+
+const TABS = [
+  ["brewer", "Deck Brewer"],
+  ["list", "Deck List"],
+  ["calculator", "Land Calculator"],
+];
 
 function App() {
   const [tab, setTab] = useState("brewer");
@@ -9,23 +16,23 @@ function App() {
   return (
     <div className="app">
       <nav className="tabs">
-        <button
-          className={tab === "brewer" ? "tab active" : "tab"}
-          onClick={() => setTab("brewer")}
-        >
-          Deck Brewer
-        </button>
-        <button
-          className={tab === "calculator" ? "tab active" : "tab"}
-          onClick={() => setTab("calculator")}
-        >
-          Land Calculator
-        </button>
+        {TABS.map(([id, label]) => (
+          <button
+            key={id}
+            className={tab === id ? "tab active" : "tab"}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
       </nav>
 
-      {/* Keep both mounted so form state survives tab switches */}
+      {/* Keep all mounted so form state survives tab switches */}
       <div hidden={tab !== "brewer"}>
         <DeckBrewer />
+      </div>
+      <div hidden={tab !== "list"}>
+        <DeckList />
       </div>
       <div hidden={tab !== "calculator"} className="calc-pane">
         <LandCalculator />
