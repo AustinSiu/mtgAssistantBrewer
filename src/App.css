@@ -524,7 +524,7 @@ h3 {
 }
 
 .error {
-  color: #ff6b6b;
+  color: #ff8a8a;
   margin-top: 1rem;
 }
 
@@ -634,6 +634,13 @@ h3 {
   flex-direction: column;
   gap: 0.5rem;
   max-width: 400px;
+}
+
+.paste-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #999;
 }
 
 .paste-box textarea {
@@ -781,7 +788,7 @@ h3 {
 }
 
 .crown {
-  color: #e8c468;
+  color: #e8a33d;
   margin-left: 0.35rem;
 }
 
@@ -866,7 +873,7 @@ h3 {
 }
 
 .icon-btn.on {
-  color: #e8c468;
+  color: #e8a33d;
 }
 
 /* ---- Deck stats ---- */
@@ -894,6 +901,7 @@ h3 {
   color: #888;
 }
 
+/* Success token — the 100/100 complete state. */
 .stat-num .ok {
   color: #6fdc8c;
 }
@@ -996,6 +1004,15 @@ h3 {
   .name-cell a,
   .icon-btn:hover {
     color: #4a52d4;
+  }
+
+  .error {
+    color: #c03030;
+  }
+
+  .crown,
+  .icon-btn.on {
+    color: #b07a1a;
   }
 
   .list-table td {

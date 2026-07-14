@@ -4,23 +4,52 @@ import { cardPriceUsd, cardManaValue, cardTypeLine } from "./scryfall";
 /** A Commander deck is 100 cards including the commander. */
 export const COMMANDER_TARGET = 100;
 
+// Section headers whose cards don't belong in the 100-card deck and are
+// skipped entirely (as Moxfield's text export labels them).
+const SKIP_SECTIONS = new Set([
+  "sideboard",
+  "maybeboard",
+  "maybe",
+  "considering",
+  "tokens",
+]);
+
 /**
- * Parse a pasted decklist into { name, qty } rows.
+ * Parse a pasted decklist into { name, qty, commander } rows.
  *
  * Accepts the common formats:
  *   "1 Sol Ring", "1x Sol Ring", "Sol Ring" (qty defaults to 1),
- * and tolerates trailing set/collector info like "1 Sol Ring (C21) 263"
- * and category headers / blank lines, which are skipped.
+ * and tolerates trailing set/collector info like "1 Sol Ring (C21) 263".
+ *
+ * Understands Moxfield's headered export (More → Export): a line with no
+ * leading quantity that is either a "Section (12)" count or a bare section
+ * keyword is treated as a header. The card under a "Commander" header is
+ * flagged commander: true; cards under Sideboard/Maybeboard/Considering/
+ * Tokens are dropped. Blank lines and `//`/`#` comments are ignored.
  */
 export function parseDecklist(text) {
-  const rows = new Map(); // lowername -> { name, qty }
+  const rows = new Map(); // lowername -> { name, qty, commander }
+  let inCommander = false;
+  let skipping = false;
+
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
-    // Skip section headers like "// Sideboard" or a bare "Creatures (35)"
-    // (a name with no quantity whose only parenthetical is a plain count).
     if (line.startsWith("//") || line.startsWith("#")) continue;
-    if (/^[A-Za-z][A-Za-z ]*\(\d+\)$/.test(line)) continue;
+
+    // A section header has no leading quantity and is either a "Name (12)"
+    // count line or a bare, known section keyword.
+    const header = line.match(/^([A-Za-z][A-Za-z ]*?)\s*\(\d+\)$/);
+    const keyword = line.toLowerCase();
+    const bareSection =
+      !/^\d/.test(line) && (keyword === "commander" || SKIP_SECTIONS.has(keyword));
+    if (header || bareSection) {
+      const label = (header ? header[1] : keyword).trim().toLowerCase();
+      inCommander = label.startsWith("commander");
+      skipping = SKIP_SECTIONS.has(label);
+      continue;
+    }
+    if (skipping) continue;
 
     const m = line.match(/^(?:(\d+)\s*[xX]?\s+)?(.+?)$/);
     if (!m) continue;
@@ -35,8 +64,9 @@ export function parseDecklist(text) {
     const existing = rows.get(key);
     if (existing) {
       existing.qty += qty;
+      if (inCommander) existing.commander = true;
     } else {
-      rows.set(key, { name, qty });
+      rows.set(key, { name, qty, commander: inCommander });
     }
   }
   return [...rows.values()];

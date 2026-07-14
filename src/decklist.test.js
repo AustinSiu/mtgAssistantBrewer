@@ -14,9 +14,9 @@ describe("parseDecklist", () => {
       ["1 Sol Ring", "2x Llanowar Elves", "Cultivate"].join("\n")
     );
     expect(out).toEqual([
-      { name: "Sol Ring", qty: 1 },
-      { name: "Llanowar Elves", qty: 2 },
-      { name: "Cultivate", qty: 1 },
+      { name: "Sol Ring", qty: 1, commander: false },
+      { name: "Llanowar Elves", qty: 2, commander: false },
+      { name: "Cultivate", qty: 1, commander: false },
     ]);
   });
 
@@ -24,12 +24,52 @@ describe("parseDecklist", () => {
     const out = parseDecklist(
       ["// Commander", "", "1 Sol Ring (C21) 263", "Creatures (35)"].join("\n")
     );
-    expect(out).toEqual([{ name: "Sol Ring", qty: 1 }]);
+    expect(out).toEqual([{ name: "Sol Ring", qty: 1, commander: false }]);
   });
 
   it("merges duplicate names by summing quantities", () => {
     const out = parseDecklist(["1 Forest", "3 Forest"].join("\n"));
-    expect(out).toEqual([{ name: "Forest", qty: 4 }]);
+    expect(out).toEqual([{ name: "Forest", qty: 4, commander: false }]);
+  });
+
+  it("flags the card under a Moxfield Commander header", () => {
+    const out = parseDecklist(
+      [
+        "Commander (1)",
+        "1 Atraxa, Praetors' Voice (NCC) 5",
+        "",
+        "Creatures (2)",
+        "1 Sol Ring (C21) 263",
+        "1 Llanowar Elves",
+      ].join("\n")
+    );
+    expect(out).toEqual([
+      { name: "Atraxa, Praetors' Voice", qty: 1, commander: true },
+      { name: "Sol Ring", qty: 1, commander: false },
+      { name: "Llanowar Elves", qty: 1, commander: false },
+    ]);
+  });
+
+  it("ignores Sideboard/Maybeboard/Considering sections", () => {
+    const out = parseDecklist(
+      [
+        "1 Sol Ring",
+        "Sideboard (1)",
+        "1 Counterspell",
+        "Maybeboard",
+        "1 Swords to Plowshares",
+        "Considering (1)",
+        "1 Demonic Tutor",
+      ].join("\n")
+    );
+    expect(out).toEqual([{ name: "Sol Ring", qty: 1, commander: false }]);
+  });
+
+  it("treats a bare Commander header as a section, not a card", () => {
+    const out = parseDecklist(["Commander", "1 Kenrith, the Returned King"].join("\n"));
+    expect(out).toEqual([
+      { name: "Kenrith, the Returned King", qty: 1, commander: true },
+    ]);
   });
 });
 
