@@ -614,12 +614,391 @@ h3 {
   background: #1e1e2e;
 }
 
+/* ---- Deck List ---- */
+
+.link-btn {
+  display: inline-block;
+  margin-top: 0.6rem;
+  background: none;
+  border: none;
+  color: #8b92ff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.paste-box {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 400px;
+}
+
+.paste-box textarea {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1a1a1a;
+  color: inherit;
+  font-size: 0.9rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: vertical;
+}
+
+.paste-box .submit {
+  align-self: flex-start;
+}
+
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.25rem 0 0.5rem;
+  flex-wrap: wrap;
+}
+
+.group-toggle {
+  display: flex;
+  gap: 0;
+  margin-left: auto;
+}
+
+.group-toggle .toggle {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid #555;
+  background: #1a1a1a;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.group-toggle .toggle:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.group-toggle .toggle:last-child {
+  border-radius: 0 6px 6px 0;
+  border-left: none;
+}
+
+.group-toggle .toggle.on {
+  background: #646cff;
+  border-color: #646cff;
+  color: #fff;
+}
+
+/* ---- Deck groups + rows ---- */
+
+.deck-group {
+  margin-top: 1.25rem;
+}
+
+.group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  border-bottom: 1px solid #333;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.group-count {
+  color: #888;
+  font-weight: 400;
+}
+
+.group-price {
+  margin-left: auto;
+  color: #888;
+  font-weight: 400;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.list-table td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid #262626;
+  vertical-align: middle;
+}
+
+.qty-cell {
+  white-space: nowrap;
+  width: 4.5rem;
+}
+
+.qty-cell .step {
+  border: 1px solid #555;
+  background: #1a1a1a;
+  color: inherit;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1;
+  font-size: 0.9rem;
+}
+
+.qty-cell .qty {
+  display: inline-block;
+  min-width: 1.2rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.name-cell a {
+  color: #8b92ff;
+  text-decoration: none;
+}
+
+.name-cell a:hover {
+  text-decoration: underline;
+}
+
+.crown {
+  color: #e8c468;
+  margin-left: 0.35rem;
+}
+
+.dup-flag {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  background: #3a1e1e;
+  color: #ff8a8a;
+  vertical-align: middle;
+}
+
+.notfound-row .name-cell {
+  color: #ff8a8a;
+}
+
+.mana-cell {
+  white-space: nowrap;
+  width: 1%;
+}
+
+.mana-cost-pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.mana-pip {
+  width: 15px;
+  height: 15px;
+  vertical-align: -2px;
+}
+
+.mana-slash {
+  margin: 0 2px;
+  color: #888;
+}
+
+.type-cell {
+  color: #aaa;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.tag-cell .tag-input {
+  width: 6.5rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 5px;
+  border: 1px solid #444;
+  background: #1a1a1a;
+  color: inherit;
+  font-size: 0.8rem;
+}
+
+.price-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #ccc;
+  white-space: nowrap;
+}
+
+.actions-cell {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: #777;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 0.25rem;
+}
+
+.icon-btn:hover {
+  color: #8b92ff;
+}
+
+.icon-btn.on {
+  color: #e8c468;
+}
+
+/* ---- Deck stats ---- */
+
+.deck-stats {
+  margin-top: 1rem;
+}
+
+.stats-row {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.stat-num {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-num .stat-sub {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #888;
+}
+
+.stat-num .ok {
+  color: #6fdc8c;
+}
+
+.stat-num .over {
+  color: #ff8a8a;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+}
+
+.stat.colors {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.color-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.curve {
+  margin-top: 1rem;
+}
+
+.curve-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  height: 70px;
+  margin-top: 0.35rem;
+}
+
+.curve-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.curve-bar {
+  width: 60%;
+  background: #646cff;
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+}
+
+.curve-n {
+  font-size: 0.7rem;
+  color: #aaa;
+  height: 0.9rem;
+}
+
+.curve-mv {
+  font-size: 0.7rem;
+  color: #888;
+  margin-top: 0.15rem;
+}
+
+.group-legend {
+  margin-top: 1rem;
+}
+
 /* ---- Light mode ---- */
 
 @media (prefers-color-scheme: light) {
   .field input[type="number"] {
     background: #fff;
     border-color: #ccc;
+  }
+
+  .link-btn {
+    color: #4a52d4;
+  }
+
+  .paste-box textarea,
+  .group-toggle .toggle,
+  .qty-cell .step,
+  .tag-cell .tag-input {
+    background: #fff;
+    border-color: #ccc;
+  }
+
+  .group-toggle .toggle.on {
+    background: #646cff;
+    border-color: #646cff;
+    color: #fff;
+  }
+
+  .name-cell a,
+  .icon-btn:hover {
+    color: #4a52d4;
+  }
+
+  .list-table td {
+    border-bottom-color: #eee;
+  }
+
+  .group-head {
+    border-bottom-color: #ddd;
+  }
+
+  .dup-flag {
+    background: #fde3e3;
+    color: #c03030;
+  }
+
+  .type-cell {
+    color: #666;
+  }
+
+  .price-cell {
+    color: #333;
   }
 
   .tabs {
