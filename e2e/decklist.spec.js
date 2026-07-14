@@ -57,27 +57,37 @@ test("deck list tab customer journey", async ({ page }) => {
   await expect(page.getByText(/No cards yet/)).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-1-empty.png` });
 
-  // Paste-import a small deck, including a card Scryfall can't resolve.
+  // Paste-import a Moxfield export: section headers auto-detect the commander,
+  // the Sideboard is ignored, and one card can't be resolved by Scryfall.
   await page.getByRole("button", { name: /paste a decklist/ }).click();
   await page.getByLabel("Paste decklist").fill(
     [
-      "1 Atraxa, Praetors' Voice",
-      "1 Sol Ring",
+      "Commander (1)",
+      "1 Atraxa, Praetors' Voice (NCC) 5",
+      "",
+      "Creatures (2)",
+      "1 Llanowar Elves",
+      "1 Not A Real Card",
+      "",
+      "Other (5)",
+      "1 Sol Ring (C21) 263",
       "1 Cultivate",
       "1 Counterspell",
-      "1 Llanowar Elves",
       "1 Wrath of God",
       "1 Rhystic Study",
       "8 Forest",
-      "1 Not A Real Card",
+      "",
+      "Sideboard (1)",
+      "1 Demonic Tutor",
     ].join("\n")
   );
   await page.getByRole("button", { name: "Import" }).click();
   await expect(page.getByRole("link", { name: "Rhystic Study" })).toBeVisible({ timeout: 30_000 });
 
-  // Promote the commander; it moves to its own leading group.
-  await page.getByRole("button", { name: "Set Atraxa, Praetors' Voice as commander" }).click();
+  // The commander was detected from the header and leads its own group; the
+  // Sideboard card was dropped.
   await expect(page.getByRole("heading", { name: /Commander/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Demonic Tutor" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /Lands/ })).toBeVisible();
   await expect(page.getByText(/16 \/ 100 cards/)).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));

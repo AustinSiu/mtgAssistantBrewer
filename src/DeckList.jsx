@@ -139,14 +139,24 @@ function DeckList() {
     if (parsed.length === 0) return;
     setEntries((prev) => {
       const byName = new Map(prev.map((e) => [e.name.toLowerCase(), e]));
-      for (const { name, qty } of parsed) {
+      // A pasted commander wins the single commander slot.
+      const hasCommander = parsed.some((p) => p.commander);
+      for (const { name, qty, commander } of parsed) {
         const key = name.toLowerCase();
         const existing = byName.get(key);
         if (existing) {
           existing.qty += qty;
+          if (commander) existing.commander = true;
         } else {
-          const row = { id: makeId(), name, qty, tag: "", commander: false };
+          const row = { id: makeId(), name, qty, tag: "", commander: !!commander };
           byName.set(key, row);
+        }
+      }
+      // Ensure at most one commander when the paste designated one.
+      if (hasCommander) {
+        const flagged = parsed.find((p) => p.commander).name.toLowerCase();
+        for (const e of byName.values()) {
+          if (e.name.toLowerCase() !== flagged) e.commander = false;
         }
       }
       return [...byName.values()];
@@ -217,9 +227,17 @@ function DeckList() {
         </button>
         {pasteOpen && (
           <div className="paste-box">
+            <p className="paste-hint">
+              Paste a plain list or a Moxfield export (deck page → More →
+              Export). Section headers are read automatically — the card under
+              “Commander” is set as your commander, and Sideboard / Maybeboard /
+              Considering are ignored.
+            </p>
             <textarea
               aria-label="Paste decklist"
-              placeholder={"1 Sol Ring\n1 Cultivate\n1 Llanowar Elves"}
+              placeholder={
+                "Commander (1)\n1 Atraxa, Praetors' Voice\n\nCreatures (2)\n1 Sol Ring\n1 Llanowar Elves"
+              }
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
               rows={6}

@@ -636,6 +636,13 @@ h3 {
   max-width: 400px;
 }
 
+.paste-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #999;
+}
+
 .paste-box textarea {
   width: 100%;
   padding: 0.5rem 0.6rem;
