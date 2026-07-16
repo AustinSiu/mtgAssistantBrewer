@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; background: #171717; font-family: system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.87); }
+  a { color: #8b92ff; text-decoration: none; }
+  a:hover { color: #a7adff; }
+  * { box-sizing: border-box; }
+  input { font-family: inherit; }
+  ::placeholder { color: #666; }
+</style>
+</helmet>
+
+<div style="min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:40px 24px;">
+
+  <!-- ===================== COMMANDER STEP ===================== -->
+  <sc-if value="{{ isCommanderStep }}" hint-placeholder-val="{{ true }}">
+    <div style="width:100%; max-width:520px; margin-top:6vh;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
+        <div style="width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg,#5a9e63,#8b7fd4); display:flex; align-items:center; justify-content:center; font-size:16px;">⚔</div>
+        <div style="font-size:22px; font-weight:700;">Deck Brewer</div>
+      </div>
+      <p style="color:#888; font-size:0.95rem; margin:0 0 24px;">Pick your commander to set the deck's color identity, then build three consistent 33-card sub-decks into a 99-card deck.</p>
+
+      <label style="display:block; font-weight:600; font-size:0.9rem; margin-bottom:0.5rem;">Commander <span style="color:#ff8a8a;">*</span></label>
+      <div style="position:relative;">
+        <input value="{{ commanderQuery }}" onInput="{{ onCommanderInput }}" placeholder="Search a legendary creature…" style="width:100%; padding:0.6rem 0.7rem; border-radius:8px; border:1px solid #555; background:#1a1a1a; color:inherit; font-size:1rem;">
+        <sc-if value="{{ showCommanderList }}" hint-placeholder-val="{{ false }}">
+          <ul style="position:absolute; top:calc(100% + 4px); left:0; right:0; margin:0; padding:0.25rem; list-style:none; background:#1a1a1a; border:1px solid #555; border-radius:8px; box-shadow:0 8px 22px rgba(0,0,0,0.5); z-index:5;">
+            <sc-for list="{{ commanderSuggestions }}" as="c" hint-placeholder-count="3">
+              <li onClick="{{ c.onPick }}" style="{{ c.style }}">{{ c.name }}</li>
+            </sc-for>
+          </ul>
+        </sc-if>
+      </div>
+
+      <button onClick="{{ onLookUp }}" disabled="{{ lookUpDisabled }}" style="{{ lookUpStyle }}">Look Up Cards →</button>
+    </div>
+  </sc-if>
+
+  <!-- ===================== WORKSPACE STEP (1a) ===================== -->
+  <sc-if value="{{ isWorkspace }}" hint-placeholder-val="{{ false }}">
+    <div style="width:1180px; max-width:100%; background:#242424; border:1px solid #333; border-radius:14px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.45);">
+
+      <!-- Commander header -->
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #2c2c2c;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="width:38px; height:38px; border-radius:8px; background:linear-gradient(135deg,#5a9e63,#8b7fd4); display:flex; align-items:center; justify-content:center; font-size:18px;">⚔</div>
+          <div>
+            <div style="font-size:17px; font-weight:700;">{{ commander }}</div>
+            <div style="font-size:12px; color:#888;">Commander · color identity
+              <span style="display:inline-flex; gap:3px; margin-left:6px; vertical-align:middle;">
+                <span style="width:14px;height:14px;border-radius:50%;background:#f7f0d8;display:inline-block;"></span>
+                <span style="width:14px;height:14px;border-radius:50%;background:#4a7fd0;display:inline-block;"></span>
+                <span style="width:14px;height:14px;border-radius:50%;background:#3a3a3a;display:inline-block;"></span>
+                <span style="width:14px;height:14px;border-radius:50%;background:#5a9e63;display:inline-block;"></span>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:20px;">
+          <div style="text-align:right;">
+            <div style="font-size:22px; font-weight:700; font-variant-numeric:tabular-nums;">{{ totalPlaced }}<span style="color:#666; font-size:15px;"> / {{ totalSlots }}</span></div>
+            <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.06em;">cards placed</div>
+          </div>
+          <button onClick="{{ onReset }}" style="padding:0.5rem 1.1rem; border-radius:6px; border:1px solid #555; background:#1a1a1a; color:inherit; font-weight:500; font-size:0.85rem;">Change commander</button>
+        </div>
+      </div>
+
+      <div style="display:flex;">
+        <!-- Matrix -->
+        <div style="flex:1; padding:16px 20px; min-width:0;">
+          <div style="font-size:13px; color:#aaa; margin-bottom:8px;">Composition matrix <span style="color:#666;">· rows are shared slot tags · click a cell to edit &amp; get suggestions</span></div>
+          <table style="border-collapse:collapse; font-size:0.86rem; width:100%; font-variant-numeric:tabular-nums;">
+            <thead>
+              <tr style="text-align:left;">
+                <th style="padding:0.4rem 0.35rem; border-bottom:2px solid #444; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:#666; width:28px; text-align:center;">#</th>
+                <th style="padding:0.4rem 0.5rem; border-bottom:2px solid #444; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:#aaa; width:15%;">Tag <span style="text-transform:none; color:#666; font-weight:400;">· function</span></th>
+                <th style="padding:0.4rem 0.5rem; border-bottom:2px solid #444; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:#aaa; width:15%;">Note <span style="text-transform:none; color:#666; font-weight:400;">· intent</span></th>
+                <sc-for list="{{ subHeaders }}" as="h" hint-placeholder-count="3">
+                  <th style="{{ h.thStyle }}">{{ h.label }} <span style="text-transform:none; color:#666; font-weight:400;">{{ h.sub }}</span>{{ h.badge }}</th>
+                </sc-for>
+              </tr>
+            </thead>
+            <sc-for list="{{ rows }}" as="row" hint-placeholder-count="7">
+              <tbody>
+                <tr style="{{ row.trStyle }}">
+                  <td style="padding:0.3rem 0.3rem; border-bottom:1px solid #2a2a2a; vertical-align:top; text-align:center; color:#666; font-size:0.78rem; font-variant-numeric:tabular-nums;">{{ row.rowNum }}</td>
+                  <td style="padding:0.3rem 0.3rem; border-bottom:1px solid #2a2a2a; vertical-align:top;">
+                    <select value="{{ row.category }}" onChange="{{ row.onTagChange }}" style="width:100%; padding:0.35rem 1.6rem 0.35rem 0.5rem; border-radius:6px; border:1px solid #444; background-color:#1a1a1a; background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22 viewBox=%220 0 10 6%22><path d=%22M1 1l4 4 4-4%22 fill=%22none%22 stroke=%22%23888%22 stroke-width=%221.5%22 stroke-linecap=%22round%22/></svg>'); background-repeat:no-repeat; background-position:right 0.6rem center; -webkit-appearance:none; -moz-appearance:none; appearance:none; color:inherit; font-size:0.84rem; font-weight:600;">
+                      <sc-for list="{{ row.tagOptions }}" as="opt" hint-placeholder-count="6"><option value="{{ opt.value }}">{{ opt.value }}</option></sc-for>
+                    </select>
+                    <div style="color:#666; font-size:0.72rem; margin-top:0.15rem;">otag:{{ row.otag }}</div>
+                  </td>
+                  <td style="padding:0.3rem 0.3rem; border-bottom:1px solid #2a2a2a; vertical-align:top;">
+                    <textarea value="{{ row.note }}" onInput="{{ row.onNoteChange }}" placeholder="Why this slot…" rows="1" style="width:100%; padding:0.35rem 0.5rem; border-radius:6px; border:1px solid #3a3a3a; background:#181818; color:#bbb; font-size:0.78rem; font-family:inherit; line-height:1.3; resize:vertical; overflow:hidden; min-height:2rem;"></textarea>
+                  </td>
+                  <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="3">
+                    <td style="{{ cell.tdStyle }}" onClick="{{ cell.onSelect }}">
+                      <input value="{{ cell.value }}" onInput="{{ cell.onInput }}" onFocus="{{ cell.onSelect }}" placeholder="Card name…" style="{{ cell.inputStyle }}">
+                      <sc-if value="{{ cell.hasNote }}" hint-placeholder-val="{{ false }}">
+                        <div style="{{ cell.noteStyle }}">{{ cell.noteText }}<sc-if value="{{ cell.showKeep }}" hint-placeholder-val="{{ false }}"><button onClick="{{ cell.onDismiss }}" style="background:none; border:1px solid #e8a33d; color:#e8a33d; border-radius:4px; font-size:0.66rem; padding:0 0.3rem; margin-left:0.35rem;">✓ keep</button></sc-if></div>
+                      </sc-if>
+                    </td>
+                  </sc-for>
+                </tr>
+                <sc-if value="{{ row.showStrip }}" hint-placeholder-val="{{ false }}">
+                  <tr>
+                    <td colspan="{{ row.colSpan }}" style="padding:0;">
+                      <div style="background:#16161e; padding:0.6rem 0.8rem; border-radius:8px; margin:0.2rem 0 0.5rem;">
+                        <div style="font-size:0.78rem; color:#aaa; margin-bottom:0.5rem;">{{ row.stripLabel }}</div>
+                        <sc-if value="{{ row.hasSuggestions }}" hint-placeholder-val="{{ true }}">
+                          <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+                            <sc-for list="{{ row.suggestions }}" as="sg" hint-placeholder-count="3">
+                              <div style="border:1px solid #444; border-radius:6px; background:#1a1a2a; padding:0.5rem 0.6rem; font-size:0.8rem;">
+                                <div style="font-weight:500; color:#8b92ff;">{{ sg.name }}</div>
+                                <div style="color:#999; font-size:0.72rem; margin:0.15rem 0 0.4rem;">{{ sg.meta }}</div>
+                                <button onClick="{{ sg.onTake }}" style="border:1px solid #646cff; color:#8b92ff; background:transparent; border-radius:5px; padding:0.12rem 0.5rem; font-size:0.72rem;">{{ row.takeLabel }}</button>
+                              </div>
+                            </sc-for>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ row.noSuggestions }}" hint-placeholder-val="{{ false }}">
+                          <div style="color:#666; font-size:0.78rem;">Every matching card is already in the deck.</div>
+                        </sc-if>
+                      </div>
+                    </td>
+                  </tr>
+                </sc-if>
+              </tbody>
+            </sc-for>
+          </table>
+        </div>
+
+        <!-- Consistency rail -->
+        <div style="width:280px; flex-shrink:0; border-left:1px solid #2c2c2c; padding:16px; background:#1e1e2e;">
+          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:#888; font-weight:600; margin-bottom:10px;">Consistency</div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <sc-for list="{{ fillBars }}" as="bar" hint-placeholder-count="3">
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:4px;"><span>{{ bar.label }}</span><span style="{{ bar.countStyle }}">{{ bar.count }} / {{ bar.total }}</span></div>
+                <div style="height:6px; background:#111; border-radius:3px; overflow:hidden;"><div style="{{ bar.fillStyle }}"></div></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="height:1px; background:#333; margin:14px 0;"></div>
+          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:#888; font-weight:600; margin-bottom:8px;">Needs attention</div>
+          <div style="display:flex; flex-direction:column; gap:7px; font-size:0.8rem;">
+            <sc-for list="{{ attention }}" as="a" hint-placeholder-count="3">
+              <div style="display:flex; gap:7px; align-items:flex-start;"><span style="{{ a.dotStyle }}">{{ a.dot }}</span><span>{{ a.text }}</span></div>
+            </sc-for>
+          </div>
+          <div style="height:1px; background:#333; margin:14px 0;"></div>
+          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:#888; font-weight:600; margin-bottom:8px;">MV curve <span style="text-transform:none; letter-spacing:0; color:#666;">· avg {{ avgMv }}</span></div>
+          <div style="display:flex; align-items:flex-end; gap:4px; height:54px;">
+            <sc-for list="{{ curve }}" as="b" hint-placeholder-count="7">
+              <div style="{{ b.style }}"></div>
+            </sc-for>
+          </div>
+          <div style="display:flex; gap:4px; font-size:0.64rem; color:#666; margin-top:3px;">
+            <sc-for list="{{ curve }}" as="b" hint-placeholder-count="7">
+              <span style="flex:1; text-align:center;">{{ b.label }}</span>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    step: 'workspace',
+    commanderQuery: 'Atraxa, Praetors\u2019 Voice',
+    commander: 'Atraxa, Praetors\u2019 Voice',
+    commanderTouched: false,
+    activeCol: 'B',
+    activeRow: 2,
+    flags: { 'A-1': true },
+    subdecks: ['A','B','C'],
+    slots: [
+      { category: 'Mana Rock',    note: 'Sol Ring is the ceiling', A: 'Sol Ring',             B: 'Mana Vault',      C: 'Arcane Signet' },
+      { category: 'Ramp',         note: '',                        A: 'Cultivate',            B: 'Cultivate',       C: 'Farseek' },
+      { category: 'Removal',      note: 'Keep it 1\u20132 MV',      A: 'Swords to Plowshares', B: '',                C: 'Anguished Unmaking' },
+      { category: 'Card Draw',    note: '',                        A: 'Sylvan Library',       B: 'Phyrexian Arena', C: 'Night\u2019s Whisper' },
+      { category: 'Board Wipe',   note: '',                        A: 'Wrath of God',         B: 'Damnaton',        C: 'Supreme Verdict' },
+      { category: 'Counterspell', note: '',                        A: 'Counterspell',         B: 'Swan Song',       C: '' },
+      { category: 'Tutor',        note: 'Prefer instant-speed',    A: 'Demonic Tutor',        B: 'Vampiric Tutor',  C: '' },
+    ],
+  };
+
+  ACCENTS = { A:'#5a9e63', B:'#c06a55', C:'#8b7fd4', D:'#d49a3d', E:'#4a9ecc', F:'#c05fa0' };
+  accentFor(col){ return this.ACCENTS[col] || '#646cff'; }
+
+  CATEGORIES = [
+    { label: 'Ramp',            otag: 'ramp' },
+    { label: 'Mana Rock',       otag: 'mana-rock' },
+    { label: 'Card Draw',       otag: 'card-draw' },
+    { label: 'Tutor',           otag: 'tutor' },
+    { label: 'Removal',         otag: 'targeted-removal' },
+    { label: 'Board Wipe',      otag: 'board-wipe' },
+    { label: 'Counterspell',    otag: 'counterspell' },
+    { label: 'Protection',      otag: 'protection' },
+    { label: 'Token Generator', otag: 'token-generator' },
+    { label: 'Reanimation',     otag: 'reanimation' },
+    { label: 'Grave Hate',      otag: 'grave-hate' },
+    { label: 'Blink',           otag: 'blink' },
+    { label: 'Cost Reducer',    otag: 'cost-reducer' },
+    { label: 'Aristocrat',      otag: 'aristocrat' },
+    { label: 'Anthem',          otag: 'anthem' },
+  ];
+
+  CATALOG = {
+    'Sol Ring':{cost:'{1}',mv:1,purpose:'mana-rock'}, 'Mana Vault':{cost:'{1}',mv:1,purpose:'mana-rock'}, 'Arcane Signet':{cost:'{1}',mv:1,purpose:'mana-rock'},
+    'Fellwar Stone':{cost:'{2}',mv:2,purpose:'mana-rock'}, 'Mind Stone':{cost:'{2}',mv:2,purpose:'mana-rock'}, 'Talisman of Dominance':{cost:'{2}',mv:2,purpose:'mana-rock'}, 'Chromatic Lantern':{cost:'{3}',mv:3,purpose:'mana-rock'},
+    'Cultivate':{cost:'{2}{G}',mv:3,purpose:'ramp'}, 'Farseek':{cost:'{1}{G}',mv:2,purpose:'ramp'}, 'Nature\u2019s Lore':{cost:'{1}{G}',mv:2,purpose:'ramp'}, 'Three Visits':{cost:'{1}{G}',mv:2,purpose:'ramp'}, 'Skyshroud Claim':{cost:'{3}{G}',mv:4,purpose:'ramp'}, 'Rampant Growth':{cost:'{1}{G}',mv:2,purpose:'ramp'},
+    'Swords to Plowshares':{cost:'{W}',mv:1,purpose:'targeted-removal'}, 'Path to Exile':{cost:'{W}',mv:1,purpose:'targeted-removal'}, 'Fatal Push':{cost:'{B}',mv:1,purpose:'targeted-removal'}, 'Generous Gift':{cost:'{2}{W}',mv:3,purpose:'targeted-removal'}, 'Despark':{cost:'{W}{B}',mv:2,purpose:'targeted-removal'}, 'Anguished Unmaking':{cost:'{1}{W}{B}',mv:3,purpose:'targeted-removal'}, 'Assassin\u2019s Trophy':{cost:'{B}{G}',mv:2,purpose:'targeted-removal'},
+    'Sylvan Library':{cost:'{1}{G}',mv:2,purpose:'card-draw'}, 'Phyrexian Arena':{cost:'{1}{B}{B}',mv:3,purpose:'card-draw'}, 'Night\u2019s Whisper':{cost:'{1}{B}',mv:2,purpose:'card-draw'}, 'Fact or Fiction':{cost:'{3}{U}',mv:4,purpose:'card-draw'}, 'Painful Truths':{cost:'{2}{B}',mv:3,purpose:'card-draw'}, 'Read the Bones':{cost:'{2}{B}',mv:3,purpose:'card-draw'},
+    'Wrath of God':{cost:'{2}{W}{W}',mv:4,purpose:'board-wipe'}, 'Supreme Verdict':{cost:'{1}{W}{W}{U}',mv:4,purpose:'board-wipe'}, 'Damnation':{cost:'{2}{B}{B}',mv:4,purpose:'board-wipe'}, 'Toxic Deluge':{cost:'{2}{B}',mv:3,purpose:'board-wipe'}, 'Farewell':{cost:'{4}{W}{W}',mv:6,purpose:'board-wipe'},
+    'Counterspell':{cost:'{U}{U}',mv:2,purpose:'counterspell'}, 'Swan Song':{cost:'{U}',mv:1,purpose:'counterspell'}, 'Dovin\u2019s Veto':{cost:'{W}{U}',mv:2,purpose:'counterspell'}, 'Arcane Denial':{cost:'{1}{U}',mv:2,purpose:'counterspell'}, 'Negate':{cost:'{1}{U}',mv:2,purpose:'counterspell'},
+    'Demonic Tutor':{cost:'{1}{B}',mv:2,purpose:'tutor'}, 'Vampiric Tutor':{cost:'{B}',mv:1,purpose:'tutor'}, 'Diabolic Intent':{cost:'{1}{B}',mv:2,purpose:'tutor'}, 'Enlightened Tutor':{cost:'{W}',mv:1,purpose:'tutor'}, 'Mystical Tutor':{cost:'{U}',mv:1,purpose:'tutor'},
+  };
+
+  COMMANDERS = ['Atraxa, Praetors\u2019 Voice','Atraxa, Grand Unifier','Kenrith, the Returned King','Korvold, Fae-Cursed King','Edgar Markov','Yuriko, the Tenured Tactician','The Ur-Dragon','Prossh, Skyraider of Kher'];
+
+  norm(s){ return (s||'').trim().toLowerCase(); }
+
+  // occurrence count of a name across whole deck
+  deckCounts(){
+    const m = {};
+    this.state.slots.forEach(s => this.state.subdecks.forEach(c => {
+      const k = this.norm(s[c]);
+      if (k) m[k] = (m[k]||0) + 1;
+    }));
+    return m;
+  }
+
+  cellState(name, counts){
+    const v = (name||'').trim();
+    if (!v) return 'empty';
+    const info = this.CATALOG[v];
+    if (!info) return 'nf';
+    if (counts[this.norm(v)] > 1) return 'dup';
+    return 'ok';
+  }
+
+  onCommanderInput = (e) => this.setState({ commanderQuery: e.target.value, commanderTouched: true });
+
+  onLookUp = () => {
+    const q = this.state.commanderQuery.trim();
+    const match = this.COMMANDERS.find(c => this.norm(c) === this.norm(q)) || q;
+    this.setState({ commander: match, step: 'workspace' });
+  };
+
+  onReset = () => this.setState({ step: 'commander', commanderTouched: false });
+
+  onTagChange = (rowIdx) => (e) => {
+    const v = e.target.value;
+    this.setState(s => ({ slots: s.slots.map((row,i) => i===rowIdx ? {...row, category: v} : row) }));
+  };
+
+  otagFor = (label) => { const c = this.CATEGORIES.find(x => x.label === label); return c ? c.otag : ''; };
+
+  editNote = (rowIdx) => (e) => {
+    const v = e.target.value;
+    this.setState(s => ({ slots: s.slots.map((row,i) => i===rowIdx ? {...row, note: v} : row) }));
+  };
+
+
+
+  selectCell = (rowIdx, col) => () => this.setState({ activeRow: rowIdx, activeCol: col });
+
+  editCell = (rowIdx, col) => (e) => {
+    const v = e.target.value;
+    this.setState(s => {
+      const slots = s.slots.map((row,i) => i===rowIdx ? {...row, [col]: v} : row);
+      return { slots };
+    });
+  };
+
+  takeSuggestion = (name) => () => {
+    const { activeRow, activeCol } = this.state;
+    this.setState(s => ({ slots: s.slots.map((row,i) => i===activeRow ? {...row, [activeCol]: name} : row) }));
+  };
+
+  dismissFlag = (key) => () => this.setState(s => { const f={...s.flags}; delete f[key]; return { flags: f }; });
+
+  renderVals() {
+    const st = this.state;
+    const isCommanderStep = st.step === 'commander';
+    const isWorkspace = st.step === 'workspace';
+
+    // ---- commander autocomplete ----
+    const q = this.norm(st.commanderQuery);
+    let commanderSuggestions = [];
+    let showCommanderList = false;
+    if (isCommanderStep && st.commanderTouched && q) {
+      const matches = this.COMMANDERS.filter(c => this.norm(c).includes(q));
+      const exact = matches.length === 1 && this.norm(matches[0]) === q;
+      if (matches.length && !exact) {
+        showCommanderList = true;
+        commanderSuggestions = matches.slice(0,6).map((name,i) => ({
+          name,
+          onPick: () => this.setState({ commanderQuery: name, commander: name }),
+          style: 'padding:0.4rem 0.5rem; border-radius:5px; font-size:0.9rem; cursor:pointer;' + (i===0 ? ' background:#2a2a4a;' : ''),
+        }));
+      }
+    }
+    const lookUpDisabled = !st.commanderQuery.trim();
+    const lookUpStyle = 'margin-top:18px; padding:0.6rem 1.3rem; border-radius:8px; border:1px solid #646cff; background:#646cff; color:#fff; font-weight:600; font-size:0.95rem;' + (lookUpDisabled ? ' opacity:0.45; cursor:not-allowed;' : ' cursor:pointer;');
+
+    // ---- workspace ----
+    const counts = this.deckCounts();
+    const colAccent = { A:'#5a9e63', B:'#c06a55', C:'#8b7fd4' };
+
+    const badgeStyle = 'background:#646cff; color:#fff; border-radius:999px; padding:0.05rem 0.5rem; font-size:0.6rem; text-transform:none; letter-spacing:0; margin-left:4px;';
+    const subHeaders = st.subdecks.map((col,i) => ({
+      thStyle: 'padding:0.4rem 0.5rem; border-bottom:3px solid '+this.accentFor(col)+'; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:#aaa;',
+      label: '33 ' + col,
+      sub: i === 0 ? 'main' : '',
+      badge: st.activeCol === col ? React.createElement('span',{style:this._parseStyle(badgeStyle)},'active') : '',
+    }));
+
+    const rows = st.slots.map((slot, rowIdx) => {
+      const otag = this.otagFor(slot.category);
+      const tagOptions = this.CATEGORIES.map(c => ({ value: c.label }));
+      const cells = st.subdecks.map(col => {
+        const value = slot[col] || '';
+        const stt = this.cellState(value, counts);
+        const isActive = st.activeCol === col;
+        const flagKey = col + '-' + rowIdx;
+        const flagged = !!st.flags[flagKey];
+
+        let border = '#444';
+        if (isActive) border = '#555';
+        if (flagged && stt !== 'dup' && stt !== 'nf') border = '#e8a33d';
+        if (stt === 'dup' || stt === 'nf') border = '#d9534f';
+
+        let tdStyle = 'padding:0.3rem 0.3rem; border-bottom:1px solid #2a2a2a; cursor:pointer; vertical-align:top;';
+        if (isActive) tdStyle += ' background:rgba(100,108,255,0.08);';
+
+        const inputStyle = 'width:100%; padding:0.35rem 0.5rem; border-radius:6px; border:1px solid '+border+'; background:#1a1a1a; color:inherit; font-size:0.86rem;';
+
+        let hasNote=false, noteText='', noteStyle='', showKeep=false, onDismiss=()=>{};
+        if (stt === 'dup') { hasNote=true; noteText='duplicate in deck'; noteStyle='color:#ff8a8a; font-size:0.7rem; margin-top:0.15rem;'; }
+        else if (stt === 'nf') { hasNote=true; noteText='not found on Scryfall'; noteStyle='color:#ff8a8a; font-size:0.7rem; margin-top:0.15rem;'; }
+        else if (flagged) { hasNote=true; noteText='\u26a0 tag changed \u2014 keep?'; noteStyle='color:#e8a33d; font-size:0.7rem; margin-top:0.15rem;'; showKeep=true; onDismiss=this.dismissFlag(flagKey); }
+
+        return { value, tdStyle, inputStyle, hasNote, noteText, noteStyle, showKeep, onDismiss,
+          onSelect: this.selectCell(rowIdx, col), onInput: this.editCell(rowIdx, col) };
+      });
+
+      const showStrip = st.activeRow === rowIdx;
+      let suggestions = [], stripLabel = '', hasSuggestions=false, noSuggestions=false;
+      const takeLabel = '\u2192 33 ' + st.activeCol;
+      if (showStrip) {
+        const aCard = slot.A;
+        stripLabel = React.createElement(React.Fragment, null,
+          'Similar to ', React.createElement('strong', null, aCard || slot.category), ' (33 A) ',
+          React.createElement('span',{style:{color:'#666'}}, '\u00b7 otag:'+otag+' \u00b7 fills 33 '+st.activeCol));
+        const pool = Object.keys(this.CATALOG).filter(n =>
+          this.CATALOG[n].purpose === otag && !counts[this.norm(n)]);
+        suggestions = pool.slice(0,4).map(n => ({
+          name: n, meta: this.CATALOG[n].cost + ' \u00b7 MV ' + this.CATALOG[n].mv,
+          onTake: this.takeSuggestion(n),
+        }));
+        hasSuggestions = suggestions.length > 0;
+        noSuggestions = !hasSuggestions;
+      }
+
+      return { category: slot.category, otag, tagOptions, onTagChange: this.onTagChange(rowIdx),
+        note: slot.note || '', onNoteChange: this.editNote(rowIdx), rowNum: rowIdx + 1,
+        colSpan: 3 + st.subdecks.length,
+        cells, trStyle: showStrip ? 'outline:2px solid #646cff; outline-offset:-2px;' : '',
+        showStrip, suggestions, stripLabel, hasSuggestions, noSuggestions, takeLabel };
+    });
+
+    // ---- rail: fill bars ----
+    const total = st.slots.length;
+    const filled = (col) => st.slots.filter(s => s[col] && s[col].trim()).length;
+    const fillBars = st.subdecks.map(col => {
+      const c = filled(col);
+      const pct = Math.round(c/total*100);
+      const active = st.activeCol === col;
+      return { label: React.createElement(React.Fragment, null, '33 '+col, active ? React.createElement('span',{style:{color:'#646cff'}}, ' active') : ''),
+        count: c, total,
+        countStyle: 'color:'+this.accentFor(col)+'; font-variant-numeric:tabular-nums;',
+        fillStyle: 'width:'+pct+'%; height:100%; background:'+this.accentFor(col)+';' };
+    });
+
+    // ---- rail: needs attention ----
+    const attention = [];
+    const dupNames = Object.keys(counts).filter(k => counts[k] > 1);
+    if (dupNames.length) attention.push({ dot:'\u25cf', dotStyle:'color:#ff8a8a;', text: dupNames.length+' duplicate'+(dupNames.length>1?'s':'')+' across sub-decks' });
+    let nf = 0;
+    st.slots.forEach(s => st.subdecks.forEach(c => { const v=(s[c]||'').trim(); if (v && !this.CATALOG[v]) nf++; }));
+    if (nf) attention.push({ dot:'\u25cf', dotStyle:'color:#ff8a8a;', text: nf+' card'+(nf>1?'s':'')+' not found on Scryfall' });
+    const flagCount = Object.keys(st.flags).length;
+    if (flagCount) attention.push({ dot:'\u25cf', dotStyle:'color:#e8a33d;', text: flagCount+' flagged for review' });
+    const emptyActive = total - filled(st.activeCol);
+    if (emptyActive) attention.push({ dot:'\u25cb', dotStyle:'color:#888;', text: emptyActive+' empty slot'+(emptyActive>1?'s':'')+' in 33 '+st.activeCol });
+    if (!attention.length) attention.push({ dot:'\u2713', dotStyle:'color:#5a9e63;', text: 'All clear \u2014 sub-decks are consistent' });
+
+    // ---- rail: MV curve (whole deck) ----
+    const buckets = [0,0,0,0,0,0,0]; // mv 1..7+
+    let sum=0, n=0;
+    st.slots.forEach(s => st.subdecks.forEach(c => {
+      const info = this.CATALOG[(s[c]||'').trim()];
+      if (info) { const b = Math.min(info.mv,7)-1; if (b>=0){ buckets[b]++; } sum+=info.mv; n++; }
+    }));
+    const maxB = Math.max(1, ...buckets);
+    const curve = buckets.map((v,i) => ({
+      style: 'flex:1; background:#5a9e63; height:'+Math.max(3, Math.round(v/maxB*100))+'%; border-radius:2px 2px 0 0;',
+      label: i===6 ? '7+' : String(i+1),
+    }));
+    const avgMv = n ? (sum/n).toFixed(1) : '0.0';
+
+    const totalPlaced = filled('A')+filled('B')+filled('C');
+    const totalSlots = total*3;
+
+    return {
+      isCommanderStep, isWorkspace,
+      commanderQuery: st.commanderQuery, commander: st.commander,
+      commanderSuggestions, showCommanderList,
+      lookUpDisabled, lookUpStyle,
+      onCommanderInput: this.onCommanderInput, onLookUp: this.onLookUp, onReset: this.onReset,
+      rows, fillBars, attention, curve, avgMv,
+      totalPlaced, totalSlots, subHeaders,
+    };
+  }
+
+  _parseStyle(str){
+    const o = {};
+    str.split(';').forEach(p => { const i=p.indexOf(':'); if(i>0){ const k=p.slice(0,i).trim().replace(/-([a-z])/g,(m,g)=>g.toUpperCase()); o[k]=p.slice(i+1).trim(); } });
+    return o;
+  }
+}
+</script>
+</body>
+</html>
