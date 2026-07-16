@@ -11,7 +11,7 @@ import {
   lookupCommander,
   fetchSimilar,
 } from "./brew";
-import { duplicateNonBasics } from "./decklist";
+import { duplicateNonBasics, toMoxfield } from "./decklist";
 import { cardManaCost, cardManaValue } from "./scryfall";
 
 export const CARD_COUNT = 33;
@@ -65,6 +65,7 @@ function DeckBrewer() {
   const [strip, setStrip] = useState({ loading: false, items: null });
   const [pendingChange, setPendingChange] = useState(null);
   const [warnDisabled, setWarnDisabled] = useState(false); // this session only
+  const [exportOpen, setExportOpen] = useState(false);
 
   const lookupRef = useRef(lookup);
   lookupRef.current = lookup;
@@ -343,6 +344,7 @@ function DeckBrewer() {
           totalPlaced={filledCount}
           totalSlots={totalSlots}
           onChangeCommander={() => setStep("commander")}
+          onExport={() => setExportOpen(true)}
           onClear={clearAll}
         />
 
@@ -506,6 +508,112 @@ function DeckBrewer() {
           onDisableWarnings={() => setWarnDisabled(true)}
         />
       )}
+
+      {exportOpen && (
+        <ExportModal
+          commander={commander}
+          subDecks={subDecks}
+          subDeckNames={SUB_DECK_NAMES}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Export the selected sub-deck(s) to a Moxfield-importable decklist. Every
+// sub-deck is selected by default (the whole 99-card deck); untick some to
+// export one or a subset of the 33-card sub-decks.
+function ExportModal({ commander, subDecks, subDeckNames, onClose }) {
+  const [selected, setSelected] = useState(() =>
+    new Set(subDecks.map((_, si) => si))
+  );
+  const [includeCommander, setIncludeCommander] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  const toggle = (si) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(si)) next.delete(si);
+      else next.add(si);
+      return next;
+    });
+
+  const cards = subDecks.flatMap((sd, si) =>
+    selected.has(si) ? sd.cards : []
+  );
+  const text = toMoxfield({ commander, cards, includeCommander });
+  const cardCount = cards.filter((c) => c.trim()).length;
+
+  function copy() {
+    navigator.clipboard?.writeText(text).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      },
+      () => {}
+    );
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal export-modal"
+        role="dialog"
+        aria-label="Export to Moxfield"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3>Export to Moxfield</h3>
+        <p>Pick which sub-decks to include, then copy the list into Moxfield.</p>
+
+        <div className="export-options">
+          {subDecks.map((_, si) => (
+            <label key={si} className="export-check">
+              <input
+                type="checkbox"
+                checked={selected.has(si)}
+                onChange={() => toggle(si)}
+              />{" "}
+              {subDeckNames[si]}
+            </label>
+          ))}
+          {commander.trim() && (
+            <label className="export-check">
+              <input
+                type="checkbox"
+                checked={includeCommander}
+                onChange={(e) => setIncludeCommander(e.target.checked)}
+              />{" "}
+              Commander
+            </label>
+          )}
+        </div>
+
+        <textarea
+          className="export-text"
+          aria-label="Moxfield decklist"
+          readOnly
+          rows={10}
+          value={text}
+        />
+
+        <div className="actions">
+          <span className="hint export-count">
+            {cardCount} {cardCount === 1 ? "card" : "cards"}
+          </span>
+          <button type="button" className="preset" onClick={onClose}>
+            Close
+          </button>
+          <button
+            type="button"
+            className="submit"
+            disabled={!text}
+            onClick={copy}
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   deckStats,
   isBasicLand,
   duplicateNonBasics,
+  toMoxfield,
 } from "./decklist";
 import { card } from "../test/fixtures";
 
@@ -168,5 +169,45 @@ describe("deckStats", () => {
     ];
     const s = deckStats(entries);
     expect(s.curve[7]).toBe(1);
+  });
+});
+
+describe("toMoxfield", () => {
+  it("emits a commander section then sorted, quantity-merged mainboard", () => {
+    const out = toMoxfield({
+      commander: "Atraxa, Praetors' Voice",
+      cards: ["Sol Ring", "Forest", "Cultivate", "Forest", "", "  "],
+    });
+    expect(out).toBe(
+      [
+        "Commander",
+        "1 Atraxa, Praetors' Voice",
+        "",
+        "1 Cultivate",
+        "2 Forest",
+        "1 Sol Ring",
+      ].join("\n")
+    );
+  });
+
+  it("merges duplicate names case-insensitively", () => {
+    const out = toMoxfield({
+      commander: "",
+      cards: ["Sol Ring", "sol ring", "SOL RING"],
+    });
+    expect(out).toBe("3 Sol Ring"); // display name from the first occurrence
+  });
+
+  it("omits the commander section when includeCommander is false", () => {
+    const out = toMoxfield({
+      commander: "Atraxa, Praetors' Voice",
+      cards: ["Sol Ring"],
+      includeCommander: false,
+    });
+    expect(out).toBe("1 Sol Ring");
+  });
+
+  it("omits the commander section when there is no commander", () => {
+    expect(toMoxfield({ commander: "", cards: ["Sol Ring"] })).toBe("1 Sol Ring");
   });
 });

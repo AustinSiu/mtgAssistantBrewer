@@ -37,6 +37,7 @@ function WorkspaceHeader({
   totalPlaced,
   totalSlots,
   onChangeCommander,
+  onExport,
   onClear,
 }) {
   return (
@@ -61,6 +62,9 @@ function WorkspaceHeader({
           </div>
           <div className="ws-count-label">cards placed</div>
         </div>
+        <button type="button" className="ws-secondary" onClick={onExport}>
+          Export
+        </button>
         <button type="button" className="ws-secondary" onClick={onChangeCommander}>
           Change commander
         </button>

@@ -153,12 +153,22 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${SCREENSHOT_DIR}/06-flags-and-dup.png` });
 
+  // 7. Export to a Moxfield-importable decklist (whole deck or sub-decks)
+  await page.getByRole("button", { name: "Export" }).click();
+  const exportDialog = page.getByRole("dialog", { name: "Export to Moxfield" });
+  await expect(exportDialog.getByLabel("Moxfield decklist")).toHaveValue(
+    /Commander\n1 Atraxa/
+  );
+  await expect(exportDialog.getByLabel("Moxfield decklist")).toHaveValue(/Mana Vault/);
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/07-export.png` });
+  await exportDialog.getByRole("button", { name: "Close" }).click();
+
   // State survives a reload (localStorage reopens straight into the workspace)
   await page.reload();
   await expect(page.getByLabel("33 B card 1", { exact: true })).toHaveValue("Mana Vault");
   await expect(page.getByText(/picked when slot 1 tag was “Mana Rock”/)).toHaveCount(2);
 
-  // 7. Hypergeometric Calculator tab still works
+  // 8. Hypergeometric Calculator tab still works
   await page.click('button:has-text("Hypergeometric Calculator")');
   await expect(
     page.getByRole("heading", { name: "Hypergeometric Calculator" })
@@ -168,5 +178,5 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await page.getByLabel(/Cards Drawn/).fill("9");
   await expect(page.locator(".headline-value")).toHaveText("58.8%");
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/07-hypergeometric.png`, fullPage: true });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/08-hypergeometric.png`, fullPage: true });
 });

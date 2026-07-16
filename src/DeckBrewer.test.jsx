@@ -341,6 +341,30 @@ describe('DeckBrewer', () => {
     expect(screen.getByLabelText('Slot 1 tag')).toHaveValue('Mana Rock');
   });
 
+  it('exports selected sub-decks to a Moxfield decklist', async () => {
+    render(<DeckBrewer />);
+    await enterWorkspace();
+    await pick('33 A card 1', 'sol ring', 'Sol Ring');
+    fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
+    await pick('33 B card 1', 'cultivate', 'Cultivate');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    const textarea = screen.getByLabelText('Moxfield decklist');
+    // Whole deck by default: commander + both sub-decks.
+    expect(textarea.value).toContain("Commander\n1 Atraxa, Praetors' Voice");
+    expect(textarea.value).toContain('1 Sol Ring');
+    expect(textarea.value).toContain('1 Cultivate');
+
+    // Untick 33 B → its card drops out.
+    fireEvent.click(screen.getByRole('checkbox', { name: '33 B' }));
+    expect(textarea.value).toContain('1 Sol Ring');
+    expect(textarea.value).not.toContain('Cultivate');
+
+    // Untick Commander → the commander section drops out.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Commander' }));
+    expect(textarea.value).toBe('1 Sol Ring');
+  });
+
   it('shows an error message when a card resolution request fails', async () => {
     setupFetch([
       autocompleteRoute,
