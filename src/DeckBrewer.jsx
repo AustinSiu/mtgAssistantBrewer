@@ -362,9 +362,9 @@ function DeckBrewer() {
     }
   }
 
-  function takeSuggestion(name) {
+  function takeSuggestion(name, subIdx) {
     if (activeRow == null) return;
-    commitCard(activeIdx, activeRow, name);
+    commitCard(subIdx, activeRow, name);
   }
 
   if (step === "commander") {
@@ -528,7 +528,7 @@ function DeckBrewer() {
                             sourceName={sourceName}
                             sourceCard={sourceCard}
                             queryHint={queryHintForCategory(slots[i].tag)}
-                            activeName={SUB_DECK_NAMES[activeIdx]}
+                            subDeckNames={SUB_DECK_NAMES.slice(0, subDecks.length)}
                             strip={strip}
                             onTake={takeSuggestion}
                           />
@@ -773,16 +773,15 @@ function SuggestionStrip({
   sourceName,
   sourceCard,
   queryHint,
-  activeName,
+  subDeckNames,
   strip,
   onTake,
 }) {
   const label = (
     <span className="strip-label">
-      Similar to <strong>{sourceName || "—"}</strong> (33 A){" "}
-      <span className="strip-meta">
-        {queryHint ? `· ${queryHint} ` : ""}· fills {activeName}
-      </span>
+      Similar to <strong>{sourceName || "—"}</strong> (33 A)
+      {queryHint && <span className="strip-meta"> · {queryHint}</span>}
+      <span className="strip-meta"> · add to any sub-deck</span>
     </span>
   );
 
@@ -815,13 +814,18 @@ function SuggestionStrip({
             <div className="strip-card-meta">
               {cardManaCost(card)} · MV {cardManaValue(card)}
             </div>
-            <button
-              type="button"
-              className="take"
-              onClick={() => onTake(card.name)}
-            >
-              → {activeName}
-            </button>
+            <div className="strip-card-actions">
+              {subDeckNames.map((name, si) => (
+                <button
+                  key={si}
+                  type="button"
+                  className="take"
+                  onClick={() => onTake(card.name, si)}
+                >
+                  → {name}
+                </button>
+              ))}
+            </div>
           </div>
         ))}
       </div>

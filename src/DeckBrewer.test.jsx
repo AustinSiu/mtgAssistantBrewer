@@ -202,7 +202,9 @@ describe('DeckBrewer', () => {
     expect(screen.queryByRole('link', { name: 'Springleaf Drum' })).not.toBeInTheDocument();
     expect(document.querySelectorAll('.strip-card')).toHaveLength(5);
 
+    // Each suggestion can be sent to any sub-deck, not just the active one.
     const vaultCard = screen.getByRole('link', { name: 'Mana Vault' }).closest('.strip-card');
+    expect(within(vaultCard).getByRole('button', { name: '→ 33 A' })).toBeInTheDocument();
     fireEvent.click(within(vaultCard).getByRole('button', { name: '→ 33 B' }));
     expect(screen.getByLabelText('33 B card 1')).toHaveValue('Mana Vault');
   });
