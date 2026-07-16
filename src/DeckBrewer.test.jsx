@@ -148,17 +148,32 @@ describe('DeckBrewer', () => {
   });
 
   it('opens the suggestion strip for the active cell, excludes deck cards, and takes into the active column', async () => {
+    // Resolve cards as artifacts so the suggestion query filters by type.
+    const artifactCollection = [
+      'cards/collection',
+      (url, options) => {
+        const { identifiers } = JSON.parse(options.body);
+        return ok({
+          data: identifiers.map(({ name }) =>
+            mockCard(name, { cmc: 1, type_line: 'Artifact' })
+          ),
+          not_found: [],
+        });
+      },
+    ];
     setupFetch([
       autocompleteRoute,
       commanderRoute,
-      collectionRoute,
+      artifactCollection,
       ['cards/search', () => ok({
         data: [
           mockCard('Sol Ring', { cmc: 1 }), // already used: excluded
           mockCard('Mana Vault', { cmc: 1 }),
           mockCard('Mox Amber', { cmc: 1 }),
           mockCard('Sol Talisman', { cmc: 1 }),
-          mockCard('Springleaf Drum', { cmc: 1 }),
+          mockCard('Fellwar Stone', { cmc: 1 }),
+          mockCard('Mind Stone', { cmc: 1 }),
+          mockCard('Springleaf Drum', { cmc: 1 }), // 6th qualifier: past the cap
         ],
       })],
     ]);
@@ -178,14 +193,56 @@ describe('DeckBrewer', () => {
 
     const searchUrl = fetch.mock.calls.find(([u]) => String(u).includes('cards/search'))[0];
     expect(decodeURIComponent(String(searchUrl))).toContain(
-      'otag:mana-rock mv:1 id<=WUBG order:edhrec'
+      'otag:mana-rock mv:1 t:artifact id<=WUBG order:edhrec'
     );
+    // Sol Ring is excluded (already in the deck); up to 5 qualifiers are shown,
+    // so the 6th (Springleaf Drum) is dropped by the cap.
     expect(screen.queryByRole('link', { name: 'Sol Ring' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Springleaf Drum' })).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.strip-card')).toHaveLength(5);
 
     const vaultCard = screen.getByRole('link', { name: 'Mana Vault' }).closest('.strip-card');
     fireEvent.click(within(vaultCard).getByRole('button', { name: '→ 33 B' }));
     expect(screen.getByLabelText('33 B card 1')).toHaveValue('Mana Vault');
+  });
+
+  it('searches lands by type when a slot is tagged Land', async () => {
+    const landCollection = [
+      'cards/collection',
+      (url, options) => {
+        const { identifiers } = JSON.parse(options.body);
+        return ok({
+          data: identifiers.map(({ name }) =>
+            mockCard(name, { cmc: 0, type_line: 'Basic Land — Mountain' })
+          ),
+          not_found: [],
+        });
+      },
+    ];
+    setupFetch([
+      autocompleteRoute,
+      commanderRoute,
+      landCollection,
+      ['cards/search', () => ok({
+        data: [
+          mockCard('Command Tower', { cmc: 0, type_line: 'Land' }),
+          mockCard('Exotic Orchard', { cmc: 0, type_line: 'Land' }),
+        ],
+      })],
+    ]);
+
+    render(<DeckBrewer />);
+    await enterWorkspace();
+    await pick('33 A card 1', 'mountain', 'Mountain');
+    setTag(1, 'Land');
+    fireEvent.click(screen.getByLabelText('33 A card 1'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'Command Tower' })).toBeInTheDocument();
+    });
+    // Land rows search by card type, not an oracle tag.
+    const searchUrl = fetch.mock.calls.find(([u]) => String(u).includes('cards/search'))[0];
+    expect(decodeURIComponent(String(searchUrl))).toContain('t:land id<=WUBG order:edhrec');
   });
 
   it('renders the consistency rail: fill bars, needs-attention, and MV curve', async () => {

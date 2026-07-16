@@ -6,6 +6,7 @@ import ConsistencyRail from "./ConsistencyRail";
 import {
   CATEGORY_SUGGESTIONS,
   tagForCategory,
+  queryHintForCategory,
   resolveCardNames,
   lookupCommander,
   fetchSimilar,
@@ -419,9 +420,7 @@ function DeckBrewer() {
                           onCommit={(tag) => commitTag(i, tag)}
                         />
                         <div className="otag-line">
-                          {tagForCategory(slot.tag)
-                            ? `otag:${tagForCategory(slot.tag)}`
-                            : ""}
+                          {queryHintForCategory(slot.tag)}
                         </div>
                       </td>
                       <td>
@@ -459,7 +458,7 @@ function DeckBrewer() {
                           <SuggestionStrip
                             sourceName={sourceName}
                             sourceCard={sourceCard}
-                            tag={rowTag}
+                            queryHint={queryHintForCategory(slots[i].tag)}
                             activeName={SUB_DECK_NAMES[activeIdx]}
                             strip={strip}
                             onTake={takeSuggestion}
@@ -598,7 +597,7 @@ function MatrixCell({
 function SuggestionStrip({
   sourceName,
   sourceCard,
-  tag,
+  queryHint,
   activeName,
   strip,
   onTake,
@@ -607,13 +606,13 @@ function SuggestionStrip({
     <span className="strip-label">
       Similar to <strong>{sourceName || "—"}</strong> (33 A){" "}
       <span className="strip-meta">
-        {tag ? `· otag:${tag} ` : ""}· fills {activeName}
+        {queryHint ? `· ${queryHint} ` : ""}· fills {activeName}
       </span>
     </span>
   );
 
   let body;
-  if (!sourceCard || !tag) {
+  if (!sourceCard || !queryHint) {
     body = (
       <div className="strip-empty">
         Fill 33 A with a tagged card to drive suggestions.

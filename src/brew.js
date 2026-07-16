@@ -3,6 +3,7 @@ import {
   lookupFuzzy,
   rateLimitDelay,
   cardManaValue,
+  cardPrimaryType,
   buildSimilarQuery,
   searchCards,
 } from "./scryfall";
@@ -24,6 +25,9 @@ export const CATEGORY_TO_TAG = {
   "Cost Reducer": "cost-reducer",
   Aristocrat: "aristocrat",
   Anthem: "anthem",
+  // Lands have no functional oracle tag; suggestions search by type instead
+  // (see buildSimilarQuery). "land" is just the marker that drives that path.
+  Land: "land",
 };
 
 export const CATEGORY_SUGGESTIONS = Object.keys(CATEGORY_TO_TAG);
@@ -39,6 +43,16 @@ const TAG_BY_CATEGORY = new Map(
 /** Scryfall oracle tag for a slot's category, or undefined if none maps. */
 export function tagForCategory(category) {
   return TAG_BY_CATEGORY.get(category.trim().toLowerCase());
+}
+
+/**
+ * The Scryfall filter a category searches by, for display next to the tag.
+ * Lands search by card type; everything else by oracle tag.
+ */
+export function queryHintForCategory(category) {
+  const tag = tagForCategory(category);
+  if (!tag) return "";
+  return tag === "land" ? "t:land" : `otag:${tag}`;
 }
 
 /**
@@ -137,13 +151,22 @@ export function clearSimilarCache() {
   similarCache.clear();
 }
 
+// How many alternatives to surface per cell (the query already filters by
+// tag, mana value, type, and color identity, so all shown cards qualify).
+const MAX_SIMILAR = 5;
+
 /**
- * Up to 3 alternatives filling the same role as `card`: same oracle tag,
- * same mana value, inside the commander's color identity — excluding names
- * already used anywhere in the deck (Commander singleton).
+ * Up to 5 alternatives filling the same role as `card`: same oracle tag,
+ * same mana value, same primary type, inside the commander's color identity —
+ * excluding names already used anywhere in the deck (Commander singleton).
  */
 export async function fetchSimilar({ card, tag, commanderCard, excludeNames }) {
-  const query = buildSimilarQuery(tag, cardManaValue(card), commanderCard);
+  const query = buildSimilarQuery(
+    tag,
+    cardManaValue(card),
+    commanderCard,
+    cardPrimaryType(card)
+  );
   if (!similarCache.has(query)) {
     const { data: found = [] } = await searchCards(query);
     similarCache.set(query, found);
@@ -151,5 +174,5 @@ export async function fetchSimilar({ card, tag, commanderCard, excludeNames }) {
   return similarCache
     .get(query)
     .filter((s) => !excludeNames.has(s.name.toLowerCase()))
-    .slice(0, 3);
+    .slice(0, MAX_SIMILAR);
 }
