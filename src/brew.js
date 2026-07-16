@@ -25,6 +25,9 @@ export const CATEGORY_TO_TAG = {
   "Cost Reducer": "cost-reducer",
   Aristocrat: "aristocrat",
   Anthem: "anthem",
+  // Lands have no functional oracle tag; suggestions search by type instead
+  // (see buildSimilarQuery). "land" is just the marker that drives that path.
+  Land: "land",
 };
 
 export const CATEGORY_SUGGESTIONS = Object.keys(CATEGORY_TO_TAG);
@@ -40,6 +43,16 @@ const TAG_BY_CATEGORY = new Map(
 /** Scryfall oracle tag for a slot's category, or undefined if none maps. */
 export function tagForCategory(category) {
   return TAG_BY_CATEGORY.get(category.trim().toLowerCase());
+}
+
+/**
+ * The Scryfall filter a category searches by, for display next to the tag.
+ * Lands search by card type; everything else by oracle tag.
+ */
+export function queryHintForCategory(category) {
+  const tag = tagForCategory(category);
+  if (!tag) return "";
+  return tag === "land" ? "t:land" : `otag:${tag}`;
 }
 
 /**

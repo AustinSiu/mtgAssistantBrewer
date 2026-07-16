@@ -157,6 +157,11 @@ export function buildSimilarQuery(tag, manaValue, commanderCard, type) {
   const ci = commanderCard
     ? ` id<=${cardColorIdentity(commanderCard) || "c"}`
     : "";
+  if (type === "Land") {
+    // Lands share no functional oracle tag and are all mana value 0; suggest
+    // other lands within the commander's color identity.
+    return `t:land${ci} order:edhrec`;
+  }
   const t = type && type !== "Other" ? ` t:${type.toLowerCase()}` : "";
   return `otag:${tag} mv:${manaValue}${t}${ci} order:edhrec`;
 }

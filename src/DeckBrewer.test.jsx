@@ -206,6 +206,45 @@ describe('DeckBrewer', () => {
     expect(screen.getByLabelText('33 B card 1')).toHaveValue('Mana Vault');
   });
 
+  it('searches lands by type when a slot is tagged Land', async () => {
+    const landCollection = [
+      'cards/collection',
+      (url, options) => {
+        const { identifiers } = JSON.parse(options.body);
+        return ok({
+          data: identifiers.map(({ name }) =>
+            mockCard(name, { cmc: 0, type_line: 'Basic Land — Mountain' })
+          ),
+          not_found: [],
+        });
+      },
+    ];
+    setupFetch([
+      autocompleteRoute,
+      commanderRoute,
+      landCollection,
+      ['cards/search', () => ok({
+        data: [
+          mockCard('Command Tower', { cmc: 0, type_line: 'Land' }),
+          mockCard('Exotic Orchard', { cmc: 0, type_line: 'Land' }),
+        ],
+      })],
+    ]);
+
+    render(<DeckBrewer />);
+    await enterWorkspace();
+    await pick('33 A card 1', 'mountain', 'Mountain');
+    setTag(1, 'Land');
+    fireEvent.click(screen.getByLabelText('33 A card 1'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'Command Tower' })).toBeInTheDocument();
+    });
+    // Land rows search by card type, not an oracle tag.
+    const searchUrl = fetch.mock.calls.find(([u]) => String(u).includes('cards/search'))[0];
+    expect(decodeURIComponent(String(searchUrl))).toContain('t:land id<=WUBG order:edhrec');
+  });
+
   it('renders the consistency rail: fill bars, needs-attention, and MV curve', async () => {
     render(<DeckBrewer />);
     await enterWorkspace();

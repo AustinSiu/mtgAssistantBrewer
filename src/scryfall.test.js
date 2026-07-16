@@ -42,4 +42,11 @@ describe("buildSimilarQuery", () => {
       "otag:ramp mv:2 t:artifact id<=c order:edhrec"
     );
   });
+
+  it("searches lands by type rather than oracle tag", () => {
+    const commander = card("Atraxa", { color_identity: ["W", "U", "B", "G"] });
+    expect(buildSimilarQuery("land", 0, commander, "Land")).toBe(
+      "t:land id<=WUBG order:edhrec"
+    );
+  });
 });
