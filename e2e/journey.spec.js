@@ -54,6 +54,8 @@ async function stubScryfall(page) {
               card("Mana Vault", { mana_cost: "{1}", type_line: "Artifact", cmc: 1, color_identity: [] }),
               card("Sol Talisman", { mana_cost: "{1}", type_line: "Artifact", cmc: 1, color_identity: [] }),
               card("Mox Amber", { mana_cost: "{0}", type_line: "Legendary Artifact", cmc: 0, color_identity: [] }),
+              card("Fellwar Stone", { mana_cost: "{2}", type_line: "Artifact", cmc: 2, color_identity: [] }),
+              card("Mind Stone", { mana_cost: "{2}", type_line: "Artifact", cmc: 2, color_identity: [] }),
             ],
           },
         });

@@ -171,7 +171,9 @@ describe('DeckBrewer', () => {
           mockCard('Mana Vault', { cmc: 1 }),
           mockCard('Mox Amber', { cmc: 1 }),
           mockCard('Sol Talisman', { cmc: 1 }),
-          mockCard('Springleaf Drum', { cmc: 1 }),
+          mockCard('Fellwar Stone', { cmc: 1 }),
+          mockCard('Mind Stone', { cmc: 1 }),
+          mockCard('Springleaf Drum', { cmc: 1 }), // 6th qualifier: past the cap
         ],
       })],
     ]);
@@ -193,8 +195,11 @@ describe('DeckBrewer', () => {
     expect(decodeURIComponent(String(searchUrl))).toContain(
       'otag:mana-rock mv:1 t:artifact id<=WUBG order:edhrec'
     );
+    // Sol Ring is excluded (already in the deck); up to 5 qualifiers are shown,
+    // so the 6th (Springleaf Drum) is dropped by the cap.
     expect(screen.queryByRole('link', { name: 'Sol Ring' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Springleaf Drum' })).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.strip-card')).toHaveLength(5);
 
     const vaultCard = screen.getByRole('link', { name: 'Mana Vault' }).closest('.strip-card');
     fireEvent.click(within(vaultCard).getByRole('button', { name: '→ 33 B' }));

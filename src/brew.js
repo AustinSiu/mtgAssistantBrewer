@@ -138,10 +138,14 @@ export function clearSimilarCache() {
   similarCache.clear();
 }
 
+// How many alternatives to surface per cell (the query already filters by
+// tag, mana value, type, and color identity, so all shown cards qualify).
+const MAX_SIMILAR = 5;
+
 /**
- * Up to 3 alternatives filling the same role as `card`: same oracle tag,
- * same mana value, inside the commander's color identity — excluding names
- * already used anywhere in the deck (Commander singleton).
+ * Up to 5 alternatives filling the same role as `card`: same oracle tag,
+ * same mana value, same primary type, inside the commander's color identity —
+ * excluding names already used anywhere in the deck (Commander singleton).
  */
 export async function fetchSimilar({ card, tag, commanderCard, excludeNames }) {
   const query = buildSimilarQuery(
@@ -157,5 +161,5 @@ export async function fetchSimilar({ card, tag, commanderCard, excludeNames }) {
   return similarCache
     .get(query)
     .filter((s) => !excludeNames.has(s.name.toLowerCase()))
-    .slice(0, 3);
+    .slice(0, MAX_SIMILAR);
 }
