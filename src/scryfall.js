@@ -114,6 +114,28 @@ export function cardColorIdentity(card) {
   return (card.color_identity ?? []).join("");
 }
 
+// Priority order for classifying a card that carries several types
+// (e.g. an "Artifact Creature" is primarily a Creature).
+const PRIMARY_TYPE_ORDER = [
+  "Battle",
+  "Planeswalker",
+  "Creature",
+  "Sorcery",
+  "Instant",
+  "Artifact",
+  "Enchantment",
+  "Land",
+];
+
+/** Primary card type from the type line (before the em dash), or "Other". */
+export function cardPrimaryType(card) {
+  const line = cardTypeLine(card);
+  for (const t of PRIMARY_TYPE_ORDER) {
+    if (line.includes(t)) return t;
+  }
+  return "Other";
+}
+
 /** Cheapest USD price for the card (regular, else foil), or null. */
 export function cardPriceUsd(card) {
   const usd = card.prices?.usd ?? card.prices?.usd_foil ?? null;
@@ -127,14 +149,16 @@ export function cardManaValue(card) {
 
 /**
  * Query for cards filling the same functional role: same oracle tag, same
- * mana value, and (when a commander is given) inside its color identity —
- * a colorless commander still restricts to id<=c.
+ * mana value, same primary card type (so a sorcery suggests sorceries, not
+ * artifacts), and — when a commander is given — inside its color identity
+ * (a colorless commander still restricts to id<=c).
  */
-export function buildSimilarQuery(tag, manaValue, commanderCard) {
+export function buildSimilarQuery(tag, manaValue, commanderCard, type) {
   const ci = commanderCard
     ? ` id<=${cardColorIdentity(commanderCard) || "c"}`
     : "";
-  return `otag:${tag} mv:${manaValue}${ci} order:edhrec`;
+  const t = type && type !== "Other" ? ` t:${type.toLowerCase()}` : "";
+  return `otag:${tag} mv:${manaValue}${t}${ci} order:edhrec`;
 }
 
 /** Search Scryfall for cards matching criteria using advanced query syntax. */

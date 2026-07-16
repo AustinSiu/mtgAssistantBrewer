@@ -148,10 +148,23 @@ describe('DeckBrewer', () => {
   });
 
   it('opens the suggestion strip for the active cell, excludes deck cards, and takes into the active column', async () => {
+    // Resolve cards as artifacts so the suggestion query filters by type.
+    const artifactCollection = [
+      'cards/collection',
+      (url, options) => {
+        const { identifiers } = JSON.parse(options.body);
+        return ok({
+          data: identifiers.map(({ name }) =>
+            mockCard(name, { cmc: 1, type_line: 'Artifact' })
+          ),
+          not_found: [],
+        });
+      },
+    ];
     setupFetch([
       autocompleteRoute,
       commanderRoute,
-      collectionRoute,
+      artifactCollection,
       ['cards/search', () => ok({
         data: [
           mockCard('Sol Ring', { cmc: 1 }), // already used: excluded
@@ -178,7 +191,7 @@ describe('DeckBrewer', () => {
 
     const searchUrl = fetch.mock.calls.find(([u]) => String(u).includes('cards/search'))[0];
     expect(decodeURIComponent(String(searchUrl))).toContain(
-      'otag:mana-rock mv:1 id<=WUBG order:edhrec'
+      'otag:mana-rock mv:1 t:artifact id<=WUBG order:edhrec'
     );
     expect(screen.queryByRole('link', { name: 'Sol Ring' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Springleaf Drum' })).not.toBeInTheDocument();

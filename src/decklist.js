@@ -1,5 +1,10 @@
 import { BASIC_LAND_NAMES } from "./brew";
-import { cardPriceUsd, cardManaValue, cardTypeLine } from "./scryfall";
+import {
+  cardPriceUsd,
+  cardManaValue,
+  cardTypeLine,
+  cardPrimaryType,
+} from "./scryfall";
 
 /** A Commander deck is 100 cards including the commander. */
 export const COMMANDER_TARGET = 100;
@@ -138,9 +143,9 @@ export function groupEntries(entries, mode) {
   return sortGroups(result, mode);
 }
 
-// The card-type taxonomy lives here in the domain layer. Two orderings that
-// legitimately differ: DETECTION priority (a card can be several types — an
-// "Artifact Creature" classifies as Creature) and the group DISPLAY order.
+// Display taxonomy for grouping. The plural labels and the group DISPLAY order
+// live here; the primary-type DETECTION priority is shared from scryfall.js
+// (cardPrimaryType), since it also drives suggestion queries.
 const CARD_TYPES = [
   { type: "Creature", plural: "Creatures" },
   { type: "Planeswalker", plural: "Planeswalkers" },
@@ -151,27 +156,6 @@ const CARD_TYPES = [
   { type: "Enchantment", plural: "Enchantments" },
   { type: "Land", plural: "Lands" },
 ];
-
-// Detection priority when a card carries several types.
-const DETECTION_ORDER = [
-  "Battle",
-  "Planeswalker",
-  "Creature",
-  "Sorcery",
-  "Instant",
-  "Artifact",
-  "Enchantment",
-  "Land",
-];
-
-/** Primary card type from the type line (before the em dash), or "Other". */
-function cardPrimaryType(card) {
-  const line = cardTypeLine(card);
-  for (const t of DETECTION_ORDER) {
-    if (line.includes(t)) return t;
-  }
-  return "Other";
-}
 
 const TYPE_PLURAL = Object.fromEntries(
   CARD_TYPES.map(({ type, plural }) => [type, plural])

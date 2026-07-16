@@ -3,6 +3,7 @@ import {
   lookupFuzzy,
   rateLimitDelay,
   cardManaValue,
+  cardPrimaryType,
   buildSimilarQuery,
   searchCards,
 } from "./scryfall";
@@ -143,7 +144,12 @@ export function clearSimilarCache() {
  * already used anywhere in the deck (Commander singleton).
  */
 export async function fetchSimilar({ card, tag, commanderCard, excludeNames }) {
-  const query = buildSimilarQuery(tag, cardManaValue(card), commanderCard);
+  const query = buildSimilarQuery(
+    tag,
+    cardManaValue(card),
+    commanderCard,
+    cardPrimaryType(card)
+  );
   if (!similarCache.has(query)) {
     const { data: found = [] } = await searchCards(query);
     similarCache.set(query, found);
