@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import DeckBrewer, { CARD_COUNT } from './DeckBrewer';
+import { reorder, remapIndex } from './reorder';
 import { clearAutocompleteCache } from './scryfall';
 import { clearSimilarCache } from './brew';
 import { card as mockCard, catalogMatches } from '../test/fixtures';
@@ -341,6 +342,23 @@ describe('DeckBrewer', () => {
     expect(screen.getByLabelText('Slot 1 tag')).toHaveValue('Mana Rock');
   });
 
+  it('reorders a row by dragging its handle onto another row', async () => {
+    render(<DeckBrewer />);
+    await enterWorkspace();
+    setTag(1, 'Ramp');
+    setTag(2, 'Removal');
+
+    const handle1 = screen.getByLabelText('Reorder row 1');
+    const row2 = screen.getByLabelText('Reorder row 2').closest('tr');
+    fireEvent.dragStart(handle1);
+    fireEvent.dragOver(row2);
+    fireEvent.drop(row2);
+
+    // Row 1 (Ramp) moved down into row 2's position; Removal shifts up.
+    expect(screen.getByLabelText('Slot 1 tag')).toHaveValue('Removal');
+    expect(screen.getByLabelText('Slot 2 tag')).toHaveValue('Ramp');
+  });
+
   it('exports selected sub-decks to a Moxfield decklist', async () => {
     render(<DeckBrewer />);
     await enterWorkspace();
@@ -381,5 +399,25 @@ describe('DeckBrewer', () => {
         'Scryfall request failed (HTTP 500)'
       );
     });
+  });
+});
+
+describe('reorder', () => {
+  it('moves an item down', () => {
+    expect(reorder(['a', 'b', 'c', 'd'], 0, 2)).toEqual(['b', 'c', 'a', 'd']);
+  });
+
+  it('moves an item up', () => {
+    expect(reorder(['a', 'b', 'c', 'd'], 3, 1)).toEqual(['a', 'd', 'b', 'c']);
+  });
+});
+
+describe('remapIndex', () => {
+  it('tracks where each index lands when moving down (0 → 2)', () => {
+    expect([0, 1, 2, 3].map((i) => remapIndex(i, 0, 2))).toEqual([2, 0, 1, 3]);
+  });
+
+  it('tracks where each index lands when moving up (3 → 1)', () => {
+    expect([0, 1, 2, 3].map((i) => remapIndex(i, 3, 1))).toEqual([0, 2, 3, 1]);
   });
 });

@@ -12,6 +12,7 @@ import {
   fetchSimilar,
 } from "./brew";
 import { duplicateNonBasics, toMoxfield } from "./decklist";
+import { reorder, remapIndex } from "./reorder";
 import { cardManaCost, cardManaValue } from "./scryfall";
 
 export const CARD_COUNT = 33;
@@ -66,6 +67,8 @@ function DeckBrewer() {
   const [pendingChange, setPendingChange] = useState(null);
   const [warnDisabled, setWarnDisabled] = useState(false); // this session only
   const [exportOpen, setExportOpen] = useState(false);
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
 
   const lookupRef = useRef(lookup);
   lookupRef.current = lookup;
@@ -283,6 +286,47 @@ function DeckBrewer() {
     setActiveRow(slot);
   }
 
+  // Move a whole slot row (its shared tag/note plus every sub-deck's card and
+  // flag at that row) to a new position, keeping the active row pinned to it.
+  function moveRow(from, to) {
+    if (from == null || to == null || from === to) return;
+    setSlots((prev) => reorder(prev, from, to));
+    setSubDecks((prev) =>
+      prev.map((sd) => ({
+        cards: reorder(sd.cards, from, to),
+        flags: reorder(sd.flags, from, to),
+      }))
+    );
+    setActiveRow((prev) => (prev == null ? prev : remapIndex(prev, from, to)));
+  }
+
+  function handleRowDragStart(e, i) {
+    setDragIndex(i);
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(i));
+    }
+  }
+
+  function handleRowDragOver(e, i) {
+    if (dragIndex == null) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    if (overIndex !== i) setOverIndex(i);
+  }
+
+  function handleRowDrop(e, i) {
+    e.preventDefault();
+    moveRow(dragIndex, i);
+    setDragIndex(null);
+    setOverIndex(null);
+  }
+
+  function endRowDrag() {
+    setDragIndex(null);
+    setOverIndex(null);
+  }
+
   function addSubDeck(seed) {
     if (subDecks.length >= MAX_SUB_DECKS) return;
     const sd = emptySubDeck();
@@ -413,8 +457,31 @@ function DeckBrewer() {
               <tbody>
                 {slots.map((slot, i) => (
                   <Fragment key={i}>
-                    <tr className={activeRow === i ? "active-row" : ""}>
-                      <td className="num">{i + 1}</td>
+                    <tr
+                      className={[
+                        activeRow === i ? "active-row" : "",
+                        dragIndex === i ? "dragging" : "",
+                        overIndex === i && dragIndex !== i ? "drag-over" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      onDragOver={(e) => handleRowDragOver(e, i)}
+                      onDrop={(e) => handleRowDrop(e, i)}
+                      onDragEnd={endRowDrag}
+                    >
+                      <td className="num">
+                        <span
+                          className="drag-handle"
+                          draggable
+                          role="button"
+                          aria-label={`Reorder row ${i + 1}`}
+                          title="Drag to reorder"
+                          onDragStart={(e) => handleRowDragStart(e, i)}
+                        >
+                          ⠿
+                        </span>
+                        <span className="row-num">{i + 1}</span>
+                      </td>
                       <td className="tag-cell-td">
                         <TagInput
                           slotIndex={i}
