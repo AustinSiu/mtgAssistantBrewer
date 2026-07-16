@@ -1,13 +1,13 @@
 import { useState } from "react";
 import DeckBrewer from "./DeckBrewer";
 import DeckList from "./DeckList";
-import LandCalculator from "./LandCalculator";
+import HypergeometricCalculator from "./HypergeometricCalculator";
 import "./App.css";
 
 const TABS = [
   ["brewer", "Deck Brewer"],
   ["list", "Deck List"],
-  ["calculator", "Land Calculator"],
+  ["calculator", "Hypergeometric Calculator"],
 ];
 
 function App() {
@@ -35,7 +35,7 @@ function App() {
         <DeckList />
       </div>
       <div hidden={tab !== "calculator"} className="calc-pane">
-        <LandCalculator />
+        <HypergeometricCalculator />
       </div>
     </div>
   );
