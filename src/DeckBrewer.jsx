@@ -1,17 +1,23 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import CardNameInput from "./CardNameInput";
+import CommanderPicker from "./CommanderPicker";
+import WorkspaceHeader from "./WorkspaceHeader";
+import ConsistencyRail from "./ConsistencyRail";
 import {
   CATEGORY_SUGGESTIONS,
   tagForCategory,
-  lookupDeckCards,
+  resolveCardNames,
+  lookupCommander,
   fetchSimilar,
 } from "./brew";
 import { duplicateNonBasics } from "./decklist";
-import { cardManaCost, cardTypeLine, cardColorIdentity, cardManaValue } from "./scryfall";
+import { cardManaCost, cardManaValue } from "./scryfall";
 
 export const CARD_COUNT = 33;
 export const MAX_SUB_DECKS = 3;
 const SUB_DECK_NAMES = ["33 A", "33 B", "33 C"];
+// Sub-deck accent colors (design tokens: A green, B rust, C violet).
+const ACCENTS = ["#5a9e63", "#c06a55", "#8b7fd4"];
 const STORAGE_KEY = "mtgBrewer.matrix.v1";
 
 const emptySlots = () =>
@@ -44,17 +50,23 @@ function DeckBrewer() {
   const [saved] = useState(loadSaved);
 
   const [commander, setCommander] = useState(saved?.commander ?? "");
+  const [step, setStep] = useState(
+    (saved?.commander ?? "").trim() ? "workspace" : "commander"
+  );
   const [slots, setSlots] = useState(saved?.slots ?? emptySlots());
   const [subDecks, setSubDecks] = useState(saved?.subDecks ?? [emptySubDeck()]);
   const [activeIdx, setActiveIdx] = useState(saved?.activeIdx ?? 0);
+  const [activeRow, setActiveRow] = useState(null);
 
-  const [status, setStatus] = useState("idle"); // idle | loading | done | error
   const [error, setError] = useState(null);
   const [commanderCard, setCommanderCard] = useState(null);
-  const [lookup, setLookup] = useState(null); // Map lowername -> {card, matchType}
-  const [openSuggestion, setOpenSuggestion] = useState(null); // {subIdx, slot, source, items, loading}
+  const [lookup, setLookup] = useState(() => new Map()); // lowername -> {card, matchType}
+  const [strip, setStrip] = useState({ loading: false, items: null });
   const [pendingChange, setPendingChange] = useState(null);
   const [warnDisabled, setWarnDisabled] = useState(false); // this session only
+
+  const lookupRef = useRef(lookup);
+  lookupRef.current = lookup;
 
   useEffect(() => {
     try {
@@ -67,12 +79,76 @@ function DeckBrewer() {
     }
   }, [commander, slots, subDecks, activeIdx]);
 
-  const filledCount = subDecks.reduce(
-    (sum, sd) => sum + sd.cards.filter((c) => c.trim()).length,
-    0
-  );
-  const hasCommander = commander.trim() !== "";
-  const canSubmit = hasCommander && filledCount > 0;
+  // Resolve the commander to its card (for color identity) whenever it changes.
+  useEffect(() => {
+    const name = commander.trim();
+    if (!name) {
+      setCommanderCard(null);
+      return;
+    }
+    let cancelled = false;
+    lookupCommander(name)
+      .then((card) => !cancelled && setCommanderCard(card))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [commander]);
+
+  // Resolve card data on commit: whenever the set of committed names changes,
+  // fetch any not already in the lookup so the rail stays live.
+  const committedNames = [
+    ...new Set(subDecks.flatMap((sd) => sd.cards.map((c) => c.trim()).filter(Boolean))),
+  ];
+  const namesKey = committedNames.map((n) => n.toLowerCase()).sort().join("|");
+  useEffect(() => {
+    const missing = committedNames.filter(
+      (n) => !lookupRef.current.has(n.toLowerCase())
+    );
+    if (!missing.length) return;
+    let cancelled = false;
+    resolveCardNames(missing)
+      .then((resolved) => {
+        if (cancelled) return;
+        setLookup((prev) => {
+          const next = new Map(prev);
+          for (const [k, v] of resolved) next.set(k, v);
+          return next;
+        });
+      })
+      .catch((err) => !cancelled && setError(err.message));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [namesKey]);
+
+  // Suggestions for the active row, always driven by the 33 A "main" card.
+  const sourceName = activeRow != null ? subDecks[0].cards[activeRow].trim() : "";
+  const sourceCard = sourceName
+    ? lookup.get(sourceName.toLowerCase())?.card
+    : null;
+  const rowTag = activeRow != null ? tagForCategory(slots[activeRow].tag) : undefined;
+  useEffect(() => {
+    if (activeRow == null || !sourceCard || !rowTag) {
+      setStrip({ loading: false, items: null });
+      return;
+    }
+    let cancelled = false;
+    setStrip({ loading: true, items: null });
+    const excludeNames = new Set(
+      subDecks.flatMap((sd) =>
+        sd.cards.map((c) => c.trim().toLowerCase()).filter(Boolean)
+      )
+    );
+    fetchSimilar({ card: sourceCard, tag: rowTag, commanderCard, excludeNames })
+      .then((items) => !cancelled && setStrip({ loading: false, items }))
+      .catch(() => !cancelled && setStrip({ loading: false, items: [] }));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRow, sourceName, sourceCard, rowTag, commanderCard, namesKey]);
 
   // Commander singleton: any non-basic name used in 2+ cells is a conflict.
   const duplicateNames = duplicateNonBasics(
@@ -80,6 +156,12 @@ function DeckBrewer() {
       sd.cards.filter((c) => c.trim()).map((name) => ({ name }))
     )
   );
+
+  const filledCount = subDecks.reduce(
+    (sum, sd) => sum + sd.cards.filter((c) => c.trim()).length,
+    0
+  );
+  const totalSlots = CARD_COUNT * subDecks.length;
 
   function filledCellsInRow(slot, exceptIdx = -1) {
     return subDecks.flatMap((sd, si) =>
@@ -131,10 +213,7 @@ function DeckBrewer() {
     const oldValue = subDecks[subIdx].cards[slot];
     if (name === oldValue) return;
     setCard(subIdx, slot, name);
-    const affected = filledCellsInRow(slot, subIdx).map((c) => ({
-      ...c,
-      slot,
-    }));
+    const affected = filledCellsInRow(slot, subIdx).map((c) => ({ ...c, slot }));
     if (oldValue.trim() && affected.length > 0) {
       const reason = `picked when ${SUB_DECK_NAMES[subIdx]} slot ${slot + 1} was “${oldValue}”`;
       if (warnDisabled) {
@@ -157,9 +236,7 @@ function DeckBrewer() {
   function commitTag(slot, newTag) {
     const oldValue = slots[slot].tag;
     if (newTag === oldValue) return;
-    setSlots((prev) =>
-      prev.map((s, i) => (i === slot ? { ...s, tag: newTag } : s))
-    );
+    setSlots((prev) => prev.map((s, i) => (i === slot ? { ...s, tag: newTag } : s)));
     const affected = filledCellsInRow(slot).map((c) => ({ ...c, slot }));
     if (oldValue.trim() && affected.length > 0) {
       const reason = `picked when slot ${slot + 1} tag was “${oldValue}”`;
@@ -199,6 +276,11 @@ function DeckBrewer() {
     setPendingChange(null);
   }
 
+  function selectCell(subIdx, slot) {
+    setActiveIdx(subIdx);
+    setActiveRow(slot);
+  }
+
   function addSubDeck(seed) {
     if (subDecks.length >= MAX_SUB_DECKS) return;
     const sd = emptySubDeck();
@@ -211,20 +293,22 @@ function DeckBrewer() {
     if (subDecks.length <= 1) return;
     if (!window.confirm(`Remove ${SUB_DECK_NAMES[subIdx]} and its cards?`)) return;
     setSubDecks((prev) => prev.filter((_, si) => si !== subIdx));
-    setActiveIdx((prev) => Math.max(0, prev > subIdx ? prev - 1 : Math.min(prev, subDecks.length - 2)));
-    setOpenSuggestion(null);
+    setActiveIdx((prev) =>
+      Math.max(0, prev > subIdx ? prev - 1 : Math.min(prev, subDecks.length - 2))
+    );
   }
 
   function clearAll() {
+    if (filledCount && !window.confirm("Clear the whole deck?")) return;
     setCommander("");
     setSlots(emptySlots());
     setSubDecks([emptySubDeck()]);
     setActiveIdx(0);
-    setStatus("idle");
+    setActiveRow(null);
     setError(null);
     setCommanderCard(null);
-    setLookup(null);
-    setOpenSuggestion(null);
+    setLookup(new Map());
+    setStep("commander");
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
@@ -232,280 +316,188 @@ function DeckBrewer() {
     }
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!canSubmit) return;
-
-    setStatus("loading");
-    setError(null);
-    setLookup(null);
-    setOpenSuggestion(null);
-
-    try {
-      const names = subDecks.flatMap((sd) =>
-        sd.cards.map((c) => c.trim()).filter(Boolean)
-      );
-      const { commanderCard: cmd, cardsByName } = await lookupDeckCards({
-        commander,
-        names,
-      });
-      setCommanderCard(cmd);
-      setLookup(cardsByName);
-      setStatus("done");
-    } catch (err) {
-      setError(err.message);
-      setStatus("error");
-    }
+  function takeSuggestion(name) {
+    if (activeRow == null) return;
+    commitCard(activeIdx, activeRow, name);
   }
 
-  async function toggleSuggestions(subIdx, slot) {
-    if (openSuggestion?.subIdx === subIdx && openSuggestion?.slot === slot) {
-      setOpenSuggestion(null);
-      return;
-    }
-    const name = subDecks[subIdx].cards[slot].trim();
-    const entry = lookup?.get(name.toLowerCase());
-    const tag = tagForCategory(slots[slot].tag);
-    if (!entry?.card || !tag) return;
-
-    const source = {
-      cardName: entry.card.name,
-      tag,
-      mv: cardManaValue(entry.card),
-    };
-    setOpenSuggestion({ subIdx, slot, source, items: null, loading: true });
-    try {
-      const excludeNames = new Set(
-        subDecks.flatMap((sd) =>
-          sd.cards.map((c) => c.trim().toLowerCase()).filter(Boolean)
-        )
-      );
-      const items = await fetchSimilar({
-        card: entry.card,
-        tag,
-        commanderCard,
-        excludeNames,
-      });
-      setOpenSuggestion((prev) =>
-        prev?.subIdx === subIdx && prev?.slot === slot
-          ? { ...prev, items, loading: false }
-          : prev
-      );
-    } catch {
-      setOpenSuggestion((prev) =>
-        prev?.subIdx === subIdx && prev?.slot === slot
-          ? { ...prev, items: [], loading: false }
-          : prev
-      );
-    }
+  if (step === "commander") {
+    return (
+      <CommanderPicker
+        commander={commander}
+        onCommit={setCommander}
+        onLookUp={() => commander.trim() && setStep("workspace")}
+      />
+    );
   }
 
-  function takeSuggestion(slot, name, target) {
-    if (target === "new") {
-      addSubDeck({ slot, name });
-    } else {
-      commitCard(target, slot, name);
-    }
-    setOpenSuggestion(null);
-  }
+  const colSpan = 3 + subDecks.length + (subDecks.length < MAX_SUB_DECKS ? 1 : 0);
 
   return (
-    <div>
-      <h1>Deck Brewer</h1>
-      <p className="subtitle">
-        One 100-card Commander deck = your commander + up to {MAX_SUB_DECKS}{" "}
-        sub-decks of {CARD_COUNT}. Slots (note + tag) are shared by every
-        sub-deck so their composition stays consistent; card names
-        autocomplete from Scryfall and only suggested names can be saved.
-      </p>
+    <div className="brew">
+      <div className="brew-workspace">
+        <WorkspaceHeader
+          commander={commander}
+          commanderCard={commanderCard}
+          totalPlaced={filledCount}
+          totalSlots={totalSlots}
+          onChangeCommander={() => setStep("commander")}
+          onClear={clearAll}
+        />
 
-      <form className="deck-form" onSubmit={handleSubmit}>
-        <div className="form-section">
-          <label htmlFor="commander">
-            Commander <span className="required">*</span>
-          </label>
-          <CardNameInput
-            id="commander"
-            ariaLabel="Commander"
-            placeholder="Commander card name"
-            value={commander}
-            onCommit={setCommander}
-            disabled={status === "loading"}
-          />
-          {commanderCard && (
-            <p className="hint">
-              Color identity:{" "}
-              <strong>{cardColorIdentity(commanderCard) || "C"}</strong>
-            </p>
-          )}
-        </div>
-
-        <div className="table-wrap matrix-wrap">
-          <table className="matrix-table">
-            <thead>
-              <tr>
-                <th className="num-col"></th>
-                <th className="note-col">
-                  Note <span className="th-hint">for you</span>
-                </th>
-                <th className="tag-col">
-                  Tag <span className="th-hint">drives suggestions</span>
-                </th>
-                {subDecks.map((sd, si) => (
-                  <th
-                    key={si}
-                    className={`sub-col col-${si} ${si === activeIdx ? "active" : ""}`}
-                  >
-                    <button
-                      type="button"
-                      className="sub-name"
-                      onClick={() => setActiveIdx(si)}
-                      title="Set as active sub-deck"
+        <div className="ws-body">
+          <div className="ws-matrix">
+            <div className="matrix-caption">
+              Composition matrix{" "}
+              <span className="matrix-caption-hint">
+                · rows are shared slot tags · click a cell to edit &amp; get
+                suggestions
+              </span>
+            </div>
+            <table className="matrix-table">
+              <thead>
+                <tr>
+                  <th className="num-col">#</th>
+                  <th className="tag-col">
+                    Tag <span className="th-hint">· function</span>
+                  </th>
+                  <th className="note-col">
+                    Note <span className="th-hint">· intent</span>
+                  </th>
+                  {subDecks.map((sd, si) => (
+                    <th
+                      key={si}
+                      className={`sub-col ${si === activeIdx ? "active" : ""}`}
+                      style={{ borderBottomColor: ACCENTS[si] }}
                     >
-                      {SUB_DECK_NAMES[si]}
-                      {si === 0 && <span className="th-hint"> main</span>}
-                      {si === activeIdx && (
-                        <span className="badge-active">active</span>
-                      )}
-                    </button>
-                    {subDecks.length > 1 && (
                       <button
                         type="button"
-                        className="sub-remove"
-                        aria-label={`Remove ${SUB_DECK_NAMES[si]}`}
-                        onClick={() => removeSubDeck(si)}
+                        className="sub-name"
+                        onClick={() => setActiveIdx(si)}
+                        title="Set as active sub-deck"
                       >
-                        ✕
-                      </button>
-                    )}
-                  </th>
-                ))}
-                {subDecks.length < MAX_SUB_DECKS && (
-                  <th className="add-col">
-                    <button
-                      type="button"
-                      className="preset"
-                      onClick={() => addSubDeck()}
-                    >
-                      + Add 33
-                    </button>
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {slots.map((slot, i) => (
-                <Fragment key={i}>
-                  <tr>
-                    <td className="num">{i + 1}</td>
-                    <td>
-                      <input
-                        type="text"
-                        className="note-input"
-                        placeholder="Note"
-                        aria-label={`Slot ${i + 1} note`}
-                        value={slot.note}
-                        onChange={(e) => updateNote(i, e.target.value)}
-                        disabled={status === "loading"}
-                      />
-                    </td>
-                    <td>
-                      <TagInput
-                        slotIndex={i}
-                        value={slot.tag}
-                        onCommit={(tag) => commitTag(i, tag)}
-                        disabled={status === "loading"}
-                      />
-                    </td>
-                    {subDecks.map((sd, si) => (
-                      <MatrixCell
-                        key={si}
-                        subIdx={si}
-                        slot={i}
-                        name={sd.cards[i]}
-                        flag={sd.flags[i]}
-                        active={si === activeIdx}
-                        duplicate={duplicateNames.has(
-                          sd.cards[i].trim().toLowerCase()
+                        {SUB_DECK_NAMES[si]}
+                        {si === 0 && <span className="th-hint"> main</span>}
+                        {si === activeIdx && (
+                          <span className="badge-active">active</span>
                         )}
-                        entry={lookup?.get(sd.cards[i].trim().toLowerCase())}
-                        canSuggest={
-                          si === 0 && // suggestions are always driven by the main sub-deck
-                          !!lookup &&
-                          !!tagForCategory(slot.tag) &&
-                          !!lookup.get(sd.cards[i].trim().toLowerCase())?.card
-                        }
-                        loading={status === "loading"}
-                        onCommit={(name) => commitCard(si, i, name)}
-                        onDismissFlag={() => dismissFlag(si, i)}
-                        onToggleSuggestions={() => toggleSuggestions(si, i)}
-                      />
-                    ))}
-                    {subDecks.length < MAX_SUB_DECKS && <td></td>}
-                  </tr>
-                  {openSuggestion?.slot === i && (
-                    <tr className="sugg-row">
-                      <td
-                        colSpan={
-                          3 +
-                          subDecks.length +
-                          (subDecks.length < MAX_SUB_DECKS ? 1 : 0)
-                        }
+                      </button>
+                      {subDecks.length > 1 && (
+                        <button
+                          type="button"
+                          className="sub-remove"
+                          aria-label={`Remove ${SUB_DECK_NAMES[si]}`}
+                          onClick={() => removeSubDeck(si)}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </th>
+                  ))}
+                  {subDecks.length < MAX_SUB_DECKS && (
+                    <th className="add-col">
+                      <button
+                        type="button"
+                        className="preset"
+                        onClick={() => addSubDeck()}
                       >
-                        <SuggestionStrip
-                          suggestion={openSuggestion}
-                          subDecks={subDecks}
-                          onTake={(name, target) =>
-                            takeSuggestion(i, name, target)
-                          }
+                        + Add 33
+                      </button>
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {slots.map((slot, i) => (
+                  <Fragment key={i}>
+                    <tr className={activeRow === i ? "active-row" : ""}>
+                      <td className="num">{i + 1}</td>
+                      <td className="tag-cell-td">
+                        <TagInput
+                          slotIndex={i}
+                          value={slot.tag}
+                          onCommit={(tag) => commitTag(i, tag)}
+                        />
+                        <div className="otag-line">
+                          {tagForCategory(slot.tag)
+                            ? `otag:${tagForCategory(slot.tag)}`
+                            : ""}
+                        </div>
+                      </td>
+                      <td>
+                        <textarea
+                          className="note-input"
+                          rows={1}
+                          placeholder="Why this slot…"
+                          aria-label={`Slot ${i + 1} note`}
+                          value={slot.note}
+                          onChange={(e) => updateNote(i, e.target.value)}
                         />
                       </td>
+                      {subDecks.map((sd, si) => (
+                        <MatrixCell
+                          key={si}
+                          subIdx={si}
+                          slot={i}
+                          name={sd.cards[i]}
+                          flag={sd.flags[i]}
+                          active={si === activeIdx}
+                          duplicate={duplicateNames.has(
+                            sd.cards[i].trim().toLowerCase()
+                          )}
+                          entry={lookup.get(sd.cards[i].trim().toLowerCase())}
+                          onSelect={() => selectCell(si, i)}
+                          onCommit={(name) => commitCard(si, i, name)}
+                          onDismissFlag={() => dismissFlag(si, i)}
+                        />
+                      ))}
+                      {subDecks.length < MAX_SUB_DECKS && <td></td>}
                     </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
+                    {activeRow === i && (
+                      <tr className="sugg-row">
+                        <td colSpan={colSpan}>
+                          <SuggestionStrip
+                            sourceName={sourceName}
+                            sourceCard={sourceCard}
+                            tag={rowTag}
+                            activeName={SUB_DECK_NAMES[activeIdx]}
+                            strip={strip}
+                            onTake={takeSuggestion}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <ConsistencyRail
+            slots={slots}
+            subDecks={subDecks}
+            subDeckNames={SUB_DECK_NAMES}
+            accents={ACCENTS}
+            activeIdx={activeIdx}
+            lookup={lookup}
+            duplicateNames={duplicateNames}
+          />
         </div>
+      </div>
 
-        <datalist id="category-suggestions">
-          {CATEGORY_SUGGESTIONS.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
+      <datalist id="category-suggestions">
+        {CATEGORY_SUGGESTIONS.map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
 
-        <div className="form-actions">
-          <span className="hint">
-            {filledCount} of {CARD_COUNT * MAX_SUB_DECKS} cards entered
-            {!hasCommander && " — commander required"}
-          </span>
-          <button
-            type="button"
-            className="preset"
-            onClick={clearAll}
-            disabled={status === "loading"}
-          >
-            Clear
-          </button>
-          <button
-            type="submit"
-            className="submit"
-            disabled={!canSubmit || status === "loading"}
-          >
-            {status === "loading" ? "Looking up…" : "Look Up Cards"}
-          </button>
-        </div>
-      </form>
-
-      {status === "error" && (
+      {error && (
         <p className="error" role="alert">
           Lookup failed: {error}
         </p>
       )}
 
-      {lookup && (
-        <CompositionSummary slots={slots} subDecks={subDecks} lookup={lookup} />
-      )}
+      <CompositionSummary slots={slots} subDecks={subDecks} lookup={lookup} />
 
       {pendingChange && (
         <ChangeWarningModal
@@ -521,7 +513,7 @@ function DeckBrewer() {
 
 // Tag edits commit on blur (not per keystroke) so the shared-tag warning
 // fires once per change.
-function TagInput({ slotIndex, value, onCommit, disabled }) {
+function TagInput({ slotIndex, value, onCommit }) {
   const [draft, setDraft] = useState(value);
 
   useEffect(() => {
@@ -536,7 +528,6 @@ function TagInput({ slotIndex, value, onCommit, disabled }) {
       placeholder="Tag"
       aria-label={`Slot ${slotIndex + 1} tag`}
       value={draft}
-      disabled={disabled}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => draft.trim() !== value && onCommit(draft.trim())}
       onKeyDown={(e) => {
@@ -557,45 +548,29 @@ function MatrixCell({
   active,
   duplicate,
   entry,
-  canSuggest,
-  loading,
+  onSelect,
   onCommit,
   onDismissFlag,
-  onToggleSuggestions,
 }) {
   const notFound = entry && !entry.card && name.trim() !== "";
   const canonical = entry?.card?.name;
   const renamed =
     canonical && canonical.toLowerCase() !== name.trim().toLowerCase();
 
-  const classes = ["cell-td", `col-${subIdx}`];
+  const classes = ["cell-td"];
   if (active) classes.push("active");
   if (flag) classes.push("flagged");
   if (duplicate) classes.push("dup");
   if (notFound) classes.push("notfound");
 
   return (
-    <td className={classes.join(" ")}>
-      <div className="cell-wrap">
-        <CardNameInput
-          ariaLabel={`${SUB_DECK_NAMES[subIdx]} card ${slot + 1}`}
-          placeholder="Card name"
-          value={name}
-          onCommit={onCommit}
-          disabled={loading}
-        />
-        {canSuggest && (
-          <button
-            type="button"
-            className="suggest-btn"
-            aria-label={`Suggest alternatives for ${SUB_DECK_NAMES[subIdx]} card ${slot + 1}`}
-            title="Suggest alternatives (same tag & mana value)"
-            onClick={onToggleSuggestions}
-          >
-            ✨
-          </button>
-        )}
-      </div>
+    <td className={classes.join(" ")} onClick={onSelect} onFocus={onSelect}>
+      <CardNameInput
+        ariaLabel={`${SUB_DECK_NAMES[subIdx]} card ${slot + 1}`}
+        placeholder="Card name…"
+        value={name}
+        onCommit={onCommit}
+      />
       {flag && (
         <div className="cell-note flag-note">
           ⚠ {flag}
@@ -609,72 +584,80 @@ function MatrixCell({
           </button>
         </div>
       )}
-      {duplicate && (
-        <div className="cell-note dup-note">duplicate in deck</div>
+      {duplicate && <div className="cell-note dup-note">duplicate in deck</div>}
+      {notFound && (
+        <div className="cell-note dup-note">not found on Scryfall</div>
       )}
-      {notFound && <div className="cell-note dup-note">not found</div>}
       {renamed && <div className="cell-note hint">matched: {canonical}</div>}
     </td>
   );
 }
 
-function SuggestionStrip({ suggestion, subDecks, onTake }) {
-  const { source, items, loading, subIdx } = suggestion;
+// Renders under the active row; suggestions come from the 33 A "main" card so
+// the sub-decks stay consistent in purpose and mana value.
+function SuggestionStrip({
+  sourceName,
+  sourceCard,
+  tag,
+  activeName,
+  strip,
+  onTake,
+}) {
+  const label = (
+    <span className="strip-label">
+      Similar to <strong>{sourceName || "—"}</strong> (33 A){" "}
+      <span className="strip-meta">
+        {tag ? `· otag:${tag} ` : ""}· fills {activeName}
+      </span>
+    </span>
+  );
+
+  let body;
+  if (!sourceCard || !tag) {
+    body = (
+      <div className="strip-empty">
+        Fill 33 A with a tagged card to drive suggestions.
+      </div>
+    );
+  } else if (strip.loading) {
+    body = <div className="strip-empty">Searching…</div>;
+  } else if (strip.items && strip.items.length === 0) {
+    body = (
+      <div className="strip-empty">Every matching card is already in the deck.</div>
+    );
+  } else {
+    body = (
+      <div className="strip-cards">
+        {(strip.items ?? []).map((card) => (
+          <div key={card.id} className="strip-card">
+            <a
+              className="strip-card-name"
+              href={card.scryfall_uri}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {card.name}
+            </a>
+            <div className="strip-card-meta">
+              {cardManaCost(card)} · MV {cardManaValue(card)}
+            </div>
+            <button
+              type="button"
+              className="take"
+              onClick={() => onTake(card.name)}
+            >
+              → {activeName}
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="sugg-strip">
-      <div className="sugg-label">
-        Similar to <strong>{source.cardName}</strong>
-        <br />
-        <span className="hint">
-          otag:{source.tag} · mv={source.mv}
-        </span>
-        <br />
-        <span className="hint">
-          Suggestions are always driven by {SUB_DECK_NAMES[0]}, the main
-          sub-deck — if the sub-decks stay consistent, its card stands in
-          for the whole slot.
-        </span>
-      </div>
-      {loading && <span className="hint">Searching…</span>}
-      {items && items.length === 0 && (
-        <span className="hint">
-          No unused cards found with this tag and mana value.
-        </span>
-      )}
-      {items?.map((card) => (
-        <div key={card.id} className="sugg">
-          <a href={card.scryfall_uri} target="_blank" rel="noreferrer">
-            {card.name}
-          </a>
-          <div className="meta">
-            <span className="mana-cost">{cardManaCost(card)}</span>{" "}
-            {cardTypeLine(card)}
-          </div>
-          <div>
-            {subDecks.map((sd, si) =>
-              si === subIdx ? null : (
-                <button
-                  key={si}
-                  type="button"
-                  className="take"
-                  onClick={() => onTake(card.name, si)}
-                >
-                  → {SUB_DECK_NAMES[si]}
-                </button>
-              )
-            )}
-            {subDecks.length < MAX_SUB_DECKS && (
-              <button
-                type="button"
-                className="take"
-                onClick={() => onTake(card.name, "new")}
-              >
-                → new 33
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
+      <div className="strip-label-row">{label}</div>
+      {body}
     </div>
   );
 }

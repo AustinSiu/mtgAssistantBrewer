@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import DeckBrewer, { CARD_COUNT, MAX_SUB_DECKS } from './DeckBrewer';
+import DeckBrewer, { CARD_COUNT } from './DeckBrewer';
 import { clearAutocompleteCache } from './scryfall';
 import { clearSimilarCache } from './brew';
 import { card as mockCard, catalogMatches } from '../test/fixtures';
@@ -52,12 +52,17 @@ function setTag(slot, value) {
   fireEvent.blur(input);
 }
 
-async function submitAndWait() {
-  fireEvent.click(screen.getByRole('button', { name: 'Look Up Cards' }));
-  await waitFor(() => {
-    expect(screen.getByText('Composition by tag')).toBeInTheDocument();
-  });
+// Picks a commander on the entry screen and opens the workspace.
+async function enterWorkspace(typed = 'atraxa', full = "Atraxa, Praetors' Voice") {
+  await pick('Commander', typed, full);
+  fireEvent.click(screen.getByRole('button', { name: /Look Up Cards/ }));
+  await screen.findAllByPlaceholderText('Card name…');
 }
+
+const collectionBodies = () =>
+  fetch.mock.calls
+    .filter(([u]) => String(u).includes('collection'))
+    .flatMap(([, o]) => JSON.parse(o.body).identifiers.map((x) => x.name));
 
 describe('DeckBrewer', () => {
   beforeEach(() => {
@@ -72,63 +77,66 @@ describe('DeckBrewer', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders commander, one sub-deck, and shared slot columns', () => {
+  it('opens on the commander picker; Look Up is gated on a commander', async () => {
     render(<DeckBrewer />);
+    expect(screen.getByText('Deck Brewer')).toBeInTheDocument();
     expect(screen.getByLabelText('Commander')).toBeInTheDocument();
-    expect(screen.getAllByPlaceholderText('Card name')).toHaveLength(CARD_COUNT);
-    expect(screen.getAllByPlaceholderText('Note')).toHaveLength(CARD_COUNT);
-    expect(screen.getAllByPlaceholderText('Tag')).toHaveLength(CARD_COUNT);
-    expect(screen.getByRole('button', { name: '+ Add 33' })).toBeInTheDocument();
-  });
+    // No workspace yet.
+    expect(screen.queryByPlaceholderText('Card name…')).not.toBeInTheDocument();
 
-  it('requires both a commander and at least one card before submitting', async () => {
-    render(<DeckBrewer />);
-    const submit = screen.getByRole('button', { name: 'Look Up Cards' });
-    expect(submit).toBeDisabled();
-    expect(screen.getByText(/commander required/)).toBeInTheDocument();
+    const lookUp = screen.getByRole('button', { name: /Look Up Cards/ });
+    expect(lookUp).toBeDisabled();
 
     await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
-    expect(submit).toBeDisabled();
-
-    await pick('33 A card 1', 'sol ring', 'Sol Ring');
-    expect(
-      screen.getByText(`1 of ${CARD_COUNT * MAX_SUB_DECKS} cards entered`)
-    ).toBeInTheDocument();
-    expect(submit).toBeEnabled();
+    expect(lookUp).toBeEnabled();
   });
 
-  it('does not persist free text that was never selected', () => {
+  it('enters the workspace with one sub-deck and shared slot columns', async () => {
     render(<DeckBrewer />);
+    await enterWorkspace();
+    expect(screen.getAllByPlaceholderText('Card name…')).toHaveLength(CARD_COUNT);
+    expect(screen.getAllByPlaceholderText('Why this slot…')).toHaveLength(CARD_COUNT);
+    expect(screen.getAllByPlaceholderText('Tag')).toHaveLength(CARD_COUNT);
+    expect(screen.getByRole('button', { name: '+ Add 33' })).toBeInTheDocument();
+    // Commander header shows the resolved commander and the cards-placed counter.
+    expect(screen.getByText("Atraxa, Praetors' Voice")).toBeInTheDocument();
+    expect(screen.getByText('cards placed')).toBeInTheDocument();
+  });
+
+  it('does not persist free text that was never selected', async () => {
+    render(<DeckBrewer />);
+    await enterWorkspace();
     const input = screen.getByLabelText('33 A card 1');
     fireEvent.change(input, { target: { value: 'totally made up card' } });
     fireEvent.blur(input);
     expect(input).toHaveValue('');
   });
 
-  it('adds and removes sub-deck columns (max 3)', () => {
+  it('adds and removes sub-deck columns (max 3)', async () => {
     render(<DeckBrewer />);
+    await enterWorkspace();
     fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
     fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
-    expect(screen.getAllByPlaceholderText('Card name')).toHaveLength(CARD_COUNT * 3);
+    expect(screen.getAllByPlaceholderText('Card name…')).toHaveLength(CARD_COUNT * 3);
     expect(screen.queryByRole('button', { name: '+ Add 33' })).not.toBeInTheDocument();
 
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     fireEvent.click(screen.getByRole('button', { name: 'Remove 33 C' }));
-    expect(screen.getAllByPlaceholderText('Card name')).toHaveLength(CARD_COUNT * 2);
+    expect(screen.getAllByPlaceholderText('Card name…')).toHaveLength(CARD_COUNT * 2);
   });
 
-  it('looks up all sub-deck cards and shows the composition summary', async () => {
+  it('resolves committed cards on commit and shows the composition summary', async () => {
     render(<DeckBrewer />);
-    await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
+    await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     setTag(1, 'Mana Rock');
     fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
     await pick('33 B card 1', 'cultivate', 'Cultivate');
-    await submitAndWait();
 
-    const collectionCall = fetch.mock.calls.find(([u]) => String(u).includes('collection'));
-    expect(JSON.parse(collectionCall[1].body)).toEqual({
-      identifiers: [{ name: 'Sol Ring' }, { name: 'Cultivate' }],
+    await waitFor(() => {
+      expect(collectionBodies()).toEqual(
+        expect.arrayContaining(['Sol Ring', 'Cultivate'])
+      );
     });
 
     const summary = within(screen.getByText('Composition by tag').closest('.detail'));
@@ -137,18 +145,9 @@ describe('DeckBrewer', () => {
     expect(within(rockRow).getAllByRole('cell').map((c) => c.textContent)).toEqual([
       'Mana Rock', '1', '1', '1',
     ]);
-
-    // Suggestions are driven by the main sub-deck only: 33 A gets the
-    // suggest button, 33 B does not even though its cell resolved too.
-    expect(
-      screen.getByRole('button', { name: 'Suggest alternatives for 33 A card 1' })
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Suggest alternatives for 33 B card 1' })
-    ).not.toBeInTheDocument();
   });
 
-  it('suggests alternatives excluding cards already in the deck, and takes into another sub-deck', async () => {
+  it('opens the suggestion strip for the active cell, excludes deck cards, and takes into the active column', async () => {
     setupFetch([
       autocompleteRoute,
       commanderRoute,
@@ -165,15 +164,14 @@ describe('DeckBrewer', () => {
     ]);
 
     render(<DeckBrewer />);
-    await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
+    await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     setTag(1, 'Mana Rock');
     fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
-    await submitAndWait();
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Suggest alternatives for 33 A card 1' })
-    );
+    // Click the empty 33 B cell in the same row → it becomes the active column;
+    // suggestions are driven by the 33 A "main" card (Sol Ring).
+    fireEvent.click(screen.getByLabelText('33 B card 1'));
     await waitFor(() => {
       expect(screen.getByRole('link', { name: 'Mana Vault' })).toBeInTheDocument();
     });
@@ -182,42 +180,30 @@ describe('DeckBrewer', () => {
     expect(decodeURIComponent(String(searchUrl))).toContain(
       'otag:mana-rock mv:1 id<=WUBG order:edhrec'
     );
-    // Sol Ring itself is excluded; only 3 shown
     expect(screen.queryByRole('link', { name: 'Sol Ring' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Springleaf Drum' })).not.toBeInTheDocument();
 
-    // Take Mana Vault into 33 B, same slot
-    const strip = screen.getByRole('link', { name: 'Mana Vault' }).closest('.sugg');
-    fireEvent.click(within(strip).getByRole('button', { name: '→ 33 B' }));
+    const vaultCard = screen.getByRole('link', { name: 'Mana Vault' }).closest('.strip-card');
+    fireEvent.click(within(vaultCard).getByRole('button', { name: '→ 33 B' }));
     expect(screen.getByLabelText('33 B card 1')).toHaveValue('Mana Vault');
   });
 
-  it('takes a suggestion into a brand new sub-deck seeded with just that card', async () => {
-    setupFetch([
-      autocompleteRoute,
-      commanderRoute,
-      collectionRoute,
-      ['cards/search', () => ok({ data: [mockCard('Mana Vault', { cmc: 1 })] })],
-    ]);
-
+  it('renders the consistency rail: fill bars, needs-attention, and MV curve', async () => {
     render(<DeckBrewer />);
-    await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
+    await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
-    setTag(1, 'Mana Rock');
-    await submitAndWait();
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Suggest alternatives for 33 A card 1' })
-    );
-    const vault = await screen.findByRole('link', { name: 'Mana Vault' });
-    fireEvent.click(within(vault.closest('.sugg')).getByRole('button', { name: '→ new 33' }));
-
-    expect(screen.getByLabelText('33 B card 1')).toHaveValue('Mana Vault');
-    expect(screen.getByLabelText('33 B card 2')).toHaveValue('');
+    expect(screen.getByText('Consistency')).toBeInTheDocument();
+    expect(screen.getByText('Needs attention')).toBeInTheDocument();
+    // 33 A has one of its 33 slots filled.
+    expect(screen.getByText('1 / 33')).toBeInTheDocument();
+    // The active sub-deck's empty slots are surfaced.
+    expect(screen.getByText(/32 empty slots in 33 A/)).toBeInTheDocument();
   });
 
   it('warns when changing a shared tag and flags same-row cards on confirm', async () => {
     render(<DeckBrewer />);
+    await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     setTag(1, 'Mana Rock');
     fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
@@ -242,6 +228,7 @@ describe('DeckBrewer', () => {
 
   it('cancelling the tag warning reverts the tag and flags nothing', async () => {
     render(<DeckBrewer />);
+    await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     setTag(1, 'Mana Rock');
     fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
@@ -255,6 +242,7 @@ describe('DeckBrewer', () => {
 
   it('warns when replacing a chosen card and reverts on cancel', async () => {
     render(<DeckBrewer />);
+    await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
     await pick('33 B card 1', 'cultivate', 'Cultivate');
@@ -271,6 +259,7 @@ describe('DeckBrewer', () => {
 
   it('flags cross-sub-deck duplicates, exempting basic lands', async () => {
     render(<DeckBrewer />);
+    await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
     await pick('33 B card 2', 'sol ring', 'Sol Ring');
@@ -283,18 +272,19 @@ describe('DeckBrewer', () => {
 
   it('persists the matrix to localStorage and restores it on remount', async () => {
     const { unmount } = render(<DeckBrewer />);
-    await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
+    await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     setTag(1, 'Mana Rock');
     unmount();
 
+    // A saved commander reopens straight into the workspace.
     render(<DeckBrewer />);
-    expect(screen.getByLabelText('Commander')).toHaveValue("Atraxa, Praetors' Voice");
+    expect(await screen.findByText("Atraxa, Praetors' Voice")).toBeInTheDocument();
     expect(screen.getByLabelText('33 A card 1')).toHaveValue('Sol Ring');
     expect(screen.getByLabelText('Slot 1 tag')).toHaveValue('Mana Rock');
   });
 
-  it('shows an error message when the lookup request fails', async () => {
+  it('shows an error message when a card resolution request fails', async () => {
     setupFetch([
       autocompleteRoute,
       commanderRoute,
@@ -302,9 +292,8 @@ describe('DeckBrewer', () => {
     ]);
 
     render(<DeckBrewer />);
-    await pick('Commander', 'atraxa', "Atraxa, Praetors' Voice");
+    await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
-    fireEvent.click(screen.getByRole('button', { name: 'Look Up Cards' }));
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(
