@@ -1,9 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { card, catalogMatches } from "../test/fixtures.js";
 
-// Walks the full customer journey through the Deck Brewer matrix and
-// captures the screenshots embedded in pull request descriptions
-// (docs/screenshots/).
+// Walks the full customer journey through the Deck Brewer: the commander
+// picker entry screen, then the matrix + consistency-rail workspace. Captures
+// the screenshots embedded in pull request descriptions (docs/screenshots/).
 //
 // Scryfall responses are stubbed at the network layer so the run is
 // deterministic and works offline. Set SCRYFALL_LIVE=1 to skip the stubs
@@ -40,7 +40,6 @@ async function stubScryfall(page) {
     }
     if (url.includes("/cards/collection")) {
       const { identifiers } = route.request().postDataJSON();
-      await new Promise((r) => setTimeout(r, 600)); // keep the loading state visible
       return route.fulfill({
         json: { data: identifiers.map(({ name }) => named(name)), not_found: [] },
       });
@@ -65,8 +64,8 @@ async function stubScryfall(page) {
   });
 }
 
-// Types a partial name and commits the given suggestion — the only way the
-// form persists a card name.
+// Types a partial name and commits the given suggestion — the only way a
+// card name persists.
 async function pickName(page, ariaLabel, typed, fullName) {
   await page.fill(`input[aria-label="${ariaLabel}"]`, typed);
   await page.getByRole("option", { name: fullName }).click();
@@ -76,22 +75,24 @@ async function pickName(page, ariaLabel, typed, fullName) {
 test("deck brewer matrix customer journey", async ({ page }) => {
   if (!process.env.SCRYFALL_LIVE) await stubScryfall(page);
 
-  // 1. Landing: one empty sub-deck, submit disabled until commander + a card
+  // 1. Commander picker: Look Up is gated until a commander is chosen
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Deck Brewer" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Look Up Cards" })).toBeDisabled();
-  await expect(page.getByText(/commander required/)).toBeVisible();
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/01-landing.png` });
+  await expect(page.locator(".brand-name")).toHaveText("Deck Brewer");
+  await expect(page.getByText(/Pick your commander/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Look Up Cards/ })).toBeDisabled();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/01-commander.png` });
 
-  // 2. Commander autocomplete: typing shows matching names
+  // 2. Commander autocomplete
   await page.fill('input[aria-label="Commander"]', "atraxa");
   await expect(page.getByRole("option", { name: "Atraxa, Praetors' Voice" })).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/02-autocomplete.png` });
   await page.getByRole("option", { name: "Atraxa, Praetors' Voice" }).click();
+  await page.getByRole("button", { name: /Look Up Cards/ }).click();
 
-  // Unselected free text must not persist: it reverts on blur
+  // Workspace opens; unselected free text must not persist (reverts on blur)
+  await expect(page.getByText("Composition matrix")).toBeVisible();
   await page.fill('input[aria-label="33 A card 1"]', "not a real card zzz");
-  await page.locator('input[aria-label="Slot 1 note"]').focus();
+  await page.locator('textarea[aria-label="Slot 1 note"]').focus();
   await expect(page.getByLabel("33 A card 1", { exact: true })).toHaveValue("");
 
   // 3. Fill four slots: note + tag are shared; the card belongs to 33 A
@@ -103,68 +104,61 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   ];
   for (let i = 0; i < rows.length; i++) {
     const [note, tag, name] = rows[i];
-    await page.fill(`input[aria-label="Slot ${i + 1} note"]`, note);
+    await page.fill(`textarea[aria-label="Slot ${i + 1} note"]`, note);
     await page.fill(`input[aria-label="Slot ${i + 1} tag"]`, tag);
     await page.keyboard.press("Enter");
     await pickName(page, `33 A card ${i + 1}`, name.slice(0, 8).toLowerCase(), name);
   }
+  // Color-identity pips + fill bars confirm the commander and cards resolved.
+  await expect(page.locator(".ci-pip").first()).toBeVisible();
+  await expect(page.locator(".fill-count").first()).toHaveText("4 / 33");
+  // Select the Mana Rock row so the workspace shot shows a populated strip.
+  await page.getByLabel("33 A card 1", { exact: true }).click();
+  await expect(page.getByRole("link", { name: "Mana Vault" })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/03-matrix-filled.png` });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/03-workspace.png` });
 
-  // 4. Submit: loading state, then composition summary
-  await page.locator("button.submit").scrollIntoViewIfNeeded();
-  await page.click("button.submit");
-  await expect(page.getByRole("button", { name: "Looking up…" })).toBeVisible();
-  await expect(page.getByText("Composition by tag")).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText("Color identity:")).toBeVisible();
-  await page.locator(".detail").scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/04-composition.png` });
-
-  // 5. Per-cell suggestions: same tag & mana value, deck cards excluded
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.click('button[aria-label="Suggest alternatives for 33 A card 1"]');
+  // 4. Suggestions: add 33 B, select its row-1 cell → strip fills 33 B
+  await page.getByRole("button", { name: "+ Add 33" }).click();
+  await page.getByLabel("33 B card 1", { exact: true }).click();
   await expect(page.getByRole("link", { name: "Mana Vault" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Sol Ring" })).toHaveCount(0);
-  await expect(
-    page.getByText(/Suggestions are always driven by 33 A/)
-  ).toBeVisible();
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/05-suggestions.png` });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/04-suggestions.png` });
 
-  // 6. Take a suggestion into a new sub-deck: 33 B appears, seeded with it
+  // Take Mana Vault into the active column (33 B)
   await page
-    .locator(".sugg", { hasText: "Mana Vault" })
-    .getByRole("button", { name: "→ new 33" })
+    .locator(".strip-card", { hasText: "Mana Vault" })
+    .getByRole("button", { name: "→ 33 B" })
     .click();
   await expect(page.getByLabel("33 B card 1", { exact: true })).toHaveValue("Mana Vault");
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/06-take-new-33.png` });
 
   // A cross-sub-deck duplicate is flagged (Commander singleton)
   await pickName(page, "33 B card 2", "sol ring", "Sol Ring");
   await expect(page.getByText("duplicate in deck")).toHaveCount(2);
 
-  // 7. Changing a shared tag warns about same-row cards in other sub-decks
+  // 5. Changing a shared tag warns about same-row cards in other sub-decks
   await page.fill('input[aria-label="Slot 1 tag"]', "Ramp");
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("“Mana Rock” → “Ramp”");
   await expect(dialog).toContainText("Sol Ring (33 A)");
   await expect(dialog).toContainText("Mana Vault (33 B)");
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/07-tag-warning.png` });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/05-tag-warning.png` });
 
-  // 8. Confirming flags the affected cells amber (persistent, dismissable)
+  // 6. Confirming flags the affected cells; the rail tallies what needs attention
   await dialog.getByRole("button", { name: "Change & flag" }).click();
   await expect(page.getByText(/picked when slot 1 tag was “Mana Rock”/)).toHaveCount(2);
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/08-flags-and-dup.png` });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/06-flags-and-dup.png` });
 
-  // State survives a reload (localStorage)
+  // State survives a reload (localStorage reopens straight into the workspace)
   await page.reload();
   await expect(page.getByLabel("33 B card 1", { exact: true })).toHaveValue("Mana Vault");
   await expect(page.getByText(/picked when slot 1 tag was “Mana Rock”/)).toHaveCount(2);
 
-  // 9. Land Calculator tab still works
+  // 7. Land Calculator tab still works
   await page.click('button:has-text("Land Calculator")');
   await expect(page.getByText("MTG Land Draw Calculator")).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/09-land-calculator.png` });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/07-land-calculator.png` });
 });

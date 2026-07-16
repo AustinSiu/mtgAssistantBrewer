@@ -55,12 +55,13 @@ export const BASIC_LAND_NAMES = new Set(
 const COLLECTION_CHUNK = 75;
 
 /**
- * Resolve the commander plus every unique card name in the matrix.
+ * Resolve a set of card names against Scryfall.
  *
- * Returns { commanderCard, cardsByName } where cardsByName maps the
- * lowercased input name to { card, matchType: "exact"|"fuzzy"|"none" }.
+ * Returns cardsByName: a Map from the lowercased input name to
+ * { card, matchType: "exact"|"fuzzy"|"none" }. Names resolve in batches via
+ * the collection endpoint, with a fuzzy retry for any the batch missed.
  */
-export async function lookupDeckCards({ commander, names }) {
+export async function resolveCardNames(names) {
   const unique = [...new Map(names.map((n) => [n.toLowerCase(), n])).values()];
 
   const chunks = [];
@@ -68,11 +69,9 @@ export async function lookupDeckCards({ commander, names }) {
     chunks.push(unique.slice(i, i + COLLECTION_CHUNK));
   }
 
-  // The commander lookup and the batch lookups are independent.
-  const [commanderCard, ...collections] = await Promise.all([
-    lookupFuzzy(commander.trim()),
-    ...chunks.map((chunk) => lookupCollection(chunk)),
-  ]);
+  const collections = await Promise.all(
+    chunks.map((chunk) => lookupCollection(chunk))
+  );
 
   const cardsByName = new Map();
   chunks.forEach((chunk, i) => {
@@ -107,6 +106,26 @@ export async function lookupDeckCards({ commander, names }) {
     }
   }
 
+  return cardsByName;
+}
+
+/** Resolve a commander name to its Scryfall card (fuzzy), or null. */
+export function lookupCommander(commander) {
+  return lookupFuzzy(commander.trim());
+}
+
+/**
+ * Resolve the commander plus every unique card name in the matrix.
+ *
+ * Returns { commanderCard, cardsByName } where cardsByName maps the
+ * lowercased input name to { card, matchType: "exact"|"fuzzy"|"none" }.
+ */
+export async function lookupDeckCards({ commander, names }) {
+  // The commander lookup and the batch card resolution are independent.
+  const [commanderCard, cardsByName] = await Promise.all([
+    lookupCommander(commander),
+    resolveCardNames(names),
+  ]);
   return { commanderCard, cardsByName };
 }
 
