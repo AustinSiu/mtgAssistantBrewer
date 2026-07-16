@@ -158,9 +158,15 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await expect(page.getByLabel("33 B card 1", { exact: true })).toHaveValue("Mana Vault");
   await expect(page.getByText(/picked when slot 1 tag was “Mana Rock”/)).toHaveCount(2);
 
-  // 7. Land Calculator tab still works
-  await page.click('button:has-text("Land Calculator")');
-  await expect(page.getByText("MTG Land Draw Calculator")).toBeVisible();
+  // 7. Hypergeometric Calculator tab still works
+  await page.click('button:has-text("Hypergeometric Calculator")');
+  await expect(
+    page.getByRole("heading", { name: "Hypergeometric Calculator" })
+  ).toBeVisible();
+  // Mirror the reference scenario: 9 copies in a 100-card deck, drawing 9.
+  await page.getByLabel(/Copies in Deck/).fill("9");
+  await page.getByLabel(/Cards Drawn/).fill("9");
+  await expect(page.locator(".headline-value")).toHaveText("58.8%");
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/07-land-calculator.png` });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/07-hypergeometric.png`, fullPage: true });
 });

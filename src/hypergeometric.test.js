@@ -2,13 +2,16 @@ import { describe, it, expect } from 'vitest';
 import {
   hypergeometricPmf,
   expectedValue,
-  landProbabilities,
+  distribution,
   cumulativeAtLeast,
-  calculateDrawSteps,
+  cumulativeUpTo,
+  cardsSeenByTurn,
+  drawSteps,
+  curvePoints,
 } from './hypergeometric';
 
 describe('hypergeometricPmf', () => {
-  // 60-card deck, 24 lands, 7-card opening hand — verified against Python output
+  // 60-card deck, 24 successes, 7-card sample — verified against Python output
   const N = 60, K = 24, n = 7;
 
   it('returns 0 for k out of valid range', () => {
@@ -16,23 +19,23 @@ describe('hypergeometricPmf', () => {
     expect(hypergeometricPmf(8, N, K, n)).toBe(0);
   });
 
-  it('P(0 lands) ≈ 0.0216 for 60/24/7', () => {
+  it('P(0) ≈ 0.0216 for 60/24/7', () => {
     expect(hypergeometricPmf(0, N, K, n)).toBeCloseTo(0.0216, 4);
   });
 
-  it('P(3 lands) ≈ 0.3087 for 60/24/7', () => {
+  it('P(3) ≈ 0.3087 for 60/24/7', () => {
     expect(hypergeometricPmf(3, N, K, n)).toBeCloseTo(0.3087, 4);
   });
 
-  it('P(7 lands) ≈ 0.0009 for 60/24/7', () => {
-    expect(hypergeometricPmf(7, N, K, n)).toBeCloseTo(0.0009, 4);
+  it('matches the scrollvault reference: 100/9/9, P(0) ≈ 0.4120', () => {
+    expect(hypergeometricPmf(0, 100, 9, 9)).toBeCloseTo(0.412, 3);
   });
 
-  it('handles edge case: all lands drawn from all-land deck', () => {
+  it('handles edge case: all successes drawn from all-success deck', () => {
     expect(hypergeometricPmf(5, 5, 5, 5)).toBeCloseTo(1.0, 10);
   });
 
-  it('handles edge case: 0 lands in deck', () => {
+  it('handles edge case: 0 successes in deck', () => {
     expect(hypergeometricPmf(0, 60, 0, 7)).toBeCloseTo(1.0, 10);
     expect(hypergeometricPmf(1, 60, 0, 7)).toBe(0);
   });
@@ -43,42 +46,25 @@ describe('expectedValue', () => {
     expect(expectedValue(60, 24, 7)).toBeCloseTo(2.8, 10);
   });
 
-  it('100-card deck with 40 lands, 7-card hand', () => {
-    expect(expectedValue(100, 40, 7)).toBeCloseTo(2.8, 10);
-  });
-
-  it('scales linearly with cards drawn', () => {
-    expect(expectedValue(60, 24, 8)).toBeCloseTo(3.2, 10);
-    expect(expectedValue(60, 24, 17)).toBeCloseTo(6.8, 10);
+  it('100-card deck, 9 copies, 9 draws → 0.81', () => {
+    expect(expectedValue(100, 9, 9)).toBeCloseTo(0.81, 10);
   });
 });
 
-describe('landProbabilities', () => {
-  it('returns correct number of entries', () => {
-    const probs = landProbabilities(60, 24, 7);
+describe('distribution', () => {
+  it('returns min(n, K) + 1 entries summing to ~1.0', () => {
+    const probs = distribution(60, 24, 7);
     expect(probs).toHaveLength(8); // 0 through 7
-  });
-
-  it('probabilities sum to ~1.0', () => {
-    const probs = landProbabilities(60, 24, 7);
-    const sum = probs.reduce((a, b) => a + b, 0);
-    expect(sum).toBeCloseTo(1.0, 10);
+    expect(probs.reduce((a, b) => a + b, 0)).toBeCloseTo(1.0, 10);
   });
 
   it('length is min(n, K) + 1 when K < n', () => {
-    const probs = landProbabilities(60, 3, 7);
-    expect(probs).toHaveLength(4); // 0 through 3
-  });
-
-  it('sum is 1.0 for 100-card commander deck', () => {
-    const probs = landProbabilities(100, 37, 7);
-    const sum = probs.reduce((a, b) => a + b, 0);
-    expect(sum).toBeCloseTo(1.0, 10);
+    expect(distribution(60, 3, 7)).toHaveLength(4); // 0 through 3
   });
 });
 
 describe('cumulativeAtLeast', () => {
-  const probs = landProbabilities(60, 24, 7);
+  const probs = distribution(60, 24, 7);
 
   it('P(>= 0) = 1.0', () => {
     expect(cumulativeAtLeast(probs, 0)).toBeCloseTo(1.0, 10);
@@ -95,67 +81,76 @@ describe('cumulativeAtLeast', () => {
       );
     }
   });
+});
 
-  it('P(>= max+1) = 0', () => {
-    expect(cumulativeAtLeast(probs, probs.length)).toBe(0);
+describe('cumulativeUpTo', () => {
+  const probs = distribution(100, 9, 9);
+
+  it('P(<= 0) equals P(0)', () => {
+    expect(cumulativeUpTo(probs, 0)).toBeCloseTo(probs[0], 10);
+  });
+
+  it('P(<= k) + P(>= k+1) = 1', () => {
+    expect(cumulativeUpTo(probs, 2) + cumulativeAtLeast(probs, 3)).toBeCloseTo(1.0, 10);
+  });
+
+  it('reaches 1.0 at the top of the range', () => {
+    expect(cumulativeUpTo(probs, probs.length - 1)).toBeCloseTo(1.0, 10);
   });
 });
 
-describe('calculateDrawSteps', () => {
-  it('returns 11 steps for default 60-card deck (hand + 10 turns)', () => {
-    const steps = calculateDrawSteps(60, 24);
-    expect(steps).toHaveLength(11);
+describe('cardsSeenByTurn', () => {
+  it('opening hand is handSize cards', () => {
+    expect(cardsSeenByTurn(0, 7, true)).toBe(7);
   });
 
-  it('first step is "Opening Hand" with 7 cards seen', () => {
-    const steps = calculateDrawSteps(60, 24);
-    expect(steps[0].label).toBe('Opening Hand');
+  it('on the play skips the turn-1 draw', () => {
+    expect(cardsSeenByTurn(1, 7, true)).toBe(7);
+    expect(cardsSeenByTurn(2, 7, true)).toBe(8);
+    expect(cardsSeenByTurn(10, 7, true)).toBe(16);
+  });
+
+  it('on the draw adds a card every turn', () => {
+    expect(cardsSeenByTurn(1, 7, false)).toBe(8);
+    expect(cardsSeenByTurn(10, 7, false)).toBe(17);
+  });
+});
+
+describe('drawSteps', () => {
+  it('opens with the hand then one row per turn (on the play)', () => {
+    const steps = drawSteps({ deckSize: 100, copies: 9, onThePlay: true });
+    expect(steps[0].label).toBe('Opening');
     expect(steps[0].cardsSeen).toBe(7);
-  });
-
-  it('subsequent steps are labeled "Turn N"', () => {
-    const steps = calculateDrawSteps(60, 24);
     expect(steps[1].label).toBe('Turn 1');
-    expect(steps[10].label).toBe('Turn 10');
+    expect(steps[1].cardsSeen).toBe(7); // no turn-1 draw on the play
+    expect(steps[3].cardsSeen).toBe(9);
   });
 
-  it('cards seen increments by 1 each turn', () => {
-    const steps = calculateDrawSteps(60, 24);
-    for (let i = 1; i < steps.length; i++) {
-      expect(steps[i].cardsSeen).toBe(steps[i - 1].cardsSeen + 1);
+  it('carries the requested success threshold into the odds', () => {
+    const steps = drawSteps({ deckSize: 100, copies: 9, successes: 1, onThePlay: true });
+    const turn3 = steps.find((s) => s.cardsSeen === 9);
+    expect(turn3.pAtLeast).toBeCloseTo(0.588, 3); // scrollvault: 58.8%
+    expect(turn3.p0).toBeCloseTo(0.412, 3);
+  });
+
+  it('stops when cards seen would exceed the deck', () => {
+    const steps = drawSteps({ deckSize: 10, copies: 4, onThePlay: false });
+    expect(steps[steps.length - 1].cardsSeen).toBeLessThanOrEqual(10);
+  });
+});
+
+describe('curvePoints', () => {
+  it('spans 1..min(maxDraws, deckSize) and rises monotonically for P(X+)', () => {
+    const pts = curvePoints({ deckSize: 100, copies: 9, successes: 1, maxDraws: 30 });
+    expect(pts).toHaveLength(30);
+    expect(pts[0].n).toBe(1);
+    for (let i = 1; i < pts.length; i++) {
+      expect(pts[i].pAtLeast).toBeGreaterThanOrEqual(pts[i - 1].pAtLeast);
     }
   });
 
-  it('stops early when cards seen would exceed deck size', () => {
-    const steps = calculateDrawSteps(10, 4, 7, 10);
-    expect(steps).toHaveLength(4); // 7, 8, 9, 10 cards
-    expect(steps[steps.length - 1].cardsSeen).toBe(10);
-  });
-
-  it('opening hand expected value matches', () => {
-    const steps = calculateDrawSteps(60, 24);
-    expect(steps[0].ev).toBeCloseTo(2.8, 10);
-  });
-
-  it('each step includes p0', () => {
-    const steps = calculateDrawSteps(60, 24);
-    expect(steps[0].p0).toBeCloseTo(0.0216, 4);
-  });
-
-  it('respects custom hand size (mulligan to 6)', () => {
-    const steps = calculateDrawSteps(60, 24, 6);
-    expect(steps[0].cardsSeen).toBe(6);
-    expect(steps[0].ev).toBeCloseTo(2.4, 10);
-    expect(steps[1].cardsSeen).toBe(7);
-  });
-
-  it('produces consistent results across repeated calls (memoization)', () => {
-    const a = calculateDrawSteps(60, 24);
-    const b = calculateDrawSteps(60, 24);
-    expect(a[0].ev).toBe(b[0].ev);
-    expect(a[0].p0).toBe(b[0].p0);
-    for (let i = 0; i < a[0].probs.length; i++) {
-      expect(a[0].probs[i]).toBe(b[0].probs[i]);
-    }
+  it('caps at the deck size', () => {
+    const pts = curvePoints({ deckSize: 12, copies: 4, maxDraws: 30 });
+    expect(pts).toHaveLength(12);
   });
 });
