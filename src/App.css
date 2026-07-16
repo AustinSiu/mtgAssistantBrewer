@@ -495,6 +495,51 @@ h3 {
   color: #888;
 }
 
+/* ---- Export to Moxfield modal ---- */
+.export-modal {
+  max-width: 520px;
+  width: 100%;
+}
+
+.export-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.export-check {
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.export-text {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #1a1a1a;
+  color: inherit;
+  font-size: 0.85rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: vertical;
+}
+
+.export-count {
+  margin-right: auto;
+  align-self: center;
+}
+
+@media (prefers-color-scheme: light) {
+  .export-text {
+    background: #fff;
+    border-color: #ccc;
+  }
+}
+
 /* ---- Form actions ---- */
 
 .form-actions {

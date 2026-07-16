@@ -230,3 +230,42 @@ export function deckStats(entries) {
 
   return { total, price, colors, curve };
 }
+
+/**
+ * Format a set of card names as a Moxfield-importable decklist.
+ *
+ * `cards` is a flat list of card-name strings (repeats allowed — e.g. the same
+ * basic land across sub-decks); blanks are ignored and duplicates are merged
+ * by summing quantities. When `includeCommander` and a commander is given, it
+ * is emitted under a "Commander" section header (which Moxfield honors on
+ * import); the rest form the mainboard, sorted by name:
+ *
+ *   Commander
+ *   1 Atraxa, Praetors' Voice
+ *
+ *   1 Cultivate
+ *   2 Forest
+ */
+export function toMoxfield({ commander, cards, includeCommander = true }) {
+  const counts = new Map(); // lowername -> { name, qty }
+  for (const raw of cards) {
+    const name = (raw || "").trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    const existing = counts.get(key);
+    if (existing) existing.qty += 1;
+    else counts.set(key, { name, qty: 1 });
+  }
+
+  const lines = [];
+  const cmdr = (commander || "").trim();
+  if (includeCommander && cmdr) {
+    lines.push("Commander", `1 ${cmdr}`, "");
+  }
+  const sorted = [...counts.values()].sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+  for (const { name, qty } of sorted) lines.push(`${qty} ${name}`);
+
+  return lines.join("\n");
+}
