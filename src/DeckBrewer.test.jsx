@@ -42,9 +42,11 @@ const collectionRoute = [
 ];
 
 // Types into an autocomplete field and commits a name from the suggestions.
+// Scoped to the open listbox so tag-select <option>s aren't matched.
 async function pick(label, typed, fullName) {
   fireEvent.change(screen.getByLabelText(label), { target: { value: typed } });
-  fireEvent.mouseDown(await screen.findByRole('option', { name: fullName }));
+  const listbox = await screen.findByRole('listbox');
+  fireEvent.mouseDown(within(listbox).getByRole('option', { name: fullName }));
 }
 
 function setTag(slot, value) {
@@ -92,13 +94,16 @@ describe('DeckBrewer', () => {
     expect(lookUp).toBeEnabled();
   });
 
-  it('enters the workspace with one sub-deck and shared slot columns', async () => {
+  it('always shows three sub-decks and shared slot columns', async () => {
     render(<DeckBrewer />);
     await enterWorkspace();
-    expect(screen.getAllByPlaceholderText('Card name…')).toHaveLength(CARD_COUNT);
+    // Three sub-decks are always present (no add/remove).
+    expect(screen.getAllByPlaceholderText('Card name…')).toHaveLength(CARD_COUNT * 3);
     expect(screen.getAllByPlaceholderText('Why this slot…')).toHaveLength(CARD_COUNT);
-    expect(screen.getAllByPlaceholderText('Tag')).toHaveLength(CARD_COUNT);
-    expect(screen.getByRole('button', { name: '+ Add 33' })).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/^Slot \d+ tag$/)).toHaveLength(CARD_COUNT);
+    expect(screen.getByLabelText('33 A card 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('33 C card 1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Add 33' })).not.toBeInTheDocument();
     // Commander header shows the resolved commander and the cards-placed counter.
     expect(screen.getByText("Atraxa, Praetors' Voice")).toBeInTheDocument();
     expect(screen.getByText('cards placed')).toBeInTheDocument();
@@ -113,17 +118,15 @@ describe('DeckBrewer', () => {
     expect(input).toHaveValue('');
   });
 
-  it('adds and removes sub-deck columns (max 3)', async () => {
+  it('restricts the tag to known categories or Custom (no free text)', async () => {
     render(<DeckBrewer />);
     await enterWorkspace();
-    fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
-    fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
-    expect(screen.getAllByPlaceholderText('Card name…')).toHaveLength(CARD_COUNT * 3);
-    expect(screen.queryByRole('button', { name: '+ Add 33' })).not.toBeInTheDocument();
-
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Remove 33 C' }));
-    expect(screen.getAllByPlaceholderText('Card name…')).toHaveLength(CARD_COUNT * 2);
+    const tag = screen.getByLabelText('Slot 1 tag');
+    expect(tag.tagName).toBe('SELECT');
+    expect(within(tag).getByRole('option', { name: 'Ramp' })).toBeInTheDocument();
+    expect(within(tag).getByRole('option', { name: 'Custom' })).toBeInTheDocument();
+    fireEvent.change(tag, { target: { value: 'Custom' } });
+    expect(tag).toHaveValue('Custom');
   });
 
   it('resolves committed cards on commit and shows the composition summary', async () => {
@@ -131,7 +134,6 @@ describe('DeckBrewer', () => {
     await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     setTag(1, 'Mana Rock');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
     await pick('33 B card 1', 'cultivate', 'Cultivate');
 
     await waitFor(() => {
@@ -142,9 +144,9 @@ describe('DeckBrewer', () => {
 
     const summary = within(screen.getByText('Composition by tag').closest('.detail'));
     const rockRow = summary.getByText('Mana Rock').closest('tr');
-    // 1 slot tagged Mana Rock, filled in both 33 A and 33 B
+    // 1 slot tagged Mana Rock, filled in 33 A and 33 B, empty in 33 C.
     expect(within(rockRow).getAllByRole('cell').map((c) => c.textContent)).toEqual([
-      'Mana Rock', '1', '1', '1',
+      'Mana Rock', '1', '1', '1', '0',
     ]);
   });
 
@@ -183,7 +185,6 @@ describe('DeckBrewer', () => {
     await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     setTag(1, 'Mana Rock');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
 
     // Click the empty 33 B cell in the same row → it becomes the active column;
     // suggestions are driven by the 33 A "main" card (Sol Ring).
@@ -266,7 +267,6 @@ describe('DeckBrewer', () => {
     await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     setTag(1, 'Mana Rock');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
     await pick('33 B card 1', 'cultivate', 'Cultivate');
 
     setTag(1, 'Ramp');
@@ -291,7 +291,6 @@ describe('DeckBrewer', () => {
     await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     setTag(1, 'Mana Rock');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
     await pick('33 B card 1', 'cultivate', 'Cultivate');
 
     setTag(1, 'Ramp');
@@ -300,20 +299,17 @@ describe('DeckBrewer', () => {
     expect(screen.queryByText(/picked when/)).not.toBeInTheDocument();
   });
 
-  it('warns when replacing a chosen card and reverts on cancel', async () => {
+  it('replaces a chosen card with no warning', async () => {
     render(<DeckBrewer />);
     await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
     await pick('33 B card 1', 'cultivate', 'Cultivate');
 
+    // Changing a card that other columns were picked alongside no longer warns.
     await pick('33 A card 1', 'counterspell', 'Counterspell');
-    const dialog = screen.getByRole('dialog');
-    expect(dialog).toHaveTextContent('“Sol Ring” → “Counterspell”');
-    expect(dialog).toHaveTextContent('Cultivate (33 B)');
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    expect(screen.getByLabelText('33 A card 1')).toHaveValue('Sol Ring');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('33 A card 1')).toHaveValue('Counterspell');
+    expect(screen.getByLabelText('33 B card 1')).toHaveValue('Cultivate');
     expect(screen.queryByText(/picked when/)).not.toBeInTheDocument();
   });
 
@@ -321,7 +317,6 @@ describe('DeckBrewer', () => {
     render(<DeckBrewer />);
     await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
     await pick('33 B card 2', 'sol ring', 'Sol Ring');
     expect(screen.getAllByText('duplicate in deck')).toHaveLength(2);
 
@@ -344,7 +339,7 @@ describe('DeckBrewer', () => {
     expect(screen.getByLabelText('Slot 1 tag')).toHaveValue('Mana Rock');
   });
 
-  it('reorders a row by dragging its handle onto another row', async () => {
+  it('reorders rows live as the drag crosses another row', async () => {
     render(<DeckBrewer />);
     await enterWorkspace();
     setTag(1, 'Ramp');
@@ -353,8 +348,9 @@ describe('DeckBrewer', () => {
     const handle1 = screen.getByLabelText('Reorder row 1');
     const row2 = screen.getByLabelText('Reorder row 2').closest('tr');
     fireEvent.dragStart(handle1);
+    // Crossing row 2 shifts the dragged row there immediately (no drop needed).
     fireEvent.dragOver(row2);
-    fireEvent.drop(row2);
+    fireEvent.dragEnd(handle1);
 
     // Row 1 (Ramp) moved down into row 2's position; Removal shifts up.
     expect(screen.getByLabelText('Slot 1 tag')).toHaveValue('Removal');
@@ -365,7 +361,6 @@ describe('DeckBrewer', () => {
     render(<DeckBrewer />);
     await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add 33' }));
     await pick('33 B card 1', 'cultivate', 'Cultivate');
 
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));

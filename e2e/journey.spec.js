@@ -70,7 +70,8 @@ async function stubScryfall(page) {
 // card name persists.
 async function pickName(page, ariaLabel, typed, fullName) {
   await page.fill(`input[aria-label="${ariaLabel}"]`, typed);
-  await page.getByRole("option", { name: fullName }).click();
+  // Scope to the open listbox so tag-select <option>s aren't matched.
+  await page.getByRole("listbox").getByRole("option", { name: fullName }).click();
   await expect(page.getByLabel(ariaLabel, { exact: true })).toHaveValue(fullName);
 }
 
@@ -97,18 +98,18 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await page.locator('textarea[aria-label="Slot 1 note"]').focus();
   await expect(page.getByLabel("33 A card 1", { exact: true })).toHaveValue("");
 
-  // 3. Fill four slots: note + tag are shared; the card belongs to 33 A
+  // 3. Fill four slots: note + tag are shared; the card belongs to 33 A.
+  // The tag is a restricted dropdown (known categories or Custom).
   const rows = [
     ["fast mana", "Mana Rock", "Sol Ring"],
     ["cheap answer", "Removal", "Swords to Plowshares"],
     ["stack interaction", "Counterspell", "Counterspell"],
-    ["land ramp", "ramp", "Cultivate"], // lowercase tag on purpose
+    ["land ramp", "Ramp", "Cultivate"],
   ];
   for (let i = 0; i < rows.length; i++) {
     const [note, tag, name] = rows[i];
     await page.fill(`textarea[aria-label="Slot ${i + 1} note"]`, note);
-    await page.fill(`input[aria-label="Slot ${i + 1} tag"]`, tag);
-    await page.keyboard.press("Enter");
+    await page.selectOption(`select[aria-label="Slot ${i + 1} tag"]`, tag);
     await pickName(page, `33 A card ${i + 1}`, name.slice(0, 8).toLowerCase(), name);
   }
   // Color-identity pips + fill bars confirm the commander and cards resolved.
@@ -120,8 +121,7 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${SCREENSHOT_DIR}/03-workspace.png` });
 
-  // 4. Suggestions: add 33 B, select its row-1 cell → strip fills 33 B
-  await page.getByRole("button", { name: "+ Add 33" }).click();
+  // 4. Suggestions: three sub-decks are always shown; select an empty 33 B cell
   await page.getByLabel("33 B card 1", { exact: true }).click();
   await expect(page.getByRole("link", { name: "Mana Vault" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Sol Ring" })).toHaveCount(0);
@@ -139,8 +139,7 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await expect(page.getByText("duplicate in deck")).toHaveCount(2);
 
   // 5. Changing a shared tag warns about same-row cards in other sub-decks
-  await page.fill('input[aria-label="Slot 1 tag"]', "Ramp");
-  await page.keyboard.press("Enter");
+  await page.selectOption('select[aria-label="Slot 1 tag"]', "Ramp");
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("“Mana Rock” → “Ramp”");
   await expect(dialog).toContainText("Sol Ring (33 A)");

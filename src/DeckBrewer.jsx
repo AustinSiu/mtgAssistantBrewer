@@ -22,13 +22,47 @@ const SUB_DECK_NAMES = ["33 A", "33 B", "33 C"];
 const ACCENTS = ["#5a9e63", "#c06a55", "#8b7fd4"];
 const STORAGE_KEY = "mtgBrewer.matrix.v1";
 
+// Category choices for the tag dropdown: the known tags plus a catch-all
+// "Custom". Free-text tags are no longer allowed.
+const TAG_OPTIONS = [...CATEGORY_SUGGESTIONS, "Custom"];
+
+// Slots carry a stable id so rows keep their identity while being dragged
+// (React can move the actual DOM node instead of rewriting it in place).
+let slotSeq = 0;
+const makeSlotId = () => `s${slotSeq++}`;
+
 const emptySlots = () =>
-  Array.from({ length: CARD_COUNT }, () => ({ note: "", tag: "" }));
+  Array.from({ length: CARD_COUNT }, () => ({
+    id: makeSlotId(),
+    note: "",
+    tag: "",
+  }));
 
 const emptySubDeck = () => ({
   cards: Array(CARD_COUNT).fill(""),
   flags: Array(CARD_COUNT).fill(null),
 });
+
+const emptySubDecks = () =>
+  Array.from({ length: MAX_SUB_DECKS }, emptySubDeck);
+
+/** Ensure saved slots each have a stable id (older saves predate ids). */
+function withSlotIds(slots) {
+  return slots.map((s) => ({
+    id: s.id ?? makeSlotId(),
+    note: s.note ?? "",
+    tag: s.tag ?? "",
+  }));
+}
+
+/** Normalize saved sub-decks to exactly MAX_SUB_DECKS columns. */
+function padSubDecks(subDecks) {
+  const next = subDecks
+    .slice(0, MAX_SUB_DECKS)
+    .map((sd) => ({ cards: [...sd.cards], flags: [...sd.flags] }));
+  while (next.length < MAX_SUB_DECKS) next.push(emptySubDeck());
+  return next;
+}
 
 function loadSaved() {
   try {
@@ -55,8 +89,12 @@ function DeckBrewer() {
   const [step, setStep] = useState(
     (saved?.commander ?? "").trim() ? "workspace" : "commander"
   );
-  const [slots, setSlots] = useState(saved?.slots ?? emptySlots());
-  const [subDecks, setSubDecks] = useState(saved?.subDecks ?? [emptySubDeck()]);
+  const [slots, setSlots] = useState(() =>
+    saved?.slots ? withSlotIds(saved.slots) : emptySlots()
+  );
+  const [subDecks, setSubDecks] = useState(() =>
+    saved?.subDecks ? padSubDecks(saved.subDecks) : emptySubDecks()
+  );
   const [activeIdx, setActiveIdx] = useState(saved?.activeIdx ?? 0);
   const [activeRow, setActiveRow] = useState(null);
 
@@ -68,7 +106,6 @@ function DeckBrewer() {
   const [warnDisabled, setWarnDisabled] = useState(false); // this session only
   const [exportOpen, setExportOpen] = useState(false);
   const [dragIndex, setDragIndex] = useState(null);
-  const [overIndex, setOverIndex] = useState(null);
 
   const lookupRef = useRef(lookup);
   lookupRef.current = lookup;
@@ -212,32 +249,14 @@ function DeckBrewer() {
     );
   }
 
-  // Card commits apply immediately; replacing a previously chosen card warns
-  // that same-row picks in other sub-decks may no longer fit (Cancel reverts).
+  // Card commits apply immediately, with no warning.
   function commitCard(subIdx, slot, name) {
-    const oldValue = subDecks[subIdx].cards[slot];
-    if (name === oldValue) return;
+    if (name === subDecks[subIdx].cards[slot]) return;
     setCard(subIdx, slot, name);
-    const affected = filledCellsInRow(slot, subIdx).map((c) => ({ ...c, slot }));
-    if (oldValue.trim() && affected.length > 0) {
-      const reason = `picked when ${SUB_DECK_NAMES[subIdx]} slot ${slot + 1} was “${oldValue}”`;
-      if (warnDisabled) {
-        flagCells(affected, reason);
-      } else {
-        setPendingChange({
-          kind: "card",
-          subIdx,
-          slot,
-          oldValue,
-          newValue: name,
-          affected,
-          reason,
-        });
-      }
-    }
   }
 
-  // Tag commits follow the same optimistic pattern.
+  // Changing a slot's tag is shared by every sub-deck, so cards other columns
+  // picked for the old tag are flagged for review (Cancel reverts the tag).
   function commitTag(slot, newTag) {
     const oldValue = slots[slot].tag;
     if (newTag === oldValue) return;
@@ -248,14 +267,7 @@ function DeckBrewer() {
       if (warnDisabled) {
         flagCells(affected, reason);
       } else {
-        setPendingChange({
-          kind: "tag",
-          slot,
-          oldValue,
-          newValue: newTag,
-          affected,
-          reason,
-        });
+        setPendingChange({ slot, oldValue, newValue: newTag, affected, reason });
       }
     }
   }
@@ -271,13 +283,9 @@ function DeckBrewer() {
 
   function cancelPending() {
     const p = pendingChange;
-    if (p.kind === "card") {
-      setCard(p.subIdx, p.slot, p.oldValue);
-    } else {
-      setSlots((prev) =>
-        prev.map((s, i) => (i === p.slot ? { ...s, tag: p.oldValue } : s))
-      );
-    }
+    setSlots((prev) =>
+      prev.map((s, i) => (i === p.slot ? { ...s, tag: p.oldValue } : s))
+    );
     setPendingChange(null);
   }
 
@@ -308,47 +316,27 @@ function DeckBrewer() {
     }
   }
 
+  // Live reorder: as the pointer crosses another row, move the dragged row
+  // there immediately so the list visibly shifts under the cursor.
   function handleRowDragOver(e, i) {
     if (dragIndex == null) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-    if (overIndex !== i) setOverIndex(i);
-  }
-
-  function handleRowDrop(e, i) {
-    e.preventDefault();
-    moveRow(dragIndex, i);
-    setDragIndex(null);
-    setOverIndex(null);
+    if (i !== dragIndex) {
+      moveRow(dragIndex, i);
+      setDragIndex(i);
+    }
   }
 
   function endRowDrag() {
     setDragIndex(null);
-    setOverIndex(null);
-  }
-
-  function addSubDeck(seed) {
-    if (subDecks.length >= MAX_SUB_DECKS) return;
-    const sd = emptySubDeck();
-    if (seed) sd.cards[seed.slot] = seed.name;
-    setSubDecks((prev) => [...prev, sd]);
-    setActiveIdx(subDecks.length);
-  }
-
-  function removeSubDeck(subIdx) {
-    if (subDecks.length <= 1) return;
-    if (!window.confirm(`Remove ${SUB_DECK_NAMES[subIdx]} and its cards?`)) return;
-    setSubDecks((prev) => prev.filter((_, si) => si !== subIdx));
-    setActiveIdx((prev) =>
-      Math.max(0, prev > subIdx ? prev - 1 : Math.min(prev, subDecks.length - 2))
-    );
   }
 
   function clearAll() {
     if (filledCount && !window.confirm("Clear the whole deck?")) return;
     setCommander("");
     setSlots(emptySlots());
-    setSubDecks([emptySubDeck()]);
+    setSubDecks(emptySubDecks());
     setActiveIdx(0);
     setActiveRow(null);
     setError(null);
@@ -376,8 +364,6 @@ function DeckBrewer() {
       />
     );
   }
-
-  const colSpan = 3 + subDecks.length + (subDecks.length < MAX_SUB_DECKS ? 1 : 0);
 
   return (
     <div className="brew">
@@ -429,44 +415,21 @@ function DeckBrewer() {
                           <span className="badge-active">active</span>
                         )}
                       </button>
-                      {subDecks.length > 1 && (
-                        <button
-                          type="button"
-                          className="sub-remove"
-                          aria-label={`Remove ${SUB_DECK_NAMES[si]}`}
-                          onClick={() => removeSubDeck(si)}
-                        >
-                          ✕
-                        </button>
-                      )}
                     </th>
                   ))}
-                  {subDecks.length < MAX_SUB_DECKS && (
-                    <th className="add-col">
-                      <button
-                        type="button"
-                        className="preset"
-                        onClick={() => addSubDeck()}
-                      >
-                        + Add 33
-                      </button>
-                    </th>
-                  )}
                 </tr>
               </thead>
               <tbody>
                 {slots.map((slot, i) => (
-                  <Fragment key={i}>
+                  <Fragment key={slot.id}>
                     <tr
                       className={[
                         activeRow === i ? "active-row" : "",
                         dragIndex === i ? "dragging" : "",
-                        overIndex === i && dragIndex !== i ? "drag-over" : "",
                       ]
                         .filter(Boolean)
                         .join(" ")}
                       onDragOver={(e) => handleRowDragOver(e, i)}
-                      onDrop={(e) => handleRowDrop(e, i)}
                       onDragEnd={endRowDrag}
                     >
                       <td className="num">
@@ -477,13 +440,14 @@ function DeckBrewer() {
                           aria-label={`Reorder row ${i + 1}`}
                           title="Drag to reorder"
                           onDragStart={(e) => handleRowDragStart(e, i)}
+                          onDragEnd={endRowDrag}
                         >
                           ⠿
                         </span>
                         <span className="row-num">{i + 1}</span>
                       </td>
                       <td className="tag-cell-td">
-                        <TagInput
+                        <TagSelect
                           slotIndex={i}
                           value={slot.tag}
                           onCommit={(tag) => commitTag(i, tag)}
@@ -519,11 +483,10 @@ function DeckBrewer() {
                           onDismissFlag={() => dismissFlag(si, i)}
                         />
                       ))}
-                      {subDecks.length < MAX_SUB_DECKS && <td></td>}
                     </tr>
                     {activeRow === i && (
                       <tr className="sugg-row">
-                        <td colSpan={colSpan}>
+                        <td colSpan={3 + subDecks.length}>
                           <SuggestionStrip
                             sourceName={sourceName}
                             sourceCard={sourceCard}
@@ -552,12 +515,6 @@ function DeckBrewer() {
           />
         </div>
       </div>
-
-      <datalist id="category-suggestions">
-        {CATEGORY_SUGGESTIONS.map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
 
       {error && (
         <p className="error" role="alert">
@@ -685,32 +642,22 @@ function ExportModal({ commander, subDecks, subDeckNames, onClose }) {
   );
 }
 
-// Tag edits commit on blur (not per keystroke) so the shared-tag warning
-// fires once per change.
-function TagInput({ slotIndex, value, onCommit }) {
-  const [draft, setDraft] = useState(value);
-
-  useEffect(() => {
-    setDraft(value);
-  }, [value]);
-
+// A slot's tag is one of the known categories or "Custom" — no free text.
+function TagSelect({ slotIndex, value, onCommit }) {
   return (
-    <input
-      type="text"
-      className="tag-input"
-      list="category-suggestions"
-      placeholder="Tag"
+    <select
+      className="tag-input tag-select"
       aria-label={`Slot ${slotIndex + 1} tag`}
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => draft.trim() !== value && onCommit(draft.trim())}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.target.blur();
-        }
-      }}
-    />
+      value={value}
+      onChange={(e) => onCommit(e.target.value)}
+    >
+      <option value="">Tag…</option>
+      {TAG_OPTIONS.map((t) => (
+        <option key={t} value={t}>
+          {t}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -913,19 +860,15 @@ function CompositionSummary({ slots, subDecks, lookup }) {
 }
 
 function ChangeWarningModal({ change, onCancel, onConfirm, onDisableWarnings }) {
-  const what =
-    change.kind === "tag"
-      ? `Change slot ${change.slot + 1} tag: “${change.oldValue}” → “${change.newValue || "(empty)"}”?`
-      : `Change ${SUB_DECK_NAMES[change.subIdx]} slot ${change.slot + 1}: “${change.oldValue}” → “${change.newValue || "(empty)"}”?`;
-
   return (
     <div className="modal-overlay">
       <div className="modal" role="dialog" aria-label="Confirm change">
-        <h3>{what}</h3>
+        <h3>
+          Change slot {change.slot + 1} tag: “{change.oldValue}” → “
+          {change.newValue || "(empty)"}”?
+        </h3>
         <p>
-          {change.kind === "tag"
-            ? "Slot tags are shared by every sub-deck."
-            : "Cards in this row of other sub-decks were picked to fit alongside it."}{" "}
+          Slot tags are shared by every sub-deck.{" "}
           {change.affected.length} card
           {change.affected.length > 1 ? "s" : ""} will be flagged for review
           (not removed):{" "}
