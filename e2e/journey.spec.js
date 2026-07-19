@@ -13,6 +13,7 @@ const SCREENSHOT_DIR = "docs/screenshots";
 
 const CARD_DATA = {
   "Sol Ring": { mana_cost: "{1}", type_line: "Artifact", cmc: 1, color_identity: [] },
+  "Mana Vault": { mana_cost: "{1}", type_line: "Artifact", cmc: 1, color_identity: [] },
   "Swords to Plowshares": { mana_cost: "{W}", type_line: "Instant", cmc: 1, color_identity: ["W"] },
   Counterspell: { mana_cost: "{U}{U}", type_line: "Instant", cmc: 2, color_identity: ["U"] },
   Cultivate: { mana_cost: "{2}{G}", type_line: "Sorcery", cmc: 3, color_identity: ["G"] },
@@ -138,19 +139,12 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await pickName(page, "33 B card 2", "sol ring", "Sol Ring");
   await expect(page.getByText("duplicate in deck")).toHaveCount(2);
 
-  // 5. Changing a shared tag warns about same-row cards in other sub-decks
-  await page.selectOption('select[aria-label="Slot 1 tag"]', "Ramp");
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText("“Mana Rock” → “Ramp”");
-  await expect(dialog).toContainText("Sol Ring (33 A)");
-  await expect(dialog).toContainText("Mana Vault (33 B)");
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/05-tag-warning.png` });
-
-  // 6. Confirming flags the affected cells; the rail tallies what needs attention
-  await dialog.getByRole("button", { name: "Change & flag" }).click();
-  await expect(page.getByText(/picked when slot 1 tag was “Mana Rock”/)).toHaveCount(2);
+  // 5. Consistency check: 33 B card 2 (Sol Ring, an artifact) diverges from
+  // 33 A card 2 (Swords to Plowshares, an instant) in card type.
+  await expect(page.getByText(/differs from 33 A: card type/)).toBeVisible();
+  await expect(page.getByText(/1 card differs from 33 A/)).toBeVisible(); // rail tally
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/06-flags-and-dup.png` });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/06-consistency.png` });
 
   // 7. Export to a Moxfield-importable decklist (whole deck or sub-decks)
   await page.getByRole("button", { name: "Export" }).click();
@@ -165,7 +159,7 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   // State survives a reload (localStorage reopens straight into the workspace)
   await page.reload();
   await expect(page.getByLabel("33 B card 1", { exact: true })).toHaveValue("Mana Vault");
-  await expect(page.getByText(/picked when slot 1 tag was “Mana Rock”/)).toHaveCount(2);
+  await expect(page.getByText("duplicate in deck")).toHaveCount(2);
 
   // 8. Hypergeometric Calculator tab still works
   await page.click('button:has-text("Hypergeometric Calculator")');
