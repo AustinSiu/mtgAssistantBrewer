@@ -10,10 +10,11 @@ import {
   resolveCardNames,
   lookupCommander,
   fetchSimilar,
+  hasOracleTag,
 } from "./brew";
 import { duplicateNonBasics, toMoxfield } from "./decklist";
 import { reorder, remapIndex } from "./reorder";
-import { cardManaCost, cardManaValue } from "./scryfall";
+import { cardManaCost, cardManaValue, cardPrimaryType } from "./scryfall";
 
 export const CARD_COUNT = 33;
 export const MAX_SUB_DECKS = 3;
@@ -102,13 +103,16 @@ function DeckBrewer() {
   const [commanderCard, setCommanderCard] = useState(null);
   const [lookup, setLookup] = useState(() => new Map()); // lowername -> {card, matchType}
   const [strip, setStrip] = useState({ loading: false, items: null });
-  const [pendingChange, setPendingChange] = useState(null);
-  const [warnDisabled, setWarnDisabled] = useState(false); // this session only
   const [exportOpen, setExportOpen] = useState(false);
   const [dragIndex, setDragIndex] = useState(null);
+  // Whether each (card, row-otag) pair carries the tag — for the 33 A
+  // consistency check. Keyed "lowername|otag" -> boolean.
+  const [tagMembership, setTagMembership] = useState(() => new Map());
 
   const lookupRef = useRef(lookup);
   lookupRef.current = lookup;
+  const tagMembershipRef = useRef(tagMembership);
+  tagMembershipRef.current = tagMembership;
 
   useEffect(() => {
     try {
@@ -205,88 +209,98 @@ function DeckBrewer() {
   );
   const totalSlots = CARD_COUNT * subDecks.length;
 
-  function filledCellsInRow(slot, exceptIdx = -1) {
-    return subDecks.flatMap((sd, si) =>
-      si !== exceptIdx && sd.cards[slot].trim()
-        ? [{ subIdx: si, name: sd.cards[slot] }]
-        : []
-    );
+  // Resolve oracle-tag membership for the 33 A consistency check: for every
+  // filled cell in a row that has a mapped tag, ask Scryfall (once, cached)
+  // whether that card actually carries the tag.
+  const tagPairs = [];
+  slots.forEach((slot, i) => {
+    const otag = tagForCategory(slot.tag);
+    if (!otag) return;
+    subDecks.forEach((sd) => {
+      const name = sd.cards[i].trim();
+      if (name) tagPairs.push({ name, otag, key: `${name.toLowerCase()}|${otag}` });
+    });
+  });
+  const tagPairsKey = [...new Set(tagPairs.map((p) => p.key))].sort().join(";");
+  useEffect(() => {
+    const missing = [
+      ...new Map(
+        tagPairs
+          .filter((p) => !tagMembershipRef.current.has(p.key))
+          .map((p) => [p.key, p])
+      ).values(),
+    ];
+    if (!missing.length) return;
+    let cancelled = false;
+    Promise.all(
+      missing.map(async (p) => [p.key, await hasOracleTag(p.name, p.otag)])
+    ).then((results) => {
+      if (cancelled) return;
+      setTagMembership((prev) => {
+        const next = new Map(prev);
+        for (const [k, v] of results) if (v != null) next.set(k, v);
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tagPairsKey]);
+
+  // How a 33 B/33 C cell diverges from the 33 A "main" card in the same row:
+  // mana value, primary card type, and (via Scryfall) whether it carries the
+  // row's oracle tag. Returns [] for the main column and unresolved cells.
+  function divergenceReasons(rowIdx, subIdx) {
+    if (subIdx === 0) return [];
+    const nameA = subDecks[0].cards[rowIdx].trim();
+    const nameX = subDecks[subIdx].cards[rowIdx].trim();
+    const cardA = nameA ? lookup.get(nameA.toLowerCase())?.card : null;
+    const cardX = nameX ? lookup.get(nameX.toLowerCase())?.card : null;
+    if (!cardA || !cardX) return [];
+
+    const reasons = [];
+    if (cardManaValue(cardX) !== cardManaValue(cardA)) reasons.push("mana value");
+    if (cardPrimaryType(cardX) !== cardPrimaryType(cardA)) reasons.push("card type");
+    const otag = tagForCategory(slots[rowIdx].tag);
+    if (otag) {
+      const membA = tagMembership.get(`${nameA.toLowerCase()}|${otag}`);
+      const membX = tagMembership.get(`${nameX.toLowerCase()}|${otag}`);
+      if (membA != null && membX != null && membA !== membX) reasons.push("tag");
+    }
+    return reasons;
   }
+
+  const divergentCount = slots.reduce(
+    (n, _slot, i) =>
+      n +
+      subDecks.filter((_sd, si) => divergenceReasons(i, si).length > 0).length,
+    0
+  );
 
   function setCard(subIdx, slot, name) {
     setSubDecks((prev) =>
       prev.map((sd, si) =>
         si === subIdx
-          ? {
-              ...sd,
-              cards: sd.cards.map((c, i) => (i === slot ? name : c)),
-              flags: sd.flags.map((f, i) => (i === slot ? null : f)),
-            }
+          ? { ...sd, cards: sd.cards.map((c, i) => (i === slot ? name : c)) }
           : sd
       )
     );
   }
 
-  function flagCells(cells, reason) {
-    setSubDecks((prev) =>
-      prev.map((sd, si) => {
-        const rows = cells.filter((c) => c.subIdx === si);
-        if (rows.length === 0) return sd;
-        const flags = [...sd.flags];
-        for (const c of rows) flags[c.slot] = reason;
-        return { ...sd, flags };
-      })
-    );
-  }
-
-  function dismissFlag(subIdx, slot) {
-    setSubDecks((prev) =>
-      prev.map((sd, si) =>
-        si === subIdx
-          ? { ...sd, flags: sd.flags.map((f, i) => (i === slot ? null : f)) }
-          : sd
-      )
-    );
-  }
-
-  // Card commits apply immediately, with no warning.
+  // Card and tag commits both apply immediately, with no warning — the
+  // consistency check below flags divergent cells live.
   function commitCard(subIdx, slot, name) {
     if (name === subDecks[subIdx].cards[slot]) return;
     setCard(subIdx, slot, name);
   }
 
-  // Changing a slot's tag is shared by every sub-deck, so cards other columns
-  // picked for the old tag are flagged for review (Cancel reverts the tag).
   function commitTag(slot, newTag) {
-    const oldValue = slots[slot].tag;
-    if (newTag === oldValue) return;
     setSlots((prev) => prev.map((s, i) => (i === slot ? { ...s, tag: newTag } : s)));
-    const affected = filledCellsInRow(slot).map((c) => ({ ...c, slot }));
-    if (oldValue.trim() && affected.length > 0) {
-      const reason = `picked when slot ${slot + 1} tag was “${oldValue}”`;
-      if (warnDisabled) {
-        flagCells(affected, reason);
-      } else {
-        setPendingChange({ slot, oldValue, newValue: newTag, affected, reason });
-      }
-    }
   }
 
   function updateNote(slot, note) {
     setSlots((prev) => prev.map((s, i) => (i === slot ? { ...s, note } : s)));
-  }
-
-  function confirmPending() {
-    flagCells(pendingChange.affected, pendingChange.reason);
-    setPendingChange(null);
-  }
-
-  function cancelPending() {
-    const p = pendingChange;
-    setSlots((prev) =>
-      prev.map((s, i) => (i === p.slot ? { ...s, tag: p.oldValue } : s))
-    );
-    setPendingChange(null);
   }
 
   function selectCell(subIdx, slot) {
@@ -294,16 +308,13 @@ function DeckBrewer() {
     setActiveRow(slot);
   }
 
-  // Move a whole slot row (its shared tag/note plus every sub-deck's card and
-  // flag at that row) to a new position, keeping the active row pinned to it.
+  // Move a whole slot row (its shared tag/note plus every sub-deck's card at
+  // that row) to a new position, keeping the active row pinned to it.
   function moveRow(from, to) {
     if (from == null || to == null || from === to) return;
     setSlots((prev) => reorder(prev, from, to));
     setSubDecks((prev) =>
-      prev.map((sd) => ({
-        cards: reorder(sd.cards, from, to),
-        flags: reorder(sd.flags, from, to),
-      }))
+      prev.map((sd) => ({ cards: reorder(sd.cards, from, to) }))
     );
     setActiveRow((prev) => (prev == null ? prev : remapIndex(prev, from, to)));
   }
@@ -472,7 +483,7 @@ function DeckBrewer() {
                           subIdx={si}
                           slot={i}
                           name={sd.cards[i]}
-                          flag={sd.flags[i]}
+                          divergence={divergenceReasons(i, si)}
                           active={si === activeIdx}
                           duplicate={duplicateNames.has(
                             sd.cards[i].trim().toLowerCase()
@@ -480,7 +491,6 @@ function DeckBrewer() {
                           entry={lookup.get(sd.cards[i].trim().toLowerCase())}
                           onSelect={() => selectCell(si, i)}
                           onCommit={(name) => commitCard(si, i, name)}
-                          onDismissFlag={() => dismissFlag(si, i)}
                         />
                       ))}
                     </tr>
@@ -512,6 +522,7 @@ function DeckBrewer() {
             activeIdx={activeIdx}
             lookup={lookup}
             duplicateNames={duplicateNames}
+            divergentCount={divergentCount}
           />
         </div>
       </div>
@@ -523,15 +534,6 @@ function DeckBrewer() {
       )}
 
       <CompositionSummary slots={slots} subDecks={subDecks} lookup={lookup} />
-
-      {pendingChange && (
-        <ChangeWarningModal
-          change={pendingChange}
-          onCancel={cancelPending}
-          onConfirm={confirmPending}
-          onDisableWarnings={() => setWarnDisabled(true)}
-        />
-      )}
 
       {exportOpen && (
         <ExportModal
@@ -665,22 +667,22 @@ function MatrixCell({
   subIdx,
   slot,
   name,
-  flag,
+  divergence,
   active,
   duplicate,
   entry,
   onSelect,
   onCommit,
-  onDismissFlag,
 }) {
   const notFound = entry && !entry.card && name.trim() !== "";
   const canonical = entry?.card?.name;
   const renamed =
     canonical && canonical.toLowerCase() !== name.trim().toLowerCase();
+  const diverges = divergence.length > 0;
 
   const classes = ["cell-td"];
   if (active) classes.push("active");
-  if (flag) classes.push("flagged");
+  if (diverges) classes.push("flagged");
   if (duplicate) classes.push("dup");
   if (notFound) classes.push("notfound");
 
@@ -692,17 +694,9 @@ function MatrixCell({
         value={name}
         onCommit={onCommit}
       />
-      {flag && (
+      {diverges && (
         <div className="cell-note flag-note">
-          ⚠ {flag}
-          <button
-            type="button"
-            className="dismiss"
-            aria-label={`Dismiss warning on ${SUB_DECK_NAMES[subIdx]} card ${slot + 1}`}
-            onClick={onDismissFlag}
-          >
-            ✓ keep
-          </button>
+          ⚠ differs from 33 A: {divergence.join(", ")}
         </div>
       )}
       {duplicate && <div className="cell-note dup-note">duplicate in deck</div>}
@@ -854,44 +848,6 @@ function CompositionSummary({ slots, subDecks, lookup }) {
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
-  );
-}
-
-function ChangeWarningModal({ change, onCancel, onConfirm, onDisableWarnings }) {
-  return (
-    <div className="modal-overlay">
-      <div className="modal" role="dialog" aria-label="Confirm change">
-        <h3>
-          Change slot {change.slot + 1} tag: “{change.oldValue}” → “
-          {change.newValue || "(empty)"}”?
-        </h3>
-        <p>
-          Slot tags are shared by every sub-deck.{" "}
-          {change.affected.length} card
-          {change.affected.length > 1 ? "s" : ""} will be flagged for review
-          (not removed):{" "}
-          {change.affected
-            .map((c) => `${c.name} (${SUB_DECK_NAMES[c.subIdx]})`)
-            .join(", ")}
-          .
-        </p>
-        <div className="actions">
-          <button type="button" className="preset" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="button" className="submit" onClick={onConfirm}>
-            Change &amp; flag
-          </button>
-        </div>
-        <label className="dont-warn">
-          <input
-            type="checkbox"
-            onChange={(e) => e.target.checked && onDisableWarnings()}
-          />{" "}
-          Don't warn again this session
-        </label>
       </div>
     </div>
   );
