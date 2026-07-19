@@ -176,3 +176,29 @@ export async function fetchSimilar({ card, tag, commanderCard, excludeNames }) {
     .filter((s) => !excludeNames.has(s.name.toLowerCase()))
     .slice(0, MAX_SIMILAR);
 }
+
+// Whether a card carries a given oracle tag — cached per (name, tag).
+const otagCache = new Map();
+
+/** Test hook: reset the module-level oracle-tag cache between tests. */
+export function clearOtagCache() {
+  otagCache.clear();
+}
+
+/**
+ * Does the named card carry the oracle tag? Asks Scryfall whether the exact
+ * card also matches otag:<tag>. Returns true/false, or null if the lookup
+ * fails (so callers can treat it as "unknown" rather than a divergence).
+ */
+export async function hasOracleTag(name, tag) {
+  const key = `${name.toLowerCase()}|${tag}`;
+  if (otagCache.has(key)) return otagCache.get(key);
+  try {
+    const { data } = await searchCards(`otag:${tag} !"${name.replace(/"/g, "")}"`);
+    const has = data.length > 0;
+    otagCache.set(key, has);
+    return has;
+  } catch {
+    return null;
+  }
+}

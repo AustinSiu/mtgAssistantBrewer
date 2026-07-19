@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import DeckBrewer, { CARD_COUNT } from './DeckBrewer';
 import { reorder, remapIndex } from './reorder';
 import { clearAutocompleteCache } from './scryfall';
-import { clearSimilarCache } from './brew';
+import { clearSimilarCache, clearOtagCache } from './brew';
 import { card as mockCard, catalogMatches } from '../test/fixtures';
 
 const ok = (data) => ({ ok: true, json: async () => data });
@@ -72,6 +72,7 @@ describe('DeckBrewer', () => {
     localStorage.clear();
     clearAutocompleteCache();
     clearSimilarCache();
+    clearOtagCache();
     vi.stubGlobal('fetch', vi.fn());
     setupFetch([autocompleteRoute, commanderRoute, collectionRoute]);
   });
@@ -193,7 +194,7 @@ describe('DeckBrewer', () => {
       expect(screen.getByRole('link', { name: 'Mana Vault' })).toBeInTheDocument();
     });
 
-    const searchUrl = fetch.mock.calls.find(([u]) => String(u).includes('cards/search'))[0];
+    const searchUrl = fetch.mock.calls.find(([u]) => decodeURIComponent(String(u)).includes('order:edhrec'))[0];
     expect(decodeURIComponent(String(searchUrl))).toContain(
       'otag:mana-rock mv:1 t:artifact id<=WUBG order:edhrec'
     );
@@ -245,7 +246,7 @@ describe('DeckBrewer', () => {
       expect(screen.getByRole('link', { name: 'Command Tower' })).toBeInTheDocument();
     });
     // Land rows search by card type, not an oracle tag.
-    const searchUrl = fetch.mock.calls.find(([u]) => String(u).includes('cards/search'))[0];
+    const searchUrl = fetch.mock.calls.find(([u]) => decodeURIComponent(String(u)).includes('order:edhrec'))[0];
     expect(decodeURIComponent(String(searchUrl))).toContain('t:land id<=WUBG order:edhrec');
   });
 
@@ -262,41 +263,39 @@ describe('DeckBrewer', () => {
     expect(screen.getByText(/32 empty slots in 33 A/)).toBeInTheDocument();
   });
 
-  it('warns when changing a shared tag and flags same-row cards on confirm', async () => {
+  it('flags a sub-deck card that diverges from the 33 A main card', async () => {
+    const cardDb = {
+      'Sol Ring': { cmc: 1, type_line: 'Artifact' },
+      Counterspell: { cmc: 2, type_line: 'Instant' },
+    };
+    setupFetch([
+      autocompleteRoute,
+      commanderRoute,
+      ['cards/collection', (url, options) => {
+        const { identifiers } = JSON.parse(options.body);
+        return ok({
+          data: identifiers.map(({ name }) => mockCard(name, cardDb[name] ?? { cmc: 1 })),
+          not_found: [],
+        });
+      }],
+      // Oracle-tag membership: Sol Ring is a mana-rock, Counterspell is not.
+      ['cards/search', (url) =>
+        ok({ data: url.includes('Sol Ring') ? [mockCard('Sol Ring')] : [] })],
+    ]);
+
     render(<DeckBrewer />);
     await enterWorkspace();
     await pick('33 A card 1', 'sol ring', 'Sol Ring');
     setTag(1, 'Mana Rock');
-    await pick('33 B card 1', 'cultivate', 'Cultivate');
+    await pick('33 B card 1', 'counterspell', 'Counterspell');
 
-    setTag(1, 'Ramp');
-    const dialog = screen.getByRole('dialog');
-    expect(dialog).toHaveTextContent('“Mana Rock” → “Ramp”');
-    expect(dialog).toHaveTextContent('Sol Ring (33 A)');
-    expect(dialog).toHaveTextContent('Cultivate (33 B)');
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Change & flag' }));
-    expect(screen.getByLabelText('Slot 1 tag')).toHaveValue('Ramp');
-    expect(screen.getAllByText(/picked when slot 1 tag was “Mana Rock”/)).toHaveLength(2);
-
-    // Dismissing a flag clears it
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Dismiss warning on 33 A card 1' })
-    );
-    expect(screen.getAllByText(/picked when slot 1 tag was/)).toHaveLength(1);
-  });
-
-  it('cancelling the tag warning reverts the tag and flags nothing', async () => {
-    render(<DeckBrewer />);
-    await enterWorkspace();
-    await pick('33 A card 1', 'sol ring', 'Sol Ring');
-    setTag(1, 'Mana Rock');
-    await pick('33 B card 1', 'cultivate', 'Cultivate');
-
-    setTag(1, 'Ramp');
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
-    expect(screen.getByLabelText('Slot 1 tag')).toHaveValue('Mana Rock');
-    expect(screen.queryByText(/picked when/)).not.toBeInTheDocument();
+    // Counterspell differs from Sol Ring in mana value, card type, and tag.
+    await waitFor(() => {
+      expect(
+        screen.getByText(/differs from 33 A: mana value, card type, tag/)
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText(/1 card differs from 33 A/)).toBeInTheDocument();
   });
 
   it('replaces a chosen card with no warning', async () => {

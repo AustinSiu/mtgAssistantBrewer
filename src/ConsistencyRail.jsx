@@ -13,6 +13,7 @@ function ConsistencyRail({
   activeIdx,
   lookup,
   duplicateNames,
+  divergentCount,
 }) {
   const total = slots.length;
   const resolvedCard = (name) => lookup?.get(name.trim().toLowerCase())?.card;
@@ -54,15 +55,14 @@ function ConsistencyRail({
       text: `${notFound} card${notFound > 1 ? "s" : ""} not found on Scryfall`,
     });
   }
-  const flagCount = subDecks.reduce(
-    (n, sd) => n + sd.flags.filter(Boolean).length,
-    0
-  );
-  if (flagCount) {
+  if (divergentCount) {
     attention.push({
       kind: "amber",
       dot: "●",
-      text: `${flagCount} flagged for review`,
+      text:
+        divergentCount === 1
+          ? "1 card differs from 33 A"
+          : `${divergentCount} cards differ from 33 A`,
     });
   }
   const emptyActive = total - filled(activeIdx);
