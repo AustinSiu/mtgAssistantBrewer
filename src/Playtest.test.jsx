@@ -264,3 +264,57 @@ describe("Playtest drag and drop", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("Playtest tap rotation", () => {
+  it("keeps the action menu out of the rotated (tapped) layer", () => {
+    renderPlaytest();
+    const handCard = screen.getAllByRole("button", { name: /^Card \d+$/ })[0];
+    const name = handCard.getAttribute("aria-label");
+    fireEvent.click(handCard);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Play" }));
+
+    const played = screen.getByRole("button", { name });
+    fireEvent.click(played); // tap the battlefield card (rotates it)
+    fireEvent.click(screen.getByRole("button", { name: `Actions for ${name}` }));
+
+    const menu = screen.getByRole("menu");
+    // The 90° rotation lives on .pt-card-tap; the menu must NOT be inside it,
+    // so the menu stays upright.
+    const rotated = document.querySelector(".pt-card-tap.tapped");
+    expect(rotated).not.toBeNull();
+    expect(rotated.contains(menu)).toBe(false);
+    // It's still anchored to the (unrotated) card wrap.
+    expect(menu.closest(".pt-card-wrap")).not.toBeNull();
+  });
+});
+
+describe("Playtest card images", () => {
+  const imgCard = (name) => ({
+    name,
+    mana_cost: "{1}",
+    type_line: "Artifact",
+    image_uris: { normal: `https://cards.scryfall.io/normal/${name}.jpg` },
+  });
+
+  it("renders the Scryfall image, falling back to the text frame on load error", () => {
+    render(
+      <Playtest
+        deck={Array.from({ length: 8 }, (_, i) => ({
+          name: `Img ${i}`,
+          card: imgCard(`Img ${i}`),
+        }))}
+        commander={null}
+        onClose={vi.fn()}
+      />
+    );
+    const img = document.querySelector(".pt-hand-cards .pt-card img");
+    expect(img).not.toBeNull();
+    const wrap = img.closest(".pt-card-wrap");
+    expect(wrap.querySelector(".pt-card-proxy")).toBeNull();
+
+    // A failed image load swaps that card to its text frame.
+    fireEvent.error(img);
+    expect(wrap.querySelector(".pt-card img")).toBeNull();
+    expect(wrap.querySelector(".pt-card-proxy")).not.toBeNull();
+  });
+});

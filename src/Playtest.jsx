@@ -760,7 +760,9 @@ function PileTop({ ids, zone, inst, dnd, menuFor, setMenuFor, menuActions }) {
  * menu. Battlefield cards are absolutely placed via their `pos` (CSS --x/--y).
  */
 function PlaytestCard({ inst, tappable, sourceZone, dnd, onTap, menuOpen, onMenu, actions }) {
-  const img = inst.card ? cardImageUrl(inst.card) : null;
+  // Fall back to the text frame if the Scryfall image can't be loaded.
+  const [imgError, setImgError] = useState(false);
+  const img = !imgError && inst.card ? cardImageUrl(inst.card) : null;
   const dragging = dnd?.ghost?.id === inst.id;
 
   function handleClick(e) {
@@ -787,49 +789,52 @@ function PlaytestCard({ inst, tappable, sourceZone, dnd, onTap, menuOpen, onMenu
 
   return (
     <div
-      className={`pt-card-wrap ${inst.tapped ? "tapped" : ""} ${dragging ? "pt-dragging" : ""}`}
+      className={`pt-card-wrap ${dragging ? "pt-dragging" : ""}`}
       style={style}
     >
-      <button
-        type="button"
-        className={`pt-card ${inst.token ? "token" : ""}`}
-        aria-label={`${inst.name}${inst.tapped ? " (tapped)" : ""}`}
-        onClick={handleClick}
-        onPointerDown={handlePointerDown}
-      >
-        {img ? (
-          <img src={img} alt="" draggable={false} />
-        ) : (
-          <span className="pt-card-proxy">
-            <span className="pt-proxy-name">{inst.name}</span>
-            {inst.card && (
-              <>
-                <span className="pt-proxy-cost">{cardManaCost(inst.card)}</span>
-                <span className="pt-proxy-type">{cardTypeLabel(inst.card)}</span>
-              </>
-            )}
-            {inst.token && <span className="pt-proxy-type">Token</span>}
-          </span>
-        )}
-      </button>
-      {inst.counters > 0 && (
-        <span className="pt-counter-badge" aria-label={`${inst.counters} counters`}>
-          {inst.counters}
-        </span>
-      )}
-      {tappable && (
+      {/* The tap rotation lives here so it doesn't rotate the action menu. */}
+      <div className={`pt-card-tap ${inst.tapped ? "tapped" : ""}`}>
         <button
           type="button"
-          className="pt-card-menu-btn"
-          aria-label={`Actions for ${inst.name}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onMenu();
-          }}
+          className={`pt-card ${inst.token ? "token" : ""}`}
+          aria-label={`${inst.name}${inst.tapped ? " (tapped)" : ""}`}
+          onClick={handleClick}
+          onPointerDown={handlePointerDown}
         >
-          ⋮
+          {img ? (
+            <img src={img} alt="" draggable={false} onError={() => setImgError(true)} />
+          ) : (
+            <span className="pt-card-proxy">
+              <span className="pt-proxy-name">{inst.name}</span>
+              {inst.card && (
+                <>
+                  <span className="pt-proxy-cost">{cardManaCost(inst.card)}</span>
+                  <span className="pt-proxy-type">{cardTypeLabel(inst.card)}</span>
+                </>
+              )}
+              {inst.token && <span className="pt-proxy-type">Token</span>}
+            </span>
+          )}
         </button>
-      )}
+        {inst.counters > 0 && (
+          <span className="pt-counter-badge" aria-label={`${inst.counters} counters`}>
+            {inst.counters}
+          </span>
+        )}
+        {tappable && (
+          <button
+            type="button"
+            className="pt-card-menu-btn"
+            aria-label={`Actions for ${inst.name}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMenu();
+            }}
+          >
+            ⋮
+          </button>
+        )}
+      </div>
       {menuOpen && (
         <ul className="pt-menu" role="menu">
           {actions.map(([label, run]) => (

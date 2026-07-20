@@ -155,7 +155,7 @@ test("deck list tab customer journey", async ({ page }) => {
 
   // A plain click still taps it; Next Turn untaps and draws.
   await boardCard.locator(".pt-card").click();
-  await expect(playtest.locator(".pt-battlefield-cards .pt-card-wrap.tapped")).toBeVisible();
+  await expect(playtest.locator(".pt-battlefield-cards .pt-card-tap.tapped")).toBeVisible();
   await playtest.getByRole("button", { name: "Next Turn" }).click();
   await expect(playtest.getByText("Turn 2")).toBeVisible();
   await expect(playtest.getByText("Hand (7)")).toBeVisible();
