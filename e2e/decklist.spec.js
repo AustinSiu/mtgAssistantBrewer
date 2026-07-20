@@ -111,4 +111,29 @@ test("deck list tab customer journey", async ({ page }) => {
   await page.reload();
   await page.getByRole("button", { name: "Deck List" }).click();
   await expect(page.getByRole("link", { name: "Rhystic Study" })).toBeVisible();
+
+  // Playtest: shuffle up the deck, play a card from hand, advance the turn.
+  await page.getByRole("button", { name: "▶ Playtest" }).click();
+  const playtest = page.getByRole("dialog", { name: "Playtest" });
+  await expect(playtest.getByText("Hand (7)")).toBeVisible();
+  await expect(playtest.getByText("Turn 1")).toBeVisible();
+  await expect(
+    playtest.getByRole("button", { name: "Atraxa, Praetors' Voice" })
+  ).toBeVisible(); // commander in the command zone
+
+  // Open the first hand card's menu and play it to the battlefield.
+  const handArea = playtest.locator(".pt-hand-cards");
+  await handArea.locator(".pt-card").first().click();
+  await playtest.getByRole("menuitem", { name: "Play" }).click();
+  await expect(playtest.getByText("Hand (6)")).toBeVisible();
+
+  // Tap it, then Next Turn untaps and draws.
+  await playtest.locator(".pt-battlefield-cards .pt-card").first().click();
+  await playtest.getByRole("button", { name: "Next Turn" }).click();
+  await expect(playtest.getByText("Turn 2")).toBeVisible();
+  await expect(playtest.getByText("Hand (7)")).toBeVisible();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-4-playtest.png` });
+
+  await playtest.getByRole("button", { name: "Close playtest" }).click();
+  await expect(page.getByRole("dialog", { name: "Playtest" })).toHaveCount(0);
 });

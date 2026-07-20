@@ -3,6 +3,7 @@ import CardNameInput from "./CardNameInput";
 import CommanderPicker from "./CommanderPicker";
 import WorkspaceHeader from "./WorkspaceHeader";
 import ConsistencyRail from "./ConsistencyRail";
+import Playtest from "./Playtest";
 import {
   CATEGORY_SUGGESTIONS,
   tagForCategory,
@@ -104,6 +105,8 @@ function DeckBrewer() {
   const [lookup, setLookup] = useState(() => new Map()); // lowername -> {card, matchType}
   const [strip, setStrip] = useState({ loading: false, items: null });
   const [exportOpen, setExportOpen] = useState(false);
+  const [playtestSetupOpen, setPlaytestSetupOpen] = useState(false);
+  const [playtestGame, setPlaytestGame] = useState(null); // { deck, commander }
   const [dragIndex, setDragIndex] = useState(null);
   // Whether each (card, row-otag) pair carries the tag — for the 33 A
   // consistency check. Keyed "lowername|otag" -> boolean.
@@ -385,6 +388,7 @@ function DeckBrewer() {
           totalPlaced={filledCount}
           totalSlots={totalSlots}
           onChangeCommander={() => setStep("commander")}
+          onPlaytest={() => setPlaytestSetupOpen(true)}
           onExport={() => setExportOpen(true)}
           onClear={clearAll}
         />
@@ -543,6 +547,117 @@ function DeckBrewer() {
           onClose={() => setExportOpen(false)}
         />
       )}
+
+      {playtestSetupOpen && (
+        <PlaytestSetupModal
+          commander={commander}
+          commanderCard={commanderCard}
+          subDecks={subDecks}
+          subDeckNames={SUB_DECK_NAMES}
+          lookup={lookup}
+          onStart={(game) => {
+            setPlaytestGame(game);
+            setPlaytestSetupOpen(false);
+          }}
+          onClose={() => setPlaytestSetupOpen(false)}
+        />
+      )}
+
+      {playtestGame && (
+        <Playtest
+          deck={playtestGame.deck}
+          commander={playtestGame.commander}
+          onClose={() => setPlaytestGame(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Pick which sub-decks to goldfish (all by default), then start the
+// simulator with those cards + the commander.
+function PlaytestSetupModal({
+  commander,
+  commanderCard,
+  subDecks,
+  subDeckNames,
+  lookup,
+  onStart,
+  onClose,
+}) {
+  const [selected, setSelected] = useState(
+    () => new Set(subDecks.map((_, si) => si))
+  );
+
+  const toggle = (si) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(si)) next.delete(si);
+      else next.add(si);
+      return next;
+    });
+
+  const deck = subDecks.flatMap((sd, si) =>
+    selected.has(si)
+      ? sd.cards
+          .map((c) => c.trim())
+          .filter(Boolean)
+          .map((name) => ({
+            name,
+            card: lookup.get(name.toLowerCase())?.card ?? null,
+          }))
+      : []
+  );
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal export-modal"
+        role="dialog"
+        aria-label="Playtest setup"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3>Playtest</h3>
+        <p>Pick which sub-decks to shuffle up, then goldfish the deck.</p>
+
+        <div className="export-options">
+          {subDecks.map((_, si) => (
+            <label key={si} className="export-check">
+              <input
+                type="checkbox"
+                checked={selected.has(si)}
+                onChange={() => toggle(si)}
+              />{" "}
+              {subDeckNames[si]}
+            </label>
+          ))}
+        </div>
+
+        <div className="actions">
+          <span className="hint export-count">
+            {deck.length} {deck.length === 1 ? "card" : "cards"}
+            {commander.trim() ? ` + ${commander}` : ""}
+          </span>
+          <button type="button" className="preset" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="submit"
+            disabled={!deck.length}
+            onClick={() =>
+              onStart({
+                deck,
+                commander: commander.trim()
+                  ? { name: commander, card: commanderCard }
+                  : null,
+              })
+            }
+          >
+            Start Playtest
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

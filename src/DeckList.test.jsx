@@ -162,4 +162,27 @@ describe("DeckList", () => {
       expect(screen.getByRole("link", { name: "Sol Ring" })).toBeInTheDocument();
     });
   });
+
+  it("opens the Playtest simulator with the deck (commander in the command zone)", async () => {
+    render(<DeckList />);
+    await addViaSearch("atraxa", "Atraxa, Praetors' Voice");
+    await addViaSearch("sol ring", "Sol Ring");
+    await waitFor(() => screen.getByRole("link", { name: "Sol Ring" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Set Atraxa, Praetors' Voice as commander" })
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "▶ Playtest" }));
+    const overlay = screen.getByRole("dialog", { name: "Playtest" });
+    expect(overlay).toBeInTheDocument();
+    // 1 non-commander card → it's the whole hand; commander sits in command.
+    expect(screen.getByText("Hand (1)")).toBeInTheDocument();
+    expect(screen.getByText("Library (0)")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Atraxa, Praetors' Voice" })
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close playtest" }));
+    expect(screen.queryByRole("dialog", { name: "Playtest" })).not.toBeInTheDocument();
+  });
 });

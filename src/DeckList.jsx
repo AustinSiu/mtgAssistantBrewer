@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import CardNameInput from "./CardNameInput";
 import ManaCost from "./ManaCost";
+import Playtest from "./Playtest";
 import { CATEGORY_SUGGESTIONS } from "./brew";
 import {
   parseDecklist,
@@ -46,6 +47,7 @@ function DeckList() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [addKey, setAddKey] = useState(0); // remounts the add box to clear it
+  const [playtestOpen, setPlaytestOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -282,6 +284,13 @@ function DeckList() {
                 By tag
               </button>
             </div>
+            <button
+              type="button"
+              className="preset playtest-btn"
+              onClick={() => setPlaytestOpen(true)}
+            >
+              ▶ Playtest
+            </button>
             <button type="button" className="preset" onClick={clearAll}>
               Clear
             </button>
@@ -305,6 +314,21 @@ function DeckList() {
             />
           ))}
         </>
+      )}
+
+      {playtestOpen && (
+        <Playtest
+          deck={resolved
+            .filter((e) => !e.commander)
+            .flatMap((e) =>
+              Array.from({ length: e.qty }, () => ({ name: e.name, card: e.card }))
+            )}
+          commander={(() => {
+            const c = resolved.find((e) => e.commander);
+            return c ? { name: c.name, card: c.card } : null;
+          })()}
+          onClose={() => setPlaytestOpen(false)}
+        />
       )}
     </div>
   );
