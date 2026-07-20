@@ -11,6 +11,10 @@ logic. Screenshots show the intended result.
 
 ## Contents
 
+- [`playtest-drag-and-drop.md`](./playtest-drag-and-drop.md) — approved design
+  for direct-manipulation drag & drop in the Playtest simulator (free-position
+  battlefield, pointer-event drags between zones); written as an
+  implementation handoff.
 - [`deck-brewer-workspace/`](./deck-brewer-workspace/) — the Deck Brewer
   commander-picker + matrix workspace (the two-screen flow implemented in
   `src/DeckBrewer.jsx`, `src/CommanderPicker.jsx`, `src/WorkspaceHeader.jsx`,

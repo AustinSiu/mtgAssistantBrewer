@@ -49,6 +49,22 @@ async function stubScryfall(page) {
   });
 }
 
+// Real pointer drag from the center of `source` to a point in `target`
+// (its center, shifted by dx/dy). Intermediate moves clear the drag threshold.
+async function dragOnto(page, source, target, { dx = 0, dy = 0 } = {}) {
+  const s = await source.boundingBox();
+  const t = await target.boundingBox();
+  const sx = s.x + s.width / 2;
+  const sy = s.y + s.height / 2;
+  const tx = t.x + t.width / 2 + dx;
+  const ty = t.y + t.height / 2 + dy;
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move((sx + tx) / 2, (sy + ty) / 2, { steps: 5 });
+  await page.mouse.move(tx, ty, { steps: 5 });
+  await page.mouse.up();
+}
+
 test("deck list tab customer journey", async ({ page }) => {
   if (!process.env.SCRYFALL_LIVE) await stubScryfall(page);
 
@@ -121,16 +137,32 @@ test("deck list tab customer journey", async ({ page }) => {
     playtest.getByRole("button", { name: "Atraxa, Praetors' Voice" })
   ).toBeVisible(); // commander in the command zone
 
-  // Open the first hand card's menu and play it to the battlefield.
-  const handArea = playtest.locator(".pt-hand-cards");
-  await handArea.locator(".pt-card").first().click();
-  await playtest.getByRole("menuitem", { name: "Play" }).click();
+  // Drag the first hand card out onto the battlefield; it takes a board
+  // position (inline --x/--y) and the hand shrinks.
+  const field = playtest.locator(".pt-battlefield-cards");
+  await dragOnto(page, playtest.locator(".pt-hand-cards .pt-card").first(), field, {
+    dx: -120,
+    dy: -10,
+  });
   await expect(playtest.getByText("Hand (6)")).toBeVisible();
+  const boardCard = playtest.locator(".pt-battlefield-cards .pt-card-wrap").first();
+  await expect(boardCard).toHaveAttribute("style", /--x:/);
 
-  // Tap it, then Next Turn untaps and draws.
-  await playtest.locator(".pt-battlefield-cards .pt-card").first().click();
+  // Slide it across the field — its stored position changes.
+  const posBefore = await boardCard.getAttribute("style");
+  await dragOnto(page, boardCard.locator(".pt-card"), field, { dx: 140, dy: 60 });
+  await expect(boardCard).not.toHaveAttribute("style", posBefore);
+
+  // A plain click still taps it; Next Turn untaps and draws.
+  await boardCard.locator(".pt-card").click();
+  await expect(playtest.locator(".pt-battlefield-cards .pt-card-wrap.tapped")).toBeVisible();
   await playtest.getByRole("button", { name: "Next Turn" }).click();
   await expect(playtest.getByText("Turn 2")).toBeVisible();
+  await expect(playtest.getByText("Hand (7)")).toBeVisible();
+
+  // Drag the board card onto the graveyard pile to discard it.
+  await dragOnto(page, boardCard.locator(".pt-card"), playtest.locator('[data-drop="graveyard"]'));
+  await expect(playtest.getByText("Graveyard (1)")).toBeVisible();
   await expect(playtest.getByText("Hand (7)")).toBeVisible();
 
   // Keyboard shortcut: D draws a card.
@@ -143,6 +175,13 @@ test("deck list tab customer journey", async ({ page }) => {
   await expect(
     playtest.locator(".pt-battlefield-cards .pt-card.token")
   ).toBeVisible();
+
+  // Drag a fresh hand card onto the field so the board isn't bare.
+  await dragOnto(page, playtest.locator(".pt-hand-cards .pt-card").first(), field, {
+    dx: 40,
+    dy: -20,
+  });
+  await expect(playtest.getByText("Hand (7)")).toBeVisible();
 
   // View the library in order, then close it.
   await playtest.getByRole("button", { name: "View Library", exact: true }).click();

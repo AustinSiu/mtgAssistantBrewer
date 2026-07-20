@@ -5,6 +5,7 @@ import {
   shuffleLibrary,
   mulligan,
   moveCard,
+  setPosition,
   toggleTap,
   nextTurn,
   addLife,
@@ -104,6 +105,53 @@ describe("moveCard", () => {
     expect(findZone(g, cmdr)).toBe("battlefield");
     g = moveCard(g, cmdr, "command");
     expect(findZone(g, cmdr)).toBe("command");
+  });
+
+  it("stores a drop point when given {x, y}, else auto-cascades", () => {
+    let g = start(10);
+    const id = g.zones.hand[0];
+    g = moveCard(g, id, "battlefield", { x: 140, y: 60 });
+    expect(g.cards[id].pos).toEqual({ x: 140, y: 60 });
+
+    // No coords → a cascade position is assigned automatically.
+    const id2 = g.zones.hand[0];
+    g = moveCard(g, id2, "battlefield");
+    expect(g.cards[id2].pos).toEqual({ x: expect.any(Number), y: expect.any(Number) });
+  });
+
+  it("drops the board position when a card leaves the battlefield", () => {
+    let g = start(10);
+    const id = g.zones.hand[0];
+    g = moveCard(g, id, "battlefield", { x: 100, y: 100 });
+    expect(g.cards[id].pos).toBeDefined();
+    g = moveCard(g, id, "hand");
+    expect(g.cards[id].pos).toBeUndefined();
+  });
+});
+
+describe("setPosition", () => {
+  it("moves a card's pos, bumps z-order, and keeps it tapped", () => {
+    let g = start(10);
+    const a = g.zones.hand[0];
+    g = moveCard(g, a, "battlefield");
+    const b = g.zones.hand[0];
+    g = moveCard(g, b, "battlefield");
+    // a sits under b initially (older z-order).
+    expect(g.zones.battlefield).toEqual([a, b]);
+
+    g = toggleTap(g, a);
+    g = setPosition(g, a, { x: 200, y: 80 });
+    expect(g.cards[a].pos).toEqual({ x: 200, y: 80 });
+    expect(g.cards[a].tapped).toBe(true); // repositioning never untaps
+    expect(g.zones.battlefield).toEqual([b, a]); // a bumped to the top
+  });
+
+  it("ignores cards that aren't on the battlefield", () => {
+    let g = start(10);
+    const id = g.zones.hand[0];
+    const before = g;
+    g = setPosition(g, id, { x: 10, y: 10 });
+    expect(g).toBe(before);
   });
 });
 

@@ -9,15 +9,24 @@ const deckOf = (n) =>
     card: card(`Card ${i + 1}`, { type_line: "Artifact", mana_cost: "{1}" }),
   }));
 
-function renderPlaytest({ n = 10, onClose = vi.fn() } = {}) {
+function renderPlaytest({ n = 10, onClose = vi.fn(), resolveDropTarget } = {}) {
   render(
     <Playtest
       deck={deckOf(n)}
       commander={{ name: "Atraxa, Praetors' Voice", card: card("Atraxa, Praetors' Voice") }}
       onClose={onClose}
+      {...(resolveDropTarget ? { resolveDropTarget } : {})}
     />
   );
   return { onClose };
+}
+
+// Drive a pointer drag from `el` over the (stubbed) drop target: press, travel
+// past the threshold, release.
+function dragCard(el, { from = { x: 10, y: 10 }, to = { x: 120, y: 90 } } = {}) {
+  fireEvent.pointerDown(el, { button: 0, pointerId: 1, clientX: from.x, clientY: from.y });
+  fireEvent.pointerMove(window, { clientX: to.x, clientY: to.y });
+  fireEvent.pointerUp(window, { clientX: to.x, clientY: to.y });
 }
 
 describe("Playtest", () => {
@@ -186,5 +195,72 @@ describe("Playtest", () => {
 
     fireEvent.click(within(viewer).getByRole("button", { name: "Shuffle & close" }));
     expect(screen.queryByRole("dialog", { name: "Library" })).not.toBeInTheDocument();
+  });
+});
+
+describe("Playtest drag and drop", () => {
+  it("a press that barely moves stays a click (opens the menu, no drag)", () => {
+    renderPlaytest({ resolveDropTarget: () => "graveyard" });
+    const handCard = screen.getAllByRole("button", { name: /^Card \d+$/ })[0];
+    // Under the 5px threshold: not a drag.
+    dragCard(handCard, { from: { x: 10, y: 10 }, to: { x: 12, y: 12 } });
+    expect(document.querySelector(".pt-drag-ghost")).toBeNull();
+    // The click that follows still opens the card's menu.
+    fireEvent.click(handCard);
+    expect(screen.getByRole("menuitem", { name: "Play" })).toBeInTheDocument();
+    expect(screen.getByText("Hand (7)")).toBeInTheDocument(); // nothing moved
+  });
+
+  it("drags a card from hand to the battlefield", () => {
+    renderPlaytest({ resolveDropTarget: () => "battlefield" });
+    const handCard = screen.getAllByRole("button", { name: /^Card \d+$/ })[0];
+    const name = handCard.getAttribute("aria-label");
+    dragCard(handCard);
+    expect(screen.getByText("Hand (6)")).toBeInTheDocument();
+    // The card now lives on the battlefield with an absolute position.
+    const played = screen.getByRole("button", { name });
+    expect(played.closest(".pt-card-wrap")).toHaveStyle({ "--x": "16px" });
+  });
+
+  it("drags a hand card onto the graveyard pile to discard it", () => {
+    renderPlaytest({ resolveDropTarget: () => "graveyard" });
+    const handCard = screen.getAllByRole("button", { name: /^Card \d+$/ })[0];
+    dragCard(handCard);
+    expect(screen.getByText("Hand (6)")).toBeInTheDocument();
+    expect(screen.getByText("Graveyard (1)")).toBeInTheDocument();
+  });
+
+  it("Escape cancels an in-flight drag, leaving state untouched", () => {
+    const { onClose } = renderPlaytest({ resolveDropTarget: () => "graveyard" });
+    const handCard = screen.getAllByRole("button", { name: /^Card \d+$/ })[0];
+    fireEvent.pointerDown(handCard, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(window, { clientX: 120, clientY: 90 });
+    expect(document.querySelector(".pt-drag-ghost")).not.toBeNull();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(document.querySelector(".pt-drag-ghost")).toBeNull();
+    // A release after the cancel drops nothing.
+    fireEvent.pointerUp(window, { clientX: 120, clientY: 90 });
+    expect(screen.getByText("Hand (7)")).toBeInTheDocument();
+    expect(screen.getByText("Graveyard (0)")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled(); // Escape was consumed by the drag
+  });
+
+  it("suppresses the click that a completed drag synthesizes", () => {
+    renderPlaytest({ resolveDropTarget: () => "battlefield" });
+    // Play a card to the battlefield first (via its menu).
+    const handCard = screen.getAllByRole("button", { name: /^Card \d+$/ })[0];
+    const name = handCard.getAttribute("aria-label");
+    fireEvent.click(handCard);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Play" }));
+    const played = screen.getByRole("button", { name });
+
+    // Reposition it (battlefield → battlefield), then the trailing click must
+    // NOT toggle its tap state.
+    dragCard(played, { from: { x: 40, y: 40 }, to: { x: 200, y: 160 } });
+    fireEvent.click(played);
+    expect(
+      screen.queryByRole("button", { name: `${name} (tapped)` })
+    ).not.toBeInTheDocument();
   });
 });
