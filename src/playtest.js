@@ -3,10 +3,12 @@
  *
  * State shape:
  *   {
- *     cards: { instId: { id, name, card, tapped } },   // card may be null
+ *     cards: { instId: { id, name, card, tapped, pos? } },  // card may be null
  *     zones: { library, hand, battlefield, graveyard, exile, command },
  *     life, turn, mulligans
  *   }
+ * `pos` ({x, y} pixel offsets) exists only while a card is on the battlefield,
+ * where zone order doubles as z-order.
  * Zones are arrays of instance ids; every function returns a new state.
  * Randomness is injected (rng) so tests can be deterministic.
  */
@@ -36,6 +38,20 @@ export const TOKEN_PRESETS = [
 
 /** Player-level counters (Moxfield's Counters dropdown). */
 export const PLAYER_COUNTERS = ["Poison", "Energy", "Experience"];
+
+// Card box (px) — kept in sync with .pt-card in App.css.
+export const CARD_W = 92;
+export const CARD_H = 128;
+
+/**
+ * Auto-placement for cards that land on the battlefield without a drop point
+ * (menu Play, Cast, tokens): a gentle diagonal cascade that wraps before it
+ * runs off the field. Not collision-perfect — just tidy.
+ */
+function cascadePosition(index) {
+  const v = 16 + ((index * 24) % 320);
+  return { x: v, y: v };
+}
 
 function fisherYates(arr, rng) {
   const a = [...arr];
@@ -123,6 +139,24 @@ export function findZone(state, id) {
   return ZONES.find((z) => state.zones[z].includes(id));
 }
 
+/**
+ * Reposition a battlefield card to pixel offset {x, y} and bump it to the top
+ * of the z-order (end of the battlefield array). Does NOT untap — sliding a
+ * card around the field is not a zone change.
+ */
+export function setPosition(state, id, { x, y }) {
+  if (!state.zones.battlefield.includes(id)) return state;
+  const battlefield = [
+    ...state.zones.battlefield.filter((cid) => cid !== id),
+    id,
+  ];
+  return {
+    ...state,
+    zones: { ...state.zones, battlefield },
+    cards: { ...state.cards, [id]: { ...state.cards[id], pos: { x, y } } },
+  };
+}
+
 /** Create a token directly onto the battlefield. */
 export function addToken(state, name) {
   const id = `t${state.nextId}`;
@@ -168,9 +202,12 @@ export function addPlayerCounter(state, kind, delta) {
 }
 
 /**
- * Move a card instance to another zone. position: "end" (default; bottom of
- * library) or "start" (top of library). Cards untap when they change zones.
- * A token leaving the battlefield ceases to exist (state-based action).
+ * Move a card instance to another zone. `position` is either "end" (default;
+ * bottom of library) or "start" (top of library) — or, when `toZone` is
+ * "battlefield", an `{x, y}` drop point. Cards untap and drop any stored
+ * board position when they change zones; a card entering the battlefield gets
+ * a position (the drop point, or an auto-cascade when none is given). A token
+ * leaving the battlefield ceases to exist (state-based action).
  */
 export function moveCard(state, id, toZone, position = "end") {
   const fromZone = findZone(state, id);
@@ -178,16 +215,26 @@ export function moveCard(state, id, toZone, position = "end") {
   if (state.cards[id]?.token && toZone !== "battlefield") {
     return removeInstance(state, id);
   }
+  const coords = position && typeof position === "object" ? position : null;
   const zones = {
     ...state.zones,
     [fromZone]: state.zones[fromZone].filter((x) => x !== id),
   };
   const target = zones[toZone].filter((x) => x !== id);
   zones[toZone] = position === "start" ? [id, ...target] : [...target, id];
-  const cards = state.cards[id]?.tapped
-    ? { ...state.cards, [id]: { ...state.cards[id], tapped: false } }
-    : state.cards;
-  return { ...state, zones, cards };
+
+  const inst = state.cards[id];
+  let next;
+  if (toZone === "battlefield") {
+    const pos = coords ?? cascadePosition(zones.battlefield.length - 1);
+    next = { ...inst, tapped: false, pos };
+  } else {
+    // Leaving the battlefield (or moving between other zones): untap and shed
+    // any board position.
+    next = { ...inst, tapped: false };
+    delete next.pos;
+  }
+  return { ...state, zones, cards: { ...state.cards, [id]: next } };
 }
 
 export function toggleTap(state, id) {

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   newGame,
   draw,
   shuffleLibrary,
   mulligan,
   moveCard,
+  setPosition,
   toggleTap,
   nextTurn,
   addLife,
@@ -15,26 +16,145 @@ import {
   findZone,
   TOKEN_PRESETS,
   PLAYER_COUNTERS,
+  CARD_W,
+  CARD_H,
 } from "./playtest";
 import { cardImageUrl, cardManaCost, cardTypeLabel } from "./scryfall";
+
+const GRID = 20; // drop-snap grid (half the 40px battlefield background)
+const DRAG_THRESHOLD = 5; // px of travel before a press becomes a drag
+
+const snap = (v) => Math.round(v / GRID) * GRID;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+// Default hit-test: the drop zone under a screen point, or null. Component
+// tests inject a stub instead (jsdom has no layout).
+const domResolveDropTarget = (x, y) =>
+  document.elementFromPoint?.(x, y)?.closest("[data-drop]")?.dataset.drop ?? null;
+
+/**
+ * Pointer-driven drag for playtest cards. A press that travels past the
+ * threshold becomes a drag: a floating ghost follows the cursor and the
+ * hovered drop zone is reported back for highlighting; release calls `onDrop`.
+ * A press that doesn't travel stays a click (tap / menu). Escape cancels an
+ * in-flight drag before any other handler sees it.
+ */
+function useCardDrag({ resolveDropTarget, onDrop, onDragStart }) {
+  const [ghost, setGhost] = useState(null);
+  const active = useRef(null); // { id, sourceZone, startX, startY, moved, ... }
+  const wasDragged = useRef(false); // swallow the click synthesized after a drag
+
+  // Latest callbacks, so the stable handlers below always see fresh closures.
+  const cfg = useRef({ resolveDropTarget, onDrop, onDragStart });
+  useEffect(() => {
+    cfg.current = { resolveDropTarget, onDrop, onDragStart };
+  });
+
+  // Stable window handlers so add/removeEventListener see identical references.
+  const h = useMemo(() => {
+    const self = {};
+    self.cleanup = () => {
+      window.removeEventListener("pointermove", self.onMove);
+      window.removeEventListener("pointerup", self.onUp);
+    };
+    self.cancel = () => {
+      self.cleanup();
+      active.current = null;
+      setGhost(null);
+      wasDragged.current = true;
+    };
+    self.onMove = (e) => {
+      const c = active.current;
+      if (!c) return;
+      if (!c.moved) {
+        if (Math.hypot(e.clientX - c.startX, e.clientY - c.startY) < DRAG_THRESHOLD)
+          return;
+        c.moved = true;
+        cfg.current.onDragStart?.();
+      }
+      const over = cfg.current.resolveDropTarget(e.clientX, e.clientY);
+      setGhost({ ...c.ghost, x: e.clientX, y: e.clientY, over });
+    };
+    self.onUp = (e) => {
+      const c = active.current;
+      self.cleanup();
+      active.current = null;
+      if (!c || !c.moved) return;
+      wasDragged.current = true;
+      const targetZone = cfg.current.resolveDropTarget(e.clientX, e.clientY);
+      setGhost(null);
+      cfg.current.onDrop({
+        id: c.id,
+        sourceZone: c.sourceZone,
+        targetZone,
+        clientX: e.clientX,
+        clientY: e.clientY,
+      });
+    };
+    return self;
+  }, []);
+
+  // While a drag is live, Escape cancels it and nothing else acts on the key.
+  useEffect(() => {
+    if (!ghost) return;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      h.cancel();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [ghost, h]);
+
+  const startDrag = (e, meta) => {
+    if (e.button != null && e.button !== 0) return; // primary button only
+    active.current = {
+      id: meta.id,
+      sourceZone: meta.sourceZone,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+      ghost: { id: meta.id, name: meta.name, img: meta.img, tapped: meta.tapped, token: meta.token },
+    };
+    wasDragged.current = false;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    window.addEventListener("pointermove", h.onMove);
+    window.addEventListener("pointerup", h.onUp);
+  };
+
+  // Read-and-reset: true when the click now firing is the tail of a drag and
+  // should be ignored by the card's own click handler.
+  const consumeClick = () => {
+    const was = wasDragged.current;
+    wasDragged.current = false;
+    return was;
+  };
+
+  return { ghost, startDrag, consumeClick };
+}
 
 /**
  * Full-screen goldfishing simulator. Takes a deck (one entry per physical
  * card) and an optional commander, shuffles up, and lets you draw, mulligan,
  * play cards between zones, make tokens, put counters on things, and track
- * life/turns. Close with the X (or Escape) to return to the tab you came
- * from — the deck underneath is untouched.
+ * life/turns. Cards move by drag-and-drop — drag from hand to the battlefield,
+ * slide them around the field, or drop them onto a zone pile — with the ⋮ menu
+ * and keyboard shortcuts still available for everything. Close with the X (or
+ * Escape) to return to the tab you came from — the deck underneath is
+ * untouched.
  *
  * Keyboard shortcuts (underlined in the buttons): D draw, N next turn,
  * S shuffle, M mulligan, R restart, T add token, V view library.
  */
-function Playtest({ deck, commander, onClose }) {
+function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDropTarget }) {
   const [game, setGame] = useState(() => newGame({ deck, commander }));
   const [menuFor, setMenuFor] = useState(null); // instance id with open menu
   const [tokenOpen, setTokenOpen] = useState(false);
   const [countersOpen, setCountersOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [customToken, setCustomToken] = useState("");
+  const battlefieldRef = useRef(null);
 
   const act = (fn) => setGame(fn);
 
@@ -50,8 +170,39 @@ function Playtest({ deck, commander, onClose }) {
     setLibraryOpen(false);
   }
 
+  // Translate a screen point into a snapped, in-bounds battlefield offset.
+  // Falls back to a fixed corner when the field has no measurable box (jsdom).
+  function dropPoint(clientX, clientY) {
+    const rect = battlefieldRef.current?.getBoundingClientRect();
+    if (!rect || !rect.width) return { x: 16, y: 16 };
+    const x = clamp(clientX - rect.left - CARD_W / 2, 0, rect.width - CARD_W);
+    const y = clamp(clientY - rect.top - CARD_H / 2, 0, rect.height - CARD_H);
+    return { x: snap(x), y: snap(y) };
+  }
+
+  function handleDrop({ id, sourceZone, targetZone, clientX, clientY }) {
+    if (!targetZone) return; // dropped on nothing
+    if (targetZone === "battlefield") {
+      const pos = dropPoint(clientX, clientY);
+      if (sourceZone === "battlefield") act((g) => setPosition(g, id, pos));
+      else act((g) => moveCard(g, id, "battlefield", pos));
+      return;
+    }
+    if (targetZone === sourceZone) return; // back onto its own zone: no-op
+    // Library drop lands on top; everything else appends.
+    const position = targetZone === "library" ? "start" : "end";
+    act((g) => moveCard(g, id, targetZone, position));
+  }
+
+  const dnd = useCardDrag({
+    resolveDropTarget,
+    onDragStart: closeAllPopups,
+    onDrop: handleDrop,
+  });
+
   // Keyboard shortcuts. Skipped while typing in a field; Escape closes the
-  // topmost popup first, then the simulator.
+  // topmost popup first, then the simulator. (A live drag's Escape is handled
+  // by useCardDrag before this fires.)
   const keyDeps = useRef();
   keyDeps.current = { menuFor, tokenOpen, countersOpen, libraryOpen };
   useEffect(() => {
@@ -108,6 +259,7 @@ function Playtest({ deck, commander, onClose }) {
 
   const { zones, cards, life, turn, playerCounters } = game;
   const inst = (id) => cards[id];
+  const overZone = dnd.ghost?.over;
 
   function menuActions(id) {
     const zone = findZone(game, id);
@@ -370,12 +522,14 @@ function Playtest({ deck, commander, onClose }) {
         onClick={closeAllPopups}
       >
         <div className="pt-zone-label">Battlefield</div>
-        <div className="pt-battlefield-cards">
+        <div className="pt-battlefield-cards" data-drop="battlefield" ref={battlefieldRef}>
           {zones.battlefield.map((id) => (
             <PlaytestCard
               key={id}
               inst={inst(id)}
               tappable
+              sourceZone="battlefield"
+              dnd={dnd}
               onTap={() => act((g) => toggleTap(g, id))}
               menuOpen={menuFor === id}
               onMenu={() => setMenuFor(menuFor === id ? null : id)}
@@ -384,22 +538,28 @@ function Playtest({ deck, commander, onClose }) {
           ))}
           {!zones.battlefield.length && (
             <div className="pt-empty-hint">
-              Click a card in your hand to play it here. Shortcuts: D draw ·
-              N next turn · S shuffle · M mulligan · T token · V library ·
-              R restart.
+              Drag a card here from your hand (or click it) to play it.
+              Shortcuts: D draw · N next turn · S shuffle · M mulligan ·
+              T token · V library · R restart.
             </div>
           )}
         </div>
       </main>
 
       <footer className="pt-bottombar">
-        <section className="pt-hand" aria-label="Hand">
+        <section
+          className={`pt-hand ${overZone === "hand" ? "pt-drop-hover" : ""}`}
+          aria-label="Hand"
+          data-drop="hand"
+        >
           <div className="pt-zone-label">Hand ({zones.hand.length})</div>
           <div className="pt-hand-cards">
             {zones.hand.map((id) => (
               <PlaytestCard
                 key={id}
                 inst={inst(id)}
+                sourceZone="hand"
+                dnd={dnd}
                 menuOpen={menuFor === id}
                 onMenu={() => setMenuFor(menuFor === id ? null : id)}
                 actions={menuActions(id)}
@@ -409,7 +569,11 @@ function Playtest({ deck, commander, onClose }) {
         </section>
 
         <section className="pt-piles">
-          <Pile label={`Library (${zones.library.length})`}>
+          <Pile
+            label={`Library (${zones.library.length})`}
+            drop="library"
+            hover={overZone === "library"}
+          >
             <button
               type="button"
               className="pt-cardback"
@@ -418,28 +582,42 @@ function Playtest({ deck, commander, onClose }) {
               onClick={() => setLibraryOpen(true)}
             />
           </Pile>
-          <Pile label={`Graveyard (${zones.graveyard.length})`}>
+          <Pile
+            label={`Graveyard (${zones.graveyard.length})`}
+            drop="graveyard"
+            hover={overZone === "graveyard"}
+          >
             <PileTop
               ids={zones.graveyard}
+              zone="graveyard"
               inst={inst}
+              dnd={dnd}
               menuFor={menuFor}
               setMenuFor={setMenuFor}
               menuActions={menuActions}
             />
           </Pile>
-          <Pile label={`Exile (${zones.exile.length})`}>
+          <Pile
+            label={`Exile (${zones.exile.length})`}
+            drop="exile"
+            hover={overZone === "exile"}
+          >
             <PileTop
               ids={zones.exile}
+              zone="exile"
               inst={inst}
+              dnd={dnd}
               menuFor={menuFor}
               setMenuFor={setMenuFor}
               menuActions={menuActions}
             />
           </Pile>
-          <Pile label="Command">
+          <Pile label="Command" drop="command" hover={overZone === "command"}>
             <PileTop
               ids={zones.command}
+              zone="command"
               inst={inst}
+              dnd={dnd}
               menuFor={menuFor}
               setMenuFor={setMenuFor}
               menuActions={menuActions}
@@ -447,6 +625,8 @@ function Playtest({ deck, commander, onClose }) {
           </Pile>
         </section>
       </footer>
+
+      {dnd.ghost && <DragGhost ghost={dnd.ghost} />}
 
       {libraryOpen && (
         <LibraryViewer
@@ -457,6 +637,27 @@ function Playtest({ deck, commander, onClose }) {
           onClose={() => setLibraryOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+// The card that trails the cursor mid-drag: a plain, non-interactive clone.
+function DragGhost({ ghost }) {
+  return (
+    <div
+      className={`pt-drag-ghost ${ghost.tapped ? "tapped" : ""}`}
+      style={{ left: ghost.x, top: ghost.y }}
+      aria-hidden="true"
+    >
+      <div className={`pt-card ${ghost.token ? "token" : ""}`}>
+        {ghost.img ? (
+          <img src={ghost.img} alt="" draggable={false} />
+        ) : (
+          <span className="pt-card-proxy">
+            <span className="pt-proxy-name">{ghost.name}</span>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -527,9 +728,9 @@ function LibraryViewer({ ids, inst, onMove, onShuffle, onClose }) {
   );
 }
 
-function Pile({ label, children }) {
+function Pile({ label, drop, hover, children }) {
   return (
-    <div className="pt-pile">
+    <div className={`pt-pile ${hover ? "pt-drop-hover" : ""}`} data-drop={drop}>
       <div className="pt-zone-label">{label}</div>
       <div className="pt-pile-card">{children}</div>
     </div>
@@ -537,12 +738,14 @@ function Pile({ label, children }) {
 }
 
 // Top card of a pile (graveyard/exile/command), with its menu.
-function PileTop({ ids, inst, menuFor, setMenuFor, menuActions }) {
+function PileTop({ ids, zone, inst, dnd, menuFor, setMenuFor, menuActions }) {
   const top = ids[ids.length - 1];
   if (!top) return <div className="pt-slot-empty" />;
   return (
     <PlaytestCard
       inst={inst(top)}
+      sourceZone={zone}
+      dnd={dnd}
       menuOpen={menuFor === top}
       onMenu={() => setMenuFor(menuFor === top ? null : top)}
       actions={menuActions(top)}
@@ -552,25 +755,47 @@ function PileTop({ ids, inst, menuFor, setMenuFor, menuActions }) {
 
 /**
  * A card instance: the Scryfall image when available, else a text frame
- * (tokens always use the frame). Clicking opens its zone menu (or taps, on
- * the battlefield); the menu lists the legal moves out of the current zone.
+ * (tokens always use the frame). A press-and-drag moves the card (see
+ * useCardDrag); a plain click taps it (on the battlefield) or opens its zone
+ * menu. Battlefield cards are absolutely placed via their `pos` (CSS --x/--y).
  */
-function PlaytestCard({ inst, tappable, onTap, menuOpen, onMenu, actions }) {
+function PlaytestCard({ inst, tappable, sourceZone, dnd, onTap, menuOpen, onMenu, actions }) {
   const img = inst.card ? cardImageUrl(inst.card) : null;
+  const dragging = dnd?.ghost?.id === inst.id;
 
   function handleClick(e) {
     e.stopPropagation();
+    if (dnd?.consumeClick()) return; // this click closes out a drag; ignore it
     if (tappable) onTap();
     else onMenu();
   }
 
+  function handlePointerDown(e) {
+    dnd?.startDrag(e, {
+      id: inst.id,
+      sourceZone,
+      name: inst.name,
+      img,
+      tapped: inst.tapped,
+      token: inst.token,
+    });
+  }
+
+  const style = inst.pos
+    ? { "--x": `${inst.pos.x}px`, "--y": `${inst.pos.y}px` }
+    : undefined;
+
   return (
-    <div className={`pt-card-wrap ${inst.tapped ? "tapped" : ""}`}>
+    <div
+      className={`pt-card-wrap ${inst.tapped ? "tapped" : ""} ${dragging ? "pt-dragging" : ""}`}
+      style={style}
+    >
       <button
         type="button"
         className={`pt-card ${inst.token ? "token" : ""}`}
         aria-label={`${inst.name}${inst.tapped ? " (tapped)" : ""}`}
         onClick={handleClick}
+        onPointerDown={handlePointerDown}
       >
         {img ? (
           <img src={img} alt="" draggable={false} />

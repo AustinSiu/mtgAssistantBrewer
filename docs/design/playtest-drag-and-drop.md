@@ -1,9 +1,7 @@
 # Design: Drag & Drop for the Playtest simulator
 
-Status: **design approved, unimplemented** — implementation handoff.
-Base the work on the Playtest code as of PR #25 (`Playtest: tokens, counters,
-library viewer, keyboard shortcuts`). If #25 is not yet merged, branch from its
-head (`claude/playtest-moxfield-parity`); otherwise branch from `main`.
+Status: **implemented** (built on the post-#25 Playtest code). This document
+is kept as the reference spec for the drag-and-drop behavior.
 
 ## Goal
 
