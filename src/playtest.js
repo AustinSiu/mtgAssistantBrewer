@@ -23,6 +23,20 @@ export const ZONES = [
   "command",
 ];
 
+/** Quick-add token choices for the Add Token menu. */
+export const TOKEN_PRESETS = [
+  "Treasure",
+  "Clue",
+  "Food",
+  "1/1 Soldier",
+  "1/1 Spirit",
+  "2/2 Zombie",
+  "3/3 Beast",
+];
+
+/** Player-level counters (Moxfield's Counters dropdown). */
+export const PLAYER_COUNTERS = ["Poison", "Energy", "Experience"];
+
 function fisherYates(arr, rng) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -57,6 +71,8 @@ export function newGame({ deck, commander = null, rng = Math.random }) {
     life: STARTING_LIFE,
     turn: 1,
     mulligans: 0,
+    nextId: seq, // for tokens created mid-game
+    playerCounters: Object.fromEntries(PLAYER_COUNTERS.map((k) => [k, 0])),
   };
   return draw(state, OPENING_HAND);
 }
@@ -107,13 +123,61 @@ export function findZone(state, id) {
   return ZONES.find((z) => state.zones[z].includes(id));
 }
 
+/** Create a token directly onto the battlefield. */
+export function addToken(state, name) {
+  const id = `t${state.nextId}`;
+  return {
+    ...state,
+    nextId: state.nextId + 1,
+    cards: {
+      ...state.cards,
+      [id]: { id, name, card: null, tapped: false, token: true },
+    },
+    zones: { ...state.zones, battlefield: [...state.zones.battlefield, id] },
+  };
+}
+
+/** Remove an instance from the game entirely (tokens cease to exist). */
+export function removeInstance(state, id) {
+  const zone = findZone(state, id);
+  if (!zone) return state;
+  const cards = { ...state.cards };
+  delete cards[id];
+  return {
+    ...state,
+    cards,
+    zones: { ...state.zones, [zone]: state.zones[zone].filter((x) => x !== id) },
+  };
+}
+
+/** Add/remove +1/+1-style counters on a card (never below zero). */
+export function addCounter(state, id, delta) {
+  const inst = state.cards[id];
+  if (!inst) return state;
+  const counters = Math.max(0, (inst.counters ?? 0) + delta);
+  return { ...state, cards: { ...state.cards, [id]: { ...inst, counters } } };
+}
+
+/** Adjust a player counter (poison, energy, …) — never below zero. */
+export function addPlayerCounter(state, kind, delta) {
+  const next = Math.max(0, (state.playerCounters?.[kind] ?? 0) + delta);
+  return {
+    ...state,
+    playerCounters: { ...state.playerCounters, [kind]: next },
+  };
+}
+
 /**
  * Move a card instance to another zone. position: "end" (default; bottom of
  * library) or "start" (top of library). Cards untap when they change zones.
+ * A token leaving the battlefield ceases to exist (state-based action).
  */
 export function moveCard(state, id, toZone, position = "end") {
   const fromZone = findZone(state, id);
   if (!fromZone || !ZONES.includes(toZone)) return state;
+  if (state.cards[id]?.token && toZone !== "battlefield") {
+    return removeInstance(state, id);
+  }
   const zones = {
     ...state.zones,
     [fromZone]: state.zones[fromZone].filter((x) => x !== id),
