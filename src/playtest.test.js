@@ -8,6 +8,10 @@ import {
   toggleTap,
   nextTurn,
   addLife,
+  addToken,
+  removeInstance,
+  addCounter,
+  addPlayerCounter,
   findZone,
   STARTING_LIFE,
   OPENING_HAND,
@@ -125,5 +129,58 @@ describe("shuffleLibrary / addLife", () => {
     expect([...g.zones.library].sort()).toEqual(before);
     g = addLife(g, -3);
     expect(g.life).toBe(STARTING_LIFE - 3);
+  });
+});
+
+describe("tokens", () => {
+  it("creates a token on the battlefield", () => {
+    let g = start(10);
+    g = addToken(g, "Treasure");
+    expect(g.zones.battlefield).toHaveLength(1);
+    const id = g.zones.battlefield[0];
+    expect(g.cards[id]).toMatchObject({ name: "Treasure", token: true });
+  });
+
+  it("a token leaving the battlefield ceases to exist", () => {
+    let g = start(10);
+    g = addToken(g, "Clue");
+    const id = g.zones.battlefield[0];
+    g = moveCard(g, id, "graveyard");
+    expect(g.cards[id]).toBeUndefined();
+    expect(g.zones.graveyard).toHaveLength(0);
+    expect(g.zones.battlefield).toHaveLength(0);
+  });
+
+  it("removeInstance deletes a token outright", () => {
+    let g = start(10);
+    g = addToken(g, "Food");
+    const id = g.zones.battlefield[0];
+    g = removeInstance(g, id);
+    expect(g.cards[id]).toBeUndefined();
+    expect(g.zones.battlefield).toHaveLength(0);
+  });
+});
+
+describe("counters", () => {
+  it("card counters accumulate and never go below zero", () => {
+    let g = start(10);
+    const id = g.zones.hand[0];
+    g = moveCard(g, id, "battlefield");
+    g = addCounter(g, id, 1);
+    g = addCounter(g, id, 1);
+    expect(g.cards[id].counters).toBe(2);
+    g = addCounter(g, id, -5);
+    expect(g.cards[id].counters).toBe(0);
+  });
+
+  it("player counters adjust per kind and floor at zero", () => {
+    let g = start(10);
+    g = addPlayerCounter(g, "Poison", 1);
+    g = addPlayerCounter(g, "Poison", 1);
+    g = addPlayerCounter(g, "Energy", 3);
+    expect(g.playerCounters.Poison).toBe(2);
+    expect(g.playerCounters.Energy).toBe(3);
+    g = addPlayerCounter(g, "Poison", -9);
+    expect(g.playerCounters.Poison).toBe(0);
   });
 });

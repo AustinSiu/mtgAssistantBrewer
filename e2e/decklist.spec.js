@@ -132,6 +132,24 @@ test("deck list tab customer journey", async ({ page }) => {
   await playtest.getByRole("button", { name: "Next Turn" }).click();
   await expect(playtest.getByText("Turn 2")).toBeVisible();
   await expect(playtest.getByText("Hand (7)")).toBeVisible();
+
+  // Keyboard shortcut: D draws a card.
+  await page.keyboard.press("d");
+  await expect(playtest.getByText("Hand (8)")).toBeVisible();
+
+  // Add a Treasure token; it lands on the battlefield with a token frame.
+  await playtest.getByRole("button", { name: /Add Token/ }).click();
+  await playtest.getByRole("button", { name: "Treasure" }).click();
+  await expect(
+    playtest.locator(".pt-battlefield-cards .pt-card.token")
+  ).toBeVisible();
+
+  // View the library in order, then close it.
+  await playtest.getByRole("button", { name: "View Library", exact: true }).click();
+  const viewer = page.getByRole("dialog", { name: "Library" });
+  await expect(viewer.getByText(/top first/)).toBeVisible();
+  await viewer.getByRole("button", { name: "Close", exact: true }).click();
+
   await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-4-playtest.png` });
 
   await playtest.getByRole("button", { name: "Close playtest" }).click();

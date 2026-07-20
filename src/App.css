@@ -2479,3 +2479,173 @@ h3 {
 .pt-menu button:hover {
   background: #2a2a4a;
 }
+
+/* Playtest: popovers (Add Token, Counters) */
+.pt-popover-anchor {
+  position: relative;
+}
+
+.pt-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  min-width: 12rem;
+  padding: 0.35rem;
+  background: #1a1a1a;
+  border: 1px solid #555;
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+}
+
+.pt-controls .pt-popover {
+  left: auto;
+  right: 0;
+}
+
+.pt-popover-item {
+  display: block;
+  width: 100%;
+  padding: 0.35rem 0.6rem;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font-size: 0.85rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.pt-popover-item:hover {
+  background: #2a2a4a;
+}
+
+.pt-token-custom {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.35rem 0.25rem 0.15rem;
+  border-top: 1px solid #333;
+  margin-top: 0.25rem;
+}
+
+.pt-token-custom input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #111;
+  color: inherit;
+  font-size: 0.82rem;
+}
+
+.pt-counter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.25rem 0.4rem;
+}
+
+.pt-counter-name {
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.pt-counter-value {
+  min-width: 1.4rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pt-counter-summary {
+  color: #a7adff;
+  font-size: 0.8rem;
+}
+
+/* Card counter badge */
+.pt-counter-badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: #5a9e63;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Token frame */
+.pt-card.token {
+  border-style: dashed;
+  background: #16201a;
+}
+
+/* Library viewer */
+.pt-library-overlay {
+  z-index: 300;
+}
+
+.pt-library {
+  width: 100%;
+  max-width: 480px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.pt-library-list {
+  overflow-y: auto;
+  margin: 0.5rem 0 0.75rem;
+  border: 1px solid #333;
+  border-radius: 8px;
+}
+
+.pt-library-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid #262636;
+  font-size: 0.85rem;
+}
+
+.pt-library-row:last-child {
+  border-bottom: none;
+}
+
+.pt-library-pos {
+  color: #666;
+  min-width: 1.6rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+}
+
+.pt-library-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pt-library-actions {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+/* The library card back doubles as a View Library button */
+button.pt-cardback {
+  cursor: pointer;
+  padding: 0;
+}
+
+button.pt-cardback:hover {
+  border-color: #646cff;
+}
