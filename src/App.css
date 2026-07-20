@@ -2157,3 +2157,325 @@ h3 {
     stroke: #e2e2e2;
   }
 }
+
+/* ============================================================
+   Playtest — full-screen goldfishing simulator (always dark)
+   ============================================================ */
+.playtest {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  background: #171717;
+  color: rgba(255, 255, 255, 0.87);
+}
+
+/* Top bar */
+.pt-topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 10px 16px;
+  border-bottom: 1px solid #2c2c2c;
+  background: #1e1e2e;
+  flex-wrap: wrap;
+}
+
+.pt-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.pt-life {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pt-life-btn {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 1px solid #555;
+  background: #1a1a1a;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.pt-life-btn:hover {
+  border-color: #646cff;
+}
+
+.pt-life-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  min-width: 2.2rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pt-turn {
+  color: #aaa;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pt-controls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pt-btn {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #555;
+  background: #1a1a1a;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.pt-btn:hover:not(:disabled) {
+  border-color: #646cff;
+}
+
+.pt-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pt-btn.primary {
+  background: #646cff;
+  border-color: #646cff;
+  color: #fff;
+  font-weight: 600;
+}
+
+.pt-close {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0 0.4rem;
+}
+
+.pt-close:hover {
+  color: #ff8a8a;
+}
+
+/* Battlefield */
+.pt-battlefield {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 16px;
+  background:
+    linear-gradient(rgba(100, 108, 255, 0.02), rgba(100, 108, 255, 0.02)),
+    repeating-linear-gradient(0deg, transparent 0 39px, #1d1d1d 39px 40px),
+    repeating-linear-gradient(90deg, transparent 0 39px, #1d1d1d 39px 40px);
+}
+
+.pt-zone-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.pt-battlefield-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.pt-empty-hint {
+  color: #666;
+  font-size: 0.85rem;
+  padding: 2rem 0;
+}
+
+/* Bottom bar: hand + piles */
+.pt-bottombar {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-end;
+  padding: 10px 16px 14px;
+  border-top: 1px solid #2c2c2c;
+  background: #1a1a1a;
+  /* Above the battlefield so upward-opening card menus aren't occluded. */
+  position: relative;
+  z-index: 10;
+}
+
+.pt-hand {
+  flex: 1;
+  min-width: 0;
+}
+
+.pt-hand-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  /* No overflow clipping — card menus open upward past the row's edge. */
+  padding-bottom: 4px;
+}
+
+.pt-piles {
+  display: flex;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.pt-pile-card {
+  width: 92px;
+  height: 128px;
+  position: relative;
+}
+
+.pt-slot-empty {
+  width: 92px;
+  height: 128px;
+  border: 1px dashed #3a3a3a;
+  border-radius: 6px;
+}
+
+.pt-cardback {
+  width: 92px;
+  height: 128px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background:
+    radial-gradient(circle at 50% 42%, #4a3b28 0 18%, transparent 19%),
+    linear-gradient(135deg, #6b4f2e, #3d2b16);
+}
+
+/* Cards */
+.pt-card-wrap {
+  position: relative;
+  width: 92px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.pt-card-wrap.tapped {
+  transform: rotate(90deg);
+  margin: 0 18px;
+}
+
+.pt-card {
+  display: block;
+  width: 92px;
+  height: 128px;
+  padding: 0;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #1a1a2a;
+  color: inherit;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.pt-card:hover {
+  border-color: #646cff;
+}
+
+.pt-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pt-card-proxy {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding: 6px;
+  text-align: left;
+  font-size: 0.62rem;
+  line-height: 1.25;
+}
+
+.pt-proxy-name {
+  font-weight: 600;
+  font-size: 0.68rem;
+}
+
+.pt-proxy-cost {
+  color: #aaa;
+}
+
+.pt-proxy-type {
+  color: #888;
+}
+
+.pt-card-menu-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background: rgba(20, 20, 20, 0.85);
+  color: #ccc;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.pt-card-menu-btn:hover {
+  border-color: #646cff;
+  color: #fff;
+}
+
+/* Card action menu */
+.pt-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 4px);
+  z-index: 20;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  min-width: 10rem;
+  background: #1a1a1a;
+  border: 1px solid #555;
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+}
+
+.pt-battlefield .pt-menu {
+  bottom: auto;
+  top: calc(100% + 4px);
+}
+
+.pt-menu button {
+  display: block;
+  width: 100%;
+  padding: 0.35rem 0.6rem;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font-size: 0.85rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.pt-menu button:hover {
+  background: #2a2a4a;
+}

@@ -360,6 +360,34 @@ describe('DeckBrewer', () => {
     expect(screen.getByLabelText('Slot 2 tag')).toHaveValue('Ramp');
   });
 
+  it('opens the Playtest setup, gates on cards, and starts the simulator', async () => {
+    render(<DeckBrewer />);
+    await enterWorkspace();
+    await pick('33 A card 1', 'sol ring', 'Sol Ring');
+    await pick('33 B card 1', 'cultivate', 'Cultivate');
+
+    fireEvent.click(screen.getByRole('button', { name: '▶ Playtest' }));
+    const setup = screen.getByRole('dialog', { name: 'Playtest setup' });
+    expect(within(setup).getByText(/2 cards \+ Atraxa/)).toBeInTheDocument();
+
+    // Unticking every sub-deck disables Start.
+    fireEvent.click(within(setup).getByRole('checkbox', { name: '33 A' }));
+    fireEvent.click(within(setup).getByRole('checkbox', { name: '33 B' }));
+    fireEvent.click(within(setup).getByRole('checkbox', { name: '33 C' }));
+    expect(within(setup).getByRole('button', { name: 'Start Playtest' })).toBeDisabled();
+    fireEvent.click(within(setup).getByRole('checkbox', { name: '33 A' }));
+
+    fireEvent.click(within(setup).getByRole('button', { name: 'Start Playtest' }));
+    // Only 33 A's card is in the game: a 1-card deck, all drawn to hand.
+    const overlay = screen.getByRole('dialog', { name: 'Playtest' });
+    expect(overlay).toBeInTheDocument();
+    expect(screen.getByText('Hand (1)')).toBeInTheDocument();
+    expect(within(overlay).getByRole('button', { name: 'Sol Ring' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close playtest' }));
+    expect(screen.queryByRole('dialog', { name: 'Playtest' })).not.toBeInTheDocument();
+  });
+
   it('exports selected sub-decks to a Moxfield decklist', async () => {
     render(<DeckBrewer />);
     await enterWorkspace();

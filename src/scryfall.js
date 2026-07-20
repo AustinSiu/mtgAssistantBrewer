@@ -147,6 +147,15 @@ export function cardManaValue(card) {
   return card.cmc ?? 0;
 }
 
+/** Card image URL (normal size), handling double-faced cards; null if none. */
+export function cardImageUrl(card) {
+  return (
+    card?.image_uris?.normal ??
+    card?.card_faces?.[0]?.image_uris?.normal ??
+    null
+  );
+}
+
 /**
  * Query for cards filling the same functional role: same oracle tag, same
  * mana value, same primary card type (so a sorcery suggests sorceries, not
