@@ -263,6 +263,15 @@ describe("tokens", () => {
     expect(g.zones.battlefield).toHaveLength(1);
     const id = g.zones.battlefield[0];
     expect(g.cards[id]).toMatchObject({ name: "Treasure", token: true });
+    expect(g.cards[id].card).toBeNull(); // no art unless supplied
+  });
+
+  it("carries the token's Scryfall card when supplied (for art)", () => {
+    let g = start(10);
+    const tokenCard = { name: "Goblin", image_uris: { normal: "g.jpg" } };
+    g = addToken(g, "Goblin", tokenCard);
+    const id = g.zones.battlefield[0];
+    expect(g.cards[id]).toMatchObject({ name: "Goblin", token: true, card: tokenCard });
   });
 
   it("a token leaving the battlefield ceases to exist", () => {

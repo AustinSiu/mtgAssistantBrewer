@@ -2621,6 +2621,21 @@ h3 {
   background: #2a2a4a;
 }
 
+/* Deck-token rows carry a small art thumbnail. */
+.pt-token-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pt-token-thumb {
+  width: 26px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
 .pt-token-custom {
   display: flex;
   gap: 0.35rem;

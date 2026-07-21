@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { buildSimilarQuery, cardImageUrl, cardPrimaryType } from "./scryfall";
+import {
+  buildSimilarQuery,
+  cardImageUrl,
+  cardPrimaryType,
+  cardTokenParts,
+} from "./scryfall";
 import { card } from "../test/fixtures";
 
 describe("cardPrimaryType", () => {
@@ -36,6 +41,28 @@ describe("cardImageUrl", () => {
   it("returns null when there is no image and tolerates null", () => {
     expect(cardImageUrl({ name: "x" })).toBeNull();
     expect(cardImageUrl(null)).toBeNull();
+  });
+});
+
+describe("cardTokenParts", () => {
+  it("returns the token relations, deduped, ignoring non-tokens", () => {
+    const c = card("Krenko", {
+      all_parts: [
+        { id: "k", component: "combo_piece", name: "Krenko" },
+        { id: "t1", component: "token", name: "Goblin" },
+        { id: "t1", component: "token", name: "Goblin" }, // dup
+        { id: "t2", component: "token", name: "Treasure" },
+      ],
+    });
+    expect(cardTokenParts(c)).toEqual([
+      { id: "t1", name: "Goblin" },
+      { id: "t2", name: "Treasure" },
+    ]);
+  });
+
+  it("is empty for cards with no parts and tolerates null", () => {
+    expect(cardTokenParts(card("Grizzly Bears"))).toEqual([]);
+    expect(cardTokenParts(null)).toEqual([]);
   });
 });
 

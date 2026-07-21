@@ -10,7 +10,7 @@ const SCREENSHOT_DIR = "docs/screenshots";
 // Card data keyed by lowercased name — type line, mana cost, price.
 const DB = {
   "atraxa, praetors' voice": card("Atraxa, Praetors' Voice", { type_line: "Legendary Creature — Phyrexian Angel Horror", mana_cost: "{G}{W}{U}{B}", cmc: 4, color_identity: ["W", "U", "B", "G"], prices: { usd: "5.20" } }),
-  "sol ring": card("Sol Ring", { type_line: "Artifact", mana_cost: "{1}", cmc: 1, color_identity: [], prices: { usd: "1.50" } }),
+  "sol ring": card("Sol Ring", { type_line: "Artifact", mana_cost: "{1}", cmc: 1, color_identity: [], prices: { usd: "1.50" }, all_parts: [{ id: "tok-treasure", component: "token", name: "Treasure" }] }),
   cultivate: card("Cultivate", { type_line: "Sorcery", mana_cost: "{2}{G}", cmc: 3, color_identity: ["G"], prices: { usd: "0.50" } }),
   counterspell: card("Counterspell", { type_line: "Instant", mana_cost: "{U}{U}", cmc: 2, color_identity: ["U"], prices: { usd: "1.00" } }),
   "llanowar elves": card("Llanowar Elves", { type_line: "Creature — Elf Druid", mana_cost: "{G}", cmc: 1, color_identity: ["G"], prices: { usd: "0.25" } }),
@@ -36,6 +36,16 @@ async function stubScryfall(page) {
     }
     if (url.includes("/cards/collection")) {
       const { identifiers } = route.request().postDataJSON();
+      // Token cards are fetched by Scryfall id (for their art).
+      if (identifiers[0]?.id) {
+        const data = identifiers.map(({ id }) => ({
+          id,
+          name: id === "tok-treasure" ? "Treasure" : id,
+          type_line: "Token Artifact — Treasure",
+          image_uris: { normal: `https://cards.scryfall.io/normal/${id}.jpg` },
+        }));
+        return route.fulfill({ json: { data, not_found: [] } });
+      }
       const data = [];
       const not_found = [];
       for (const { name } of identifiers) {
@@ -207,12 +217,19 @@ test("deck list tab customer journey", async ({ page }) => {
   await page.keyboard.press("d");
   await expect(playtest.getByText("Hand (8)")).toBeVisible();
 
-  // Add a Treasure token; it lands on the battlefield with a token frame.
+  // Add Token lists only the deck's tokens (Sol Ring makes a Treasure), each
+  // with art; creating one puts an image-bearing token on the battlefield.
   await playtest.getByRole("button", { name: /Add Token/ }).click();
-  await playtest.getByRole("button", { name: "Treasure" }).click();
-  await expect(
-    playtest.locator(".pt-battlefield-cards .pt-card.token")
-  ).toBeVisible();
+  const tokenMenu = playtest.getByRole("dialog", { name: "Add token" });
+  const treasureToken = tokenMenu.getByRole("button", { name: /Treasure/ });
+  await expect(treasureToken).toBeVisible();
+  await expect(tokenMenu.locator(".pt-token-thumb").first()).toBeVisible();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-10-deck-tokens.png` });
+  const boardBefore = await playtest.locator(".pt-battlefield-cards .pt-card-wrap").count();
+  await treasureToken.click();
+  await expect(playtest.locator(".pt-battlefield-cards .pt-card-wrap")).toHaveCount(
+    boardBefore + 1
+  );
 
   // Drag a fresh hand card onto the field so the board isn't bare.
   await dragOnto(page, playtest.locator(".pt-hand-cards .pt-card").first(), field, {

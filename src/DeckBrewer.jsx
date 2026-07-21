@@ -4,6 +4,7 @@ import CommanderPicker from "./CommanderPicker";
 import WorkspaceHeader from "./WorkspaceHeader";
 import ConsistencyRail from "./ConsistencyRail";
 import Playtest from "./Playtest";
+import { useDeckTokens } from "./useDeckTokens";
 import {
   CATEGORY_SUGGESTIONS,
   tagForCategory,
@@ -111,6 +112,10 @@ function DeckBrewer() {
   // Whether each (card, row-otag) pair carries the tag — for the 33 A
   // consistency check. Keyed "lowername|otag" -> boolean.
   const [tagMembership, setTagMembership] = useState(() => new Map());
+
+  const deckTokens = useDeckTokens(
+    [...lookup.values()].map((v) => v.card)
+  );
 
   const lookupRef = useRef(lookup);
   lookupRef.current = lookup;
@@ -567,6 +572,7 @@ function DeckBrewer() {
         <Playtest
           deck={playtestGame.deck}
           commander={playtestGame.commander}
+          tokens={deckTokens}
           onClose={() => setPlaytestGame(null)}
         />
       )}
