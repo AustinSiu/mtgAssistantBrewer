@@ -146,6 +146,14 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${SCREENSHOT_DIR}/06-consistency.png` });
 
+  // 6b. Deck stats section: mana curve + per-colour symbol/production breakdown.
+  const stats = page.getByRole("region", { name: "Deck stats" });
+  await expect(stats.getByText("Deck Stats")).toBeVisible();
+  await expect(stats.getByText(/Mana curve/)).toBeVisible();
+  await expect(stats.getByText("White")).toBeVisible();
+  await stats.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/10-deck-stats.png` });
+
   // 7. Export — either a flat Moxfield list or the re-importable sub-deck format
   await page.getByRole("button", { name: "Export" }).click();
   const exportDialog = page.getByRole("dialog", { name: "Export deck" });

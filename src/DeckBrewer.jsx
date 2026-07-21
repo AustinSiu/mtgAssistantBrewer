@@ -3,6 +3,7 @@ import CardNameInput from "./CardNameInput";
 import CommanderPicker from "./CommanderPicker";
 import WorkspaceHeader from "./WorkspaceHeader";
 import ConsistencyRail from "./ConsistencyRail";
+import DeckStats from "./DeckStats";
 import Playtest from "./Playtest";
 import { useDeckTokens } from "./useDeckTokens";
 import {
@@ -218,6 +219,16 @@ function DeckBrewer() {
     0
   );
   const totalSlots = CARD_COUNT * subDecks.length;
+
+  // Resolved cards across every sub-deck (plus the commander) for the stats.
+  const statCards = [
+    ...(commanderCard ? [commanderCard] : []),
+    ...subDecks.flatMap((sd) =>
+      sd.cards
+        .map((n) => lookup.get(n.trim().toLowerCase())?.card)
+        .filter(Boolean)
+    ),
+  ];
 
   // Resolve oracle-tag membership for the 33 A consistency check: for every
   // filled cell in a row that has a mapped tag, ask Scryfall (once, cached)
@@ -568,6 +579,8 @@ function DeckBrewer() {
       )}
 
       <CompositionSummary slots={slots} subDecks={subDecks} lookup={lookup} />
+
+      <DeckStats cards={statCards} />
 
       {exportOpen && (
         <ExportModal
