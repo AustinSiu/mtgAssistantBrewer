@@ -2309,11 +2309,6 @@ h3 {
   top: clamp(0px, var(--y, 0px), calc(100% - 128px));
 }
 
-/* On the free canvas a tapped card just rotates in place — no flow margin. */
-.pt-battlefield-cards .pt-card-wrap.tapped {
-  margin: 0;
-}
-
 .pt-empty-hint {
   color: #666;
   font-size: 0.85rem;
@@ -2380,12 +2375,19 @@ h3 {
   position: relative;
   width: 92px;
   flex-shrink: 0;
+}
+
+/* The tap-rotation layer: rotating this (not the wrap) keeps the card's
+   action menu — a sibling of this element — upright. */
+.pt-card-tap {
+  position: relative;
+  width: 92px;
+  height: 128px;
   transition: transform 0.15s;
 }
 
-.pt-card-wrap.tapped {
+.pt-card-tap.tapped {
   transform: rotate(90deg);
-  margin: 0 18px;
 }
 
 .pt-card {

@@ -147,13 +147,14 @@ export function cardManaValue(card) {
   return card.cmc ?? 0;
 }
 
-/** Card image URL (normal size), handling double-faced cards; null if none. */
+/**
+ * Card image URL, handling double-faced cards. Prefers `normal` but falls
+ * back through the other sizes so a card that happens to omit one still shows
+ * an image; null only if the card carries no image at all.
+ */
 export function cardImageUrl(card) {
-  return (
-    card?.image_uris?.normal ??
-    card?.card_faces?.[0]?.image_uris?.normal ??
-    null
-  );
+  const uris = card?.image_uris ?? card?.card_faces?.[0]?.image_uris;
+  return uris?.normal ?? uris?.large ?? uris?.small ?? uris?.png ?? null;
 }
 
 /**
