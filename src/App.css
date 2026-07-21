@@ -2193,6 +2193,29 @@ h3 {
   color: rgba(255, 255, 255, 0.87);
 }
 
+/* The simulator is always dark. Pin its reused app components (which flip to
+   light backgrounds under the OS light preference) so nothing renders light
+   inside the dark overlay. `.playtest`-scoped selectors outrank the plain
+   light-mode overrides. */
+.playtest .preset {
+  background: #1a1a1a;
+  border-color: #555;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.playtest .modal {
+  background: #1e1e2e;
+  border-color: #444;
+}
+
+.playtest .modal p {
+  color: #bbb;
+}
+
+.playtest .hint {
+  color: #888;
+}
+
 /* Top bar */
 .pt-topbar {
   display: flex;
@@ -2712,44 +2735,90 @@ h3 {
 }
 
 /* Library viewer */
-.pt-library-overlay {
-  z-index: 300;
-}
-
-.pt-library {
-  width: 100%;
-  max-width: 480px;
-  max-height: 80vh;
+/* Right-docked library side panel (drag cards straight onto the field).
+   Colours are explicit so names stay legible under the OS light preference. */
+.pt-library-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(320px, 92vw);
+  z-index: 210;
   display: flex;
   flex-direction: column;
+  background: #14141c;
+  color: rgba(255, 255, 255, 0.9);
+  border-left: 1px solid #33334a;
+  box-shadow: -12px 0 30px rgba(0, 0, 0, 0.5);
+}
+
+.pt-library-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #2a2a3a;
+  font-weight: 600;
+}
+
+.pt-library-preview {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.pt-library-preview img {
+  width: 78%;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.pt-library-filter {
+  padding: 8px 12px;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.pt-library-filter input {
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #0f0f16;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.85rem;
+}
+
+.pt-library-filter input::placeholder {
+  color: #777;
 }
 
 .pt-library-list {
+  flex: 1;
   overflow-y: auto;
-  margin: 0.5rem 0 0.75rem;
-  border: 1px solid #333;
-  border-radius: 8px;
 }
 
 .pt-library-row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   padding: 0.3rem 0.6rem;
-  border-bottom: 1px solid #262636;
+  border-bottom: 1px solid #22222e;
   font-size: 0.85rem;
+  cursor: grab;
+  touch-action: none;
 }
 
-.pt-library-row:last-child {
-  border-bottom: none;
+.pt-library-row:hover {
+  background: #20202e;
 }
 
 .pt-library-pos {
-  color: #666;
+  color: #888;
   min-width: 1.6rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
 }
 
 .pt-library-name {
@@ -2757,11 +2826,25 @@ h3 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .pt-library-actions {
   display: inline-flex;
-  gap: 0.25rem;
+  gap: 0.2rem;
+}
+
+.pt-library-actions .take {
+  padding: 0.1rem 0.3rem;
+  font-size: 0.68rem;
+}
+
+.pt-library-foot {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  padding: 10px 12px;
+  border-top: 1px solid #2a2a3a;
 }
 
 /* The library card back doubles as a View Library button */

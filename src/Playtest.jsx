@@ -690,9 +690,10 @@ function Playtest({
       )}
 
       {libraryOpen && (
-        <LibraryViewer
+        <LibrarySidePanel
           ids={zones.library}
           inst={inst}
+          dnd={dnd}
           onMove={(id, zone, position) => act((g) => moveCard(g, id, zone, position))}
           onShuffle={() => act((g) => shuffleLibrary(g))}
           onClose={() => setLibraryOpen(false)}
@@ -765,69 +766,137 @@ function DragGhost({ ghost }) {
   );
 }
 
-// Browse the library in order (top first) and pull cards out of it.
-function LibraryViewer({ ids, inst, onMove, onShuffle, onClose }) {
+/**
+ * Right-docked library panel (Moxfield-style): browse the library top-first,
+ * preview the card under the cursor at the top, and drag cards straight onto
+ * the battlefield or any zone. The quick buttons remain for precise moves
+ * (e.g. back to the top of the library). Colours are explicit so names stay
+ * legible regardless of the OS light/dark preference.
+ */
+function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
+  const [hoverId, setHoverId] = useState(null);
+  const [filter, setFilter] = useState("");
+
+  const q = filter.trim().toLowerCase();
+  // Keep each card's true library position while filtering the view by name.
+  const rows = ids
+    .map((id, i) => ({ id, pos: i + 1 }))
+    .filter(({ id }) => !q || inst(id).name.toLowerCase().includes(q));
+
+  const activeId =
+    (hoverId && inst(hoverId) && rows.some((r) => r.id === hoverId) && hoverId) ||
+    rows[0]?.id ||
+    null;
+  const active = activeId ? inst(activeId) : null;
+  const activeImg = active?.card ? cardImageUrl(active.card) : null;
+
+  const move = (id, zone, position) => (e) => {
+    e.stopPropagation(); // a button click is not a row drag
+    onMove(id, zone, position);
+  };
+
   return (
-    <div className="modal-overlay pt-library-overlay" onClick={onClose}>
-      <div
-        className="modal pt-library"
-        role="dialog"
-        aria-label="Library"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3>Library ({ids.length}) — top first</h3>
-        <div className="pt-library-list">
-          {ids.map((id, i) => (
-            <div key={id} className="pt-library-row">
-              <span className="pt-library-pos">{i + 1}</span>
-              <span className="pt-library-name">{inst(id).name}</span>
+    <aside
+      className="pt-library-panel"
+      role="dialog"
+      aria-label="Library"
+      data-drop="library"
+    >
+      <header className="pt-library-head">
+        <span>Viewing Library ({ids.length})</span>
+        <button type="button" className="pt-close" aria-label="Close library" onClick={onClose}>
+          ✕
+        </button>
+      </header>
+
+      <div className="pt-library-preview">
+        {active ? (
+          activeImg ? (
+            <img src={activeImg} alt="" draggable={false} />
+          ) : (
+            <div className="pt-preview-proxy">
+              <span className="pt-proxy-name">{active.name}</span>
+              {active.card && (
+                <span className="pt-proxy-type">{cardTypeLabel(active.card)}</span>
+              )}
+            </div>
+          )
+        ) : (
+          <p className="hint">The library is empty.</p>
+        )}
+      </div>
+
+      <div className="pt-library-filter">
+        <input
+          type="text"
+          placeholder="Filter by name…"
+          aria-label="Filter library"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+      </div>
+
+      <div className="pt-library-list">
+        {rows.map(({ id, pos }) => {
+          const c = inst(id);
+          const img = c.card ? cardImageUrl(c.card) : null;
+          return (
+            <div
+              key={id}
+              className="pt-library-row"
+              onMouseEnter={() => setHoverId(id)}
+              onPointerDown={(e) =>
+                dnd?.startDrag(e, {
+                  id,
+                  sourceZone: "library",
+                  name: c.name,
+                  img,
+                  tapped: false,
+                  token: c.token,
+                })
+              }
+            >
+              <span className="pt-library-pos">{pos}</span>
+              <span className="pt-library-name">{c.name}</span>
               <span className="pt-library-actions">
-                <button type="button" className="take" onClick={() => onMove(id, "hand")}>
+                <button type="button" className="take" onPointerDown={(e) => e.stopPropagation()} onClick={move(id, "hand")}>
                   Hand
                 </button>
-                <button
-                  type="button"
-                  className="take"
-                  onClick={() => onMove(id, "battlefield")}
-                >
+                <button type="button" className="take" onPointerDown={(e) => e.stopPropagation()} onClick={move(id, "battlefield")}>
                   Field
                 </button>
-                <button
-                  type="button"
-                  className="take"
-                  onClick={() => onMove(id, "graveyard")}
-                >
+                <button type="button" className="take" onPointerDown={(e) => e.stopPropagation()} onClick={move(id, "graveyard")}>
                   Grave
                 </button>
-                <button
-                  type="button"
-                  className="take"
-                  onClick={() => onMove(id, "library", "start")}
-                >
+                <button type="button" className="take" onPointerDown={(e) => e.stopPropagation()} onClick={move(id, "library", "start")}>
                   Top
                 </button>
               </span>
             </div>
-          ))}
-          {!ids.length && <p className="hint">The library is empty.</p>}
-        </div>
-        <div className="actions">
-          <button
-            type="button"
-            className="preset"
-            onClick={() => {
-              onShuffle();
-              onClose();
-            }}
-          >
-            Shuffle &amp; close
-          </button>
-          <button type="button" className="submit" onClick={onClose}>
-            Close
-          </button>
-        </div>
+          );
+        })}
+        {!ids.length && <p className="hint">The library is empty.</p>}
+        {!!ids.length && !rows.length && (
+          <p className="hint">No cards match “{filter.trim()}”.</p>
+        )}
       </div>
-    </div>
+
+      <footer className="pt-library-foot">
+        <button
+          type="button"
+          className="preset"
+          onClick={() => {
+            onShuffle();
+            onClose();
+          }}
+        >
+          Shuffle &amp; close
+        </button>
+        <button type="button" className="submit" onClick={onClose}>
+          Close
+        </button>
+      </footer>
+    </aside>
   );
 }
 

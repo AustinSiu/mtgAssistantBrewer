@@ -202,6 +202,8 @@ describe("Playtest", () => {
     fireEvent.click(screen.getByRole("button", { name: "View Library" }));
     const viewer = screen.getByRole("dialog", { name: "Library" });
     expect(within(viewer).getByText(/Library \(3\)/)).toBeInTheDocument();
+    // Card names render in the list (regression: they were white-on-white).
+    expect(within(viewer).getAllByText(/^Card \d+$/).length).toBeGreaterThan(0);
 
     fireEvent.click(within(viewer).getAllByRole("button", { name: "Hand" })[0]);
     expect(within(viewer).getByText(/Library \(2\)/)).toBeInTheDocument();
@@ -209,6 +211,45 @@ describe("Playtest", () => {
 
     fireEvent.click(within(viewer).getByRole("button", { name: "Shuffle & close" }));
     expect(screen.queryByRole("dialog", { name: "Library" })).not.toBeInTheDocument();
+  });
+
+  it("filters the library view by card name", () => {
+    renderPlaytest({ n: 12 });
+    fireEvent.click(screen.getByRole("button", { name: "View Library" }));
+    const viewer = screen.getByRole("dialog", { name: "Library" });
+    const rows = () => [...viewer.querySelectorAll(".pt-library-row")];
+    const before = rows().length;
+    expect(before).toBeGreaterThan(1);
+
+    // Filter by the first row's name; every visible row then contains it.
+    const firstRowName = within(rows()[0]).getByText(/^Card \d+$/).textContent;
+    fireEvent.change(within(viewer).getByLabelText("Filter library"), {
+      target: { value: firstRowName },
+    });
+    const filtered = rows();
+    expect(filtered.length).toBeGreaterThanOrEqual(1);
+    expect(filtered.length).toBeLessThanOrEqual(before);
+    filtered.forEach((r) => expect(r.textContent).toContain(firstRowName));
+
+    // A non-matching filter shows the empty hint.
+    fireEvent.change(within(viewer).getByLabelText("Filter library"), {
+      target: { value: "zzzzz-nope" },
+    });
+    expect(rows().length).toBe(0);
+    expect(within(viewer).getByText(/No cards match/)).toBeInTheDocument();
+  });
+
+  it("drags a card out of the library onto the battlefield", () => {
+    renderPlaytest({ n: 10, resolveDropTarget: () => "battlefield" });
+    fireEvent.click(screen.getByRole("button", { name: "View Library" }));
+    const viewer = screen.getByRole("dialog", { name: "Library" });
+    const row = viewer.querySelector(".pt-library-row");
+    const name = within(row).getByText(/^Card \d+$/).textContent;
+
+    dragCard(row);
+
+    expect(within(viewer).getByText(/Library \(2\)/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name })).toBeInTheDocument(); // now on the field
   });
 });
 
