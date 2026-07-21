@@ -385,6 +385,7 @@ describe('DeckBrewer', () => {
     expect(within(overlay).getByRole('button', { name: 'Sol Ring' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close playtest' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' })); // confirm close
     expect(screen.queryByRole('dialog', { name: 'Playtest' })).not.toBeInTheDocument();
   });
 

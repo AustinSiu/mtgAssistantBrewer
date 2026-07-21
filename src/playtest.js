@@ -140,6 +140,20 @@ export function findZone(state, id) {
 }
 
 /**
+ * Move an instance to a new index within its current zone — used to reorder
+ * the hand. `toIndex` is measured against the zone with the card removed, and
+ * is clamped into range.
+ */
+export function reorderInZone(state, id, toIndex) {
+  const zone = findZone(state, id);
+  if (!zone) return state;
+  const without = state.zones[zone].filter((x) => x !== id);
+  const i = Math.max(0, Math.min(toIndex, without.length));
+  const next = [...without.slice(0, i), id, ...without.slice(i)];
+  return { ...state, zones: { ...state.zones, [zone]: next } };
+}
+
+/**
  * Reposition a battlefield card to pixel offset {x, y} and bump it to the top
  * of the z-order (end of the battlefield array). Does NOT untap — sliding a
  * card around the field is not a zone change.

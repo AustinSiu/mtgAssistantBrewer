@@ -6,6 +6,7 @@ import {
   mulligan,
   moveCard,
   setPosition,
+  reorderInZone,
   toggleTap,
   nextTurn,
   addLife,
@@ -152,6 +153,29 @@ describe("setPosition", () => {
     const before = g;
     g = setPosition(g, id, { x: 10, y: 10 });
     expect(g).toBe(before);
+  });
+});
+
+describe("reorderInZone", () => {
+  it("moves a hand card to a new index (clamped), among the others", () => {
+    let g = start(10);
+    const hand = [...g.zones.hand];
+    const moved = hand[0];
+    g = reorderInZone(g, moved, 6);
+    expect(g.zones.hand).toEqual([...hand.slice(1), moved]);
+
+    g = reorderInZone(g, moved, 99);
+    expect(g.zones.hand[g.zones.hand.length - 1]).toBe(moved);
+    g = reorderInZone(g, moved, -5);
+    expect(g.zones.hand[0]).toBe(moved);
+    expect([...g.zones.hand].sort()).toEqual([...hand].sort());
+  });
+
+  it("inserts before the card currently at the target index", () => {
+    let g = start(10);
+    const [a, b, c] = g.zones.hand;
+    g = reorderInZone(g, c, 1);
+    expect(g.zones.hand.slice(0, 3)).toEqual([a, c, b]);
   });
 });
 

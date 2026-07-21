@@ -82,7 +82,7 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   // 1. Commander picker: Look Up is gated until a commander is chosen
   await page.goto("/");
   await expect(page.locator(".brand-name")).toHaveText("Deck Brewer");
-  await expect(page.getByText(/Pick your commander/)).toBeVisible();
+  await expect(page.getByText(/Pick a commander/)).toBeVisible();
   await expect(page.getByRole("button", { name: /Look Up Cards/ })).toBeDisabled();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/01-commander.png` });
 

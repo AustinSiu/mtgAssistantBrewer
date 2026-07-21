@@ -183,6 +183,8 @@ describe("DeckList", () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Close playtest" }));
+    // Closing asks for confirmation first.
+    fireEvent.click(screen.getByRole("button", { name: "Leave" }));
     expect(screen.queryByRole("dialog", { name: "Playtest" })).not.toBeInTheDocument();
   });
 });

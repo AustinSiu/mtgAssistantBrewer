@@ -9,13 +9,14 @@ const deckOf = (n) =>
     card: card(`Card ${i + 1}`, { type_line: "Artifact", mana_cost: "{1}" }),
   }));
 
-function renderPlaytest({ n = 10, onClose = vi.fn(), resolveDropTarget } = {}) {
+function renderPlaytest({ n = 10, onClose = vi.fn(), resolveDropTarget, resolveHandIndex } = {}) {
   render(
     <Playtest
       deck={deckOf(n)}
       commander={{ name: "Atraxa, Praetors' Voice", card: card("Atraxa, Praetors' Voice") }}
       onClose={onClose}
       {...(resolveDropTarget ? { resolveDropTarget } : {})}
+      {...(resolveHandIndex ? { resolveHandIndex } : {})}
     />
   );
   return { onClose };
@@ -100,9 +101,22 @@ describe("Playtest", () => {
     ).toBeInTheDocument();
   });
 
-  it("closes via the X", () => {
+  it("confirms before closing via the X", () => {
     const { onClose } = renderPlaytest();
     fireEvent.click(screen.getByRole("button", { name: "Close playtest" }));
+    // A confirmation appears first; the deck isn't torn down yet.
+    expect(onClose).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", { name: "Close playtest?" });
+    // Backing out keeps the game.
+    fireEvent.click(within(dialog).getByRole("button", { name: "Keep playing" }));
+    expect(onClose).not.toHaveBeenCalled();
+    // Reopen and confirm.
+    fireEvent.click(screen.getByRole("button", { name: "Close playtest" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Close playtest?" })).getByRole("button", {
+        name: "Leave",
+      })
+    );
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -316,5 +330,50 @@ describe("Playtest card images", () => {
     fireEvent.error(img);
     expect(wrap.querySelector(".pt-card img")).toBeNull();
     expect(wrap.querySelector(".pt-card-proxy")).not.toBeNull();
+  });
+
+  it("shows a larger preview of the card under the cursor", () => {
+    render(
+      <Playtest
+        deck={Array.from({ length: 8 }, (_, i) => ({
+          name: `Img ${i}`,
+          card: imgCard(`Img ${i}`),
+        }))}
+        commander={null}
+        onClose={vi.fn()}
+      />
+    );
+    expect(document.querySelector(".pt-preview")).toBeNull();
+    const wrap = document.querySelector(".pt-hand-cards .pt-card-wrap");
+
+    fireEvent.mouseEnter(wrap);
+    const preview = document.querySelector(".pt-preview");
+    expect(preview).not.toBeNull();
+    expect(preview.querySelector("img")).not.toBeNull();
+
+    fireEvent.mouseLeave(wrap);
+    expect(document.querySelector(".pt-preview")).toBeNull();
+  });
+});
+
+describe("Playtest hand reordering", () => {
+  it("reorders a hand card when dragged within the hand", () => {
+    renderPlaytest({
+      resolveDropTarget: () => "hand",
+      resolveHandIndex: () => 0,
+    });
+    const hand = () => within(screen.getByRole("region", { name: "Hand" }));
+    const names = () =>
+      hand()
+        .getAllByRole("button", { name: /^Card \d+$/ })
+        .map((b) => b.getAttribute("aria-label"));
+
+    const before = names();
+    const third = hand().getAllByRole("button", { name: /^Card \d+$/ })[2];
+    dragCard(third);
+
+    const after = names();
+    expect(after[0]).toBe(before[2]); // the dragged card jumped to the front
+    expect([...after].sort()).toEqual([...before].sort()); // nothing lost
   });
 });

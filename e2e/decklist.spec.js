@@ -137,6 +137,19 @@ test("deck list tab customer journey", async ({ page }) => {
     playtest.getByRole("button", { name: "Atraxa, Praetors' Voice" })
   ).toBeVisible(); // commander in the command zone
 
+  // Hovering a card shows a larger preview docked to the right.
+  const handCards = playtest.locator(".pt-hand-cards .pt-card-wrap");
+  await handCards.first().hover();
+  await expect(playtest.locator(".pt-preview")).toBeVisible();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-6-hover-preview.png` });
+
+  // Reorder the hand: drag the third card to the front.
+  const thirdName = await handCards.nth(2).locator(".pt-proxy-name").innerText();
+  await dragOnto(page, handCards.nth(2).locator(".pt-card"), handCards.first(), {
+    dx: -30,
+  });
+  await expect(handCards.first().locator(".pt-proxy-name")).toHaveText(thirdName);
+
   // Drag the first hand card out onto the battlefield; it takes a board
   // position (inline --x/--y) and the hand shrinks.
   const field = playtest.locator(".pt-battlefield-cards");
@@ -199,5 +212,6 @@ test("deck list tab customer journey", async ({ page }) => {
   await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-4-playtest.png` });
 
   await playtest.getByRole("button", { name: "Close playtest" }).click();
+  await playtest.getByRole("button", { name: "Leave" }).click(); // confirm close
   await expect(page.getByRole("dialog", { name: "Playtest" })).toHaveCount(0);
 });
