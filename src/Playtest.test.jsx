@@ -9,7 +9,7 @@ const deckOf = (n) =>
     card: card(`Card ${i + 1}`, { type_line: "Artifact", mana_cost: "{1}" }),
   }));
 
-function renderPlaytest({ n = 10, onClose = vi.fn(), resolveDropTarget, resolveHandIndex } = {}) {
+function renderPlaytest({ n = 10, onClose = vi.fn(), resolveDropTarget, resolveHandIndex, tokens } = {}) {
   render(
     <Playtest
       deck={deckOf(n)}
@@ -17,6 +17,7 @@ function renderPlaytest({ n = 10, onClose = vi.fn(), resolveDropTarget, resolveH
       onClose={onClose}
       {...(resolveDropTarget ? { resolveDropTarget } : {})}
       {...(resolveHandIndex ? { resolveHandIndex } : {})}
+      {...(tokens ? { tokens } : {})}
     />
   );
   return { onClose };
@@ -165,6 +166,29 @@ describe("Playtest", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(screen.getByRole("button", { name: "4/4 Angel" })).toBeInTheDocument();
+  });
+
+  it("restricts the token menu to the deck's tokens, with art", () => {
+    const tokenCard = {
+      name: "Goblin",
+      type_line: "Token Creature — Goblin",
+      image_uris: { normal: "https://cards.scryfall.io/normal/goblin.jpg" },
+    };
+    renderPlaytest({ tokens: [{ name: "Goblin", card: tokenCard }] });
+    fireEvent.click(screen.getByRole("button", { name: /Add Token/ }));
+    const menu = screen.getByRole("dialog", { name: "Add token" });
+
+    // The deck's token is listed (with a thumbnail); the generic presets aren't.
+    expect(within(menu).getByRole("button", { name: /Goblin/ })).toBeInTheDocument();
+    expect(within(menu).queryByRole("button", { name: "Clue" })).not.toBeInTheDocument();
+    expect(menu.querySelector(".pt-token-thumb")).not.toBeNull();
+
+    // Creating it puts an image-bearing token on the battlefield (not a proxy).
+    fireEvent.click(within(menu).getByRole("button", { name: /Goblin/ }));
+    const board = document.querySelector(".pt-battlefield-cards .pt-card-wrap");
+    expect(board.querySelector(".pt-card img")).not.toBeNull();
+    expect(board.querySelector(".pt-card-proxy")).toBeNull();
+    expect(board.querySelector(".pt-card.token")).toBeNull(); // real art → no dashed frame
   });
 
   it("puts counters on a battlefield card via its menu", () => {

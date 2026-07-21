@@ -39,9 +39,10 @@ export const TOKEN_PRESETS = [
 /** Player-level counters (Moxfield's Counters dropdown). */
 export const PLAYER_COUNTERS = ["Poison", "Energy", "Experience"];
 
-// Card box (px) — kept in sync with .pt-card in App.css.
-export const CARD_W = 92;
-export const CARD_H = 128;
+// Card box (px) — one size across every zone; kept in sync with the
+// --pt-cw / --pt-ch custom properties on .playtest in App.css.
+export const CARD_W = 120;
+export const CARD_H = 168;
 
 /**
  * Auto-placement for cards that land on the battlefield without a drop point
@@ -213,8 +214,12 @@ export function cardsInMarquee(state, rect) {
   });
 }
 
-/** Create a token directly onto the battlefield (auto-placed like a play). */
-export function addToken(state, name) {
+/**
+ * Create a token directly onto the battlefield (auto-placed like a play).
+ * `card` is the token's Scryfall card when known, so it renders real art;
+ * a custom token passes none and falls back to the text frame.
+ */
+export function addToken(state, name, card = null) {
   const id = `t${state.nextId}`;
   const pos = cascadePosition(state.zones.battlefield.length);
   return {
@@ -222,7 +227,7 @@ export function addToken(state, name) {
     nextId: state.nextId + 1,
     cards: {
       ...state.cards,
-      [id]: { id, name, card: null, tapped: false, token: true, pos },
+      [id]: { id, name, card, tapped: false, token: true, pos },
     },
     zones: { ...state.zones, battlefield: [...state.zones.battlefield, id] },
   };

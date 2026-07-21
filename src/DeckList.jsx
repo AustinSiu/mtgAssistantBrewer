@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import CardNameInput from "./CardNameInput";
 import ManaCost from "./ManaCost";
 import Playtest from "./Playtest";
+import { useDeckTokens } from "./useDeckTokens";
 import { CATEGORY_SUGGESTIONS } from "./brew";
 import {
   parseDecklist,
@@ -118,6 +119,7 @@ function DeckList() {
     ...e,
     card: cards.get(e.name.toLowerCase()) ?? null,
   }));
+  const deckTokens = useDeckTokens([...cards.values()]);
   const groups = groupEntries(resolved, groupBy);
   const stats = deckStats(resolved);
 
@@ -327,6 +329,7 @@ function DeckList() {
             const c = resolved.find((e) => e.commander);
             return c ? { name: c.name, card: c.card } : null;
           })()}
+          tokens={deckTokens}
           onClose={() => setPlaytestOpen(false)}
         />
       )}

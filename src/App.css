@@ -2191,6 +2191,9 @@ h3 {
   overflow: hidden; /* the simulator owns the viewport — no page scrollbar */
   background: #171717;
   color: rgba(255, 255, 255, 0.87);
+  /* One card size across every zone (kept in sync with CARD_W/CARD_H). */
+  --pt-cw: 120px;
+  --pt-ch: 168px;
 }
 
 /* The simulator is always dark. Pin its reused app components (which flip to
@@ -2364,8 +2367,8 @@ h3 {
 
 .pt-battlefield-cards .pt-card-wrap {
   position: absolute;
-  left: clamp(0px, var(--x, 0px), calc(100% - 92px));
-  top: clamp(0px, var(--y, 0px), calc(100% - 128px));
+  left: clamp(0px, var(--x, 0px), calc(100% - var(--pt-cw)));
+  top: clamp(0px, var(--y, 0px), calc(100% - var(--pt-ch)));
 }
 
 /* Marquee (rubber-band) multi-select rectangle. */
@@ -2415,18 +2418,6 @@ h3 {
   padding-bottom: 4px;
 }
 
-/* Hand cards read at ~20% larger than the 92×128 board/pile size. */
-.pt-hand-cards .pt-card-wrap,
-.pt-hand-cards .pt-card-tap,
-.pt-hand-cards .pt-card {
-  width: 110px;
-}
-
-.pt-hand-cards .pt-card-tap,
-.pt-hand-cards .pt-card {
-  height: 154px;
-}
-
 .pt-piles {
   display: flex;
   gap: 1rem;
@@ -2434,21 +2425,21 @@ h3 {
 }
 
 .pt-pile-card {
-  width: 92px;
-  height: 128px;
+  width: var(--pt-cw);
+  height: var(--pt-ch);
   position: relative;
 }
 
 .pt-slot-empty {
-  width: 92px;
-  height: 128px;
+  width: var(--pt-cw);
+  height: var(--pt-ch);
   border: 1px dashed #3a3a3a;
   border-radius: 6px;
 }
 
 .pt-cardback {
-  width: 92px;
-  height: 128px;
+  width: var(--pt-cw);
+  height: var(--pt-ch);
   border-radius: 6px;
   border: 1px solid #444;
   background:
@@ -2459,7 +2450,7 @@ h3 {
 /* Cards */
 .pt-card-wrap {
   position: relative;
-  width: 92px;
+  width: var(--pt-cw);
   flex-shrink: 0;
 }
 
@@ -2467,8 +2458,8 @@ h3 {
    action menu — a sibling of this element — upright. */
 .pt-card-tap {
   position: relative;
-  width: 92px;
-  height: 128px;
+  width: var(--pt-cw);
+  height: var(--pt-ch);
   transition: transform 0.15s;
 }
 
@@ -2478,8 +2469,8 @@ h3 {
 
 .pt-card {
   display: block;
-  width: 92px;
-  height: 128px;
+  width: var(--pt-cw);
+  height: var(--pt-ch);
   padding: 0;
   border: 1px solid #444;
   border-radius: 6px;
@@ -2630,6 +2621,21 @@ h3 {
   background: #2a2a4a;
 }
 
+/* Deck-token rows carry a small art thumbnail. */
+.pt-token-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pt-token-thumb {
+  width: 26px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
 .pt-token-custom {
   display: flex;
   gap: 0.35rem;
@@ -2700,7 +2706,7 @@ h3 {
 /* Drag ghost: a card clone pinned to the cursor, above everything. */
 .pt-drag-ghost {
   position: fixed;
-  width: 92px;
+  width: var(--pt-cw);
   z-index: 1000;
   pointer-events: none;
   transform: translate(-50%, -50%) scale(1.05);

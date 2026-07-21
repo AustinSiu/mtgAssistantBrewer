@@ -241,6 +241,7 @@ function Playtest({
   deck,
   commander,
   onClose,
+  tokens = [], // the deck's creatable tokens: [{ name, card }]
   resolveDropTarget = domResolveDropTarget,
   resolveHandIndex, // (id, clientX) -> insertion index; DOM-based when omitted
 }) {
@@ -522,10 +523,10 @@ function Playtest({
     }
   }
 
-  function makeToken(name) {
+  function makeToken(name, card = null) {
     const trimmed = name.trim();
     if (!trimmed) return;
-    act((g) => addToken(g, trimmed));
+    act((g) => addToken(g, trimmed, card));
     setTokenOpen(false);
     setCustomToken("");
   }
@@ -631,16 +632,31 @@ function Playtest({
             </button>
             {tokenOpen && (
               <div className="pt-popover" role="dialog" aria-label="Add token">
-                {TOKEN_PRESETS.map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    className="pt-popover-item"
-                    onClick={() => makeToken(name)}
-                  >
-                    {name}
-                  </button>
-                ))}
+                {tokens.length > 0
+                  ? tokens.map(({ name, card }, i) => {
+                      const img = card ? cardImageUrl(card) : null;
+                      return (
+                        <button
+                          key={`${name}-${i}`}
+                          type="button"
+                          className="pt-popover-item pt-token-item"
+                          onClick={() => makeToken(name, card)}
+                        >
+                          {img && <img src={img} alt="" className="pt-token-thumb" />}
+                          <span>{name}</span>
+                        </button>
+                      );
+                    })
+                  : TOKEN_PRESETS.map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        className="pt-popover-item"
+                        onClick={() => makeToken(name)}
+                      >
+                        {name}
+                      </button>
+                    ))}
                 <form
                   className="pt-token-custom"
                   onSubmit={(e) => {
@@ -1200,7 +1216,7 @@ function PlaytestCard({
       <div className={`pt-card-tap ${inst.tapped ? "tapped" : ""}`}>
         <button
           type="button"
-          className={`pt-card ${inst.token ? "token" : ""}`}
+          className={`pt-card ${inst.token && !img ? "token" : ""}`}
           aria-label={`${inst.name}${inst.tapped ? " (tapped)" : ""}`}
           onClick={handleClick}
           onPointerDown={handlePointerDown}

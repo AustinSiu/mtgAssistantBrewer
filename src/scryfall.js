@@ -31,6 +31,40 @@ export async function lookupCollection(names) {
 }
 
 /**
+ * The tokens a card can create, read from its Scryfall `all_parts` relation
+ * (component "token"). Returns [{ id, name }], deduped, empty when none.
+ */
+export function cardTokenParts(card) {
+  const seen = new Set();
+  const parts = [];
+  for (const p of card?.all_parts ?? []) {
+    if (p.component === "token" && p.id && !seen.has(p.id)) {
+      seen.add(p.id);
+      parts.push({ id: p.id, name: p.name });
+    }
+  }
+  return parts;
+}
+
+/** Fetch full cards by Scryfall id (chunked to the collection limit of 75). */
+export async function lookupCardsByIds(ids) {
+  const unique = [...new Set(ids)];
+  const out = [];
+  for (let i = 0; i < unique.length; i += 75) {
+    const chunk = unique.slice(i, i + 75);
+    const res = await fetch(`${API_BASE}/cards/collection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ identifiers: chunk.map((id) => ({ id })) }),
+    });
+    if (!res.ok) throw new Error(`Scryfall request failed (HTTP ${res.status})`);
+    const json = await res.json();
+    out.push(...(json.data ?? []));
+  }
+  return out;
+}
+
+/**
  * Fuzzy single-card lookup, used as a fallback for names the collection
  * endpoint couldn't match exactly. Returns the card, or null if Scryfall
  * finds no (or an ambiguous) match.
