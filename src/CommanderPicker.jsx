@@ -16,9 +16,26 @@ function CommanderPicker({ commander, onCommit, onLookUp }) {
         <span className="brand-name">Deck Brewer</span>
       </div>
       <p className="brand-intro">
-        Pick your commander to set the deck's color identity, then build three
-        consistent 33-card sub-decks into a 99-card deck.
+        Pick a commander to set the color identity, then fill three 33-card
+        sub-decks on one shared 33-slot skeleton. Each slot's Tag drives card
+        suggestions and the consistency rail keeps your thirds aligned.
       </p>
+
+      <ul className="brew-tenets" aria-label="Deckbuilding tenets">
+        <li>
+          <strong>Plan ~5 core functions.</strong> You need about 12 copies of
+          an effect to see it most games, so a 99-card deck realistically
+          supports ~5 roles — build 12–15 cards toward each.
+        </li>
+        <li>
+          <strong>Start from baselines:</strong> ~37 lands · ~10 ramp · ~10
+          card draw · ~8–10 removal, then tune to your commander.
+        </li>
+        <li>
+          <strong>Consistency beats spice.</strong> Three sub-decks on the same
+          slots keep every build's shape aligned.
+        </li>
+      </ul>
 
       <label className="picker-label" htmlFor="commander">
         Commander <span className="required">*</span>

@@ -6,6 +6,7 @@ import {
   mulligan,
   moveCard,
   setPosition,
+  reorderInZone,
   toggleTap,
   nextTurn,
   addLife,
@@ -31,6 +32,21 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 // tests inject a stub instead (jsdom has no layout).
 const domResolveDropTarget = (x, y) =>
   document.elementFromPoint?.(x, y)?.closest("[data-drop]")?.dataset.drop ?? null;
+
+// Where, among the other hand cards, an x-coordinate would insert the dragged
+// card: before the first card whose horizontal midpoint sits right of x, else
+// at the end. Index is measured with the dragged card removed.
+function domHandIndex(container, id, clientX) {
+  if (!container) return 0;
+  const others = [...container.querySelectorAll("[data-hand-id]")].filter(
+    (el) => el.dataset.handId !== id
+  );
+  for (let i = 0; i < others.length; i++) {
+    const r = others[i].getBoundingClientRect();
+    if (clientX < r.left + r.width / 2) return i;
+  }
+  return others.length;
+}
 
 /**
  * Pointer-driven drag for playtest cards. A press that travels past the
@@ -147,16 +163,35 @@ function useCardDrag({ resolveDropTarget, onDrop, onDragStart }) {
  * Keyboard shortcuts (underlined in the buttons): D draw, N next turn,
  * S shuffle, M mulligan, R restart, T add token, V view library.
  */
-function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDropTarget }) {
+function Playtest({
+  deck,
+  commander,
+  onClose,
+  resolveDropTarget = domResolveDropTarget,
+  resolveHandIndex, // (id, clientX) -> insertion index; DOM-based when omitted
+}) {
   const [game, setGame] = useState(() => newGame({ deck, commander }));
   const [menuFor, setMenuFor] = useState(null); // instance id with open menu
   const [tokenOpen, setTokenOpen] = useState(false);
   const [countersOpen, setCountersOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [customToken, setCustomToken] = useState("");
+  const [preview, setPreview] = useState(null); // instance id under the cursor
+  const [confirmClose, setConfirmClose] = useState(false);
   const battlefieldRef = useRef(null);
+  const handRef = useRef(null);
 
   const act = (fn) => setGame(fn);
+
+  // Lock the page behind the full-screen simulator so there's no outer
+  // scrollbar while it's open.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   const closeAllPopups = () => {
     setMenuFor(null);
@@ -188,7 +223,17 @@ function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDrop
       else act((g) => moveCard(g, id, "battlefield", pos));
       return;
     }
-    if (targetZone === sourceZone) return; // back onto its own zone: no-op
+    if (targetZone === sourceZone) {
+      // Dropping a hand card back on the hand reorders it; other same-zone
+      // drops are no-ops.
+      if (targetZone === "hand") {
+        const idx = resolveHandIndex
+          ? resolveHandIndex(id, clientX)
+          : domHandIndex(handRef.current, id, clientX);
+        act((g) => reorderInZone(g, id, idx));
+      }
+      return;
+    }
     // Library drop lands on top; everything else appends.
     const position = targetZone === "library" ? "start" : "end";
     act((g) => moveCard(g, id, targetZone, position));
@@ -196,15 +241,21 @@ function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDrop
 
   const dnd = useCardDrag({
     resolveDropTarget,
-    onDragStart: closeAllPopups,
+    onDragStart: () => {
+      closeAllPopups();
+      setPreview(null); // no hover preview while dragging
+    },
     onDrop: handleDrop,
   });
+
+  // Close request: confirm before tearing down the board.
+  const requestClose = () => setConfirmClose(true);
 
   // Keyboard shortcuts. Skipped while typing in a field; Escape closes the
   // topmost popup first, then the simulator. (A live drag's Escape is handled
   // by useCardDrag before this fires.)
   const keyDeps = useRef();
-  keyDeps.current = { menuFor, tokenOpen, countersOpen, libraryOpen };
+  keyDeps.current = { menuFor, tokenOpen, countersOpen, libraryOpen, confirmClose };
   useEffect(() => {
     function onKey(e) {
       const t = e.target;
@@ -220,11 +271,12 @@ function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDrop
       const open = keyDeps.current;
       switch (e.key === "Escape" ? "Escape" : e.key.toLowerCase()) {
         case "Escape":
-          if (open.menuFor) setMenuFor(null);
+          if (open.confirmClose) setConfirmClose(false);
+          else if (open.menuFor) setMenuFor(null);
           else if (open.tokenOpen) setTokenOpen(false);
           else if (open.countersOpen) setCountersOpen(false);
           else if (open.libraryOpen) setLibraryOpen(false);
-          else onClose();
+          else requestClose();
           break;
         case "d":
           act((g) => draw(g));
@@ -509,7 +561,7 @@ function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDrop
             type="button"
             className="pt-close"
             aria-label="Close playtest"
-            onClick={onClose}
+            onClick={requestClose}
           >
             ✕
           </button>
@@ -530,6 +582,7 @@ function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDrop
               tappable
               sourceZone="battlefield"
               dnd={dnd}
+              onHover={setPreview}
               onTap={() => act((g) => toggleTap(g, id))}
               menuOpen={menuFor === id}
               onMenu={() => setMenuFor(menuFor === id ? null : id)}
@@ -553,13 +606,14 @@ function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDrop
           data-drop="hand"
         >
           <div className="pt-zone-label">Hand ({zones.hand.length})</div>
-          <div className="pt-hand-cards">
+          <div className="pt-hand-cards" ref={handRef}>
             {zones.hand.map((id) => (
               <PlaytestCard
                 key={id}
                 inst={inst(id)}
                 sourceZone="hand"
                 dnd={dnd}
+                onHover={setPreview}
                 menuOpen={menuFor === id}
                 onMenu={() => setMenuFor(menuFor === id ? null : id)}
                 actions={menuActions(id)}
@@ -592,6 +646,7 @@ function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDrop
               zone="graveyard"
               inst={inst}
               dnd={dnd}
+              onHover={setPreview}
               menuFor={menuFor}
               setMenuFor={setMenuFor}
               menuActions={menuActions}
@@ -607,6 +662,7 @@ function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDrop
               zone="exile"
               inst={inst}
               dnd={dnd}
+              onHover={setPreview}
               menuFor={menuFor}
               setMenuFor={setMenuFor}
               menuActions={menuActions}
@@ -618,6 +674,7 @@ function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDrop
               zone="command"
               inst={inst}
               dnd={dnd}
+              onHover={setPreview}
               menuFor={menuFor}
               setMenuFor={setMenuFor}
               menuActions={menuActions}
@@ -628,6 +685,10 @@ function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDrop
 
       {dnd.ghost && <DragGhost ghost={dnd.ghost} />}
 
+      {preview && cards[preview] && !dnd.ghost && (
+        <CardPreview inst={cards[preview]} />
+      )}
+
       {libraryOpen && (
         <LibraryViewer
           ids={zones.library}
@@ -636,6 +697,48 @@ function Playtest({ deck, commander, onClose, resolveDropTarget = domResolveDrop
           onShuffle={() => act((g) => shuffleLibrary(g))}
           onClose={() => setLibraryOpen(false)}
         />
+      )}
+
+      {confirmClose && (
+        <div className="modal-overlay" onClick={() => setConfirmClose(false)}>
+          <div
+            className="modal pt-confirm"
+            role="dialog"
+            aria-label="Close playtest?"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>Leave the playtest?</h3>
+            <p>The current board, hand, and turn will be discarded.</p>
+            <div className="actions">
+              <button type="button" className="preset" onClick={() => setConfirmClose(false)}>
+                Keep playing
+              </button>
+              <button type="button" className="submit" onClick={onClose}>
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The large image of the hovered card, docked to the right of the battlefield.
+function CardPreview({ inst }) {
+  const img = inst.card ? cardImageUrl(inst.card) : null;
+  return (
+    <div className="pt-preview" aria-hidden="true">
+      {img ? (
+        <img src={img} alt="" draggable={false} />
+      ) : (
+        <div className="pt-preview-proxy">
+          <span className="pt-proxy-name">{inst.name}</span>
+          {inst.card && (
+            <span className="pt-proxy-type">{cardTypeLabel(inst.card)}</span>
+          )}
+          {inst.token && <span className="pt-proxy-type">Token</span>}
+        </div>
       )}
     </div>
   );
@@ -738,7 +841,7 @@ function Pile({ label, drop, hover, children }) {
 }
 
 // Top card of a pile (graveyard/exile/command), with its menu.
-function PileTop({ ids, zone, inst, dnd, menuFor, setMenuFor, menuActions }) {
+function PileTop({ ids, zone, inst, dnd, onHover, menuFor, setMenuFor, menuActions }) {
   const top = ids[ids.length - 1];
   if (!top) return <div className="pt-slot-empty" />;
   return (
@@ -746,6 +849,7 @@ function PileTop({ ids, zone, inst, dnd, menuFor, setMenuFor, menuActions }) {
       inst={inst(top)}
       sourceZone={zone}
       dnd={dnd}
+      onHover={onHover}
       menuOpen={menuFor === top}
       onMenu={() => setMenuFor(menuFor === top ? null : top)}
       actions={menuActions(top)}
@@ -759,7 +863,7 @@ function PileTop({ ids, zone, inst, dnd, menuFor, setMenuFor, menuActions }) {
  * useCardDrag); a plain click taps it (on the battlefield) or opens its zone
  * menu. Battlefield cards are absolutely placed via their `pos` (CSS --x/--y).
  */
-function PlaytestCard({ inst, tappable, sourceZone, dnd, onTap, menuOpen, onMenu, actions }) {
+function PlaytestCard({ inst, tappable, sourceZone, dnd, onHover, onTap, menuOpen, onMenu, actions }) {
   // Fall back to the text frame if the Scryfall image can't be loaded.
   const [imgError, setImgError] = useState(false);
   const img = !imgError && inst.card ? cardImageUrl(inst.card) : null;
@@ -791,6 +895,9 @@ function PlaytestCard({ inst, tappable, sourceZone, dnd, onTap, menuOpen, onMenu
     <div
       className={`pt-card-wrap ${dragging ? "pt-dragging" : ""}`}
       style={style}
+      data-hand-id={sourceZone === "hand" ? inst.id : undefined}
+      onMouseEnter={() => onHover?.(inst.id)}
+      onMouseLeave={() => onHover?.(null)}
     >
       {/* The tap rotation lives here so it doesn't rotate the action menu. */}
       <div className={`pt-card-tap ${inst.tapped ? "tapped" : ""}`}>
@@ -802,7 +909,13 @@ function PlaytestCard({ inst, tappable, sourceZone, dnd, onTap, menuOpen, onMenu
           onPointerDown={handlePointerDown}
         >
           {img ? (
-            <img src={img} alt="" draggable={false} onError={() => setImgError(true)} />
+            <img
+              src={img}
+              alt=""
+              draggable={false}
+              decoding="sync"
+              onError={() => setImgError(true)}
+            />
           ) : (
             <span className="pt-card-proxy">
               <span className="pt-proxy-name">{inst.name}</span>

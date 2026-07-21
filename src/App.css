@@ -1276,7 +1276,27 @@ h3 {
 .brand-intro {
   color: #888;
   font-size: 0.95rem;
+  margin: 0 0 16px;
+}
+
+.brew-tenets {
+  list-style: none;
   margin: 0 0 24px;
+  padding: 12px 14px;
+  border: 1px solid #2f2f38;
+  border-left: 3px solid #646cff;
+  border-radius: 8px;
+  background: #16161e;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #b9b9c4;
+}
+
+.brew-tenets strong {
+  color: #e6e6ee;
 }
 
 .picker-label {
@@ -2164,9 +2184,11 @@ h3 {
 .playtest {
   position: fixed;
   inset: 0;
+  height: 100dvh;
   z-index: 200;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* the simulator owns the viewport — no page scrollbar */
   background: #171717;
   color: rgba(255, 255, 255, 0.87);
 }
@@ -2341,6 +2363,18 @@ h3 {
   padding-bottom: 4px;
 }
 
+/* Hand cards read at ~20% larger than the 92×128 board/pile size. */
+.pt-hand-cards .pt-card-wrap,
+.pt-hand-cards .pt-card-tap,
+.pt-hand-cards .pt-card {
+  width: 110px;
+}
+
+.pt-hand-cards .pt-card-tap,
+.pt-hand-cards .pt-card {
+  height: 154px;
+}
+
 .pt-piles {
   display: flex;
   gap: 1rem;
@@ -2387,7 +2421,7 @@ h3 {
 }
 
 .pt-card-tap.tapped {
-  transform: rotate(90deg);
+  transform: rotate(-90deg);
 }
 
 .pt-card {
@@ -2622,7 +2656,7 @@ h3 {
 }
 
 .pt-drag-ghost.tapped {
-  transform: translate(-50%, -50%) scale(1.05) rotate(90deg);
+  transform: translate(-50%, -50%) scale(1.05) rotate(-90deg);
 }
 
 /* Highlight the drop zone currently under the cursor. */
@@ -2635,6 +2669,46 @@ h3 {
 .pt-pile.pt-drop-hover,
 .pt-hand.pt-drop-hover {
   background: rgba(100, 108, 255, 0.08);
+}
+
+/* Hover preview: a large version of the card under the cursor, docked to the
+   right edge of the battlefield (clear of the top bar and the hand/piles). */
+.pt-preview {
+  position: fixed;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(240px, 19vw);
+  z-index: 60;
+  pointer-events: none;
+}
+
+.pt-preview img {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+}
+
+.pt-preview-proxy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  aspect-ratio: 92 / 128;
+  padding: 1rem;
+  border: 1px solid #444;
+  border-radius: 10px;
+  background: #1a1a2a;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+}
+
+.pt-preview-proxy .pt-proxy-name {
+  font-size: 1.1rem;
+}
+
+/* Confirm-before-close dialog */
+.pt-confirm {
+  max-width: 380px;
 }
 
 /* Library viewer */
