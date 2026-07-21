@@ -213,6 +213,32 @@ describe("Playtest", () => {
     expect(screen.queryByRole("dialog", { name: "Library" })).not.toBeInTheDocument();
   });
 
+  it("filters the library view by card name", () => {
+    renderPlaytest({ n: 12 });
+    fireEvent.click(screen.getByRole("button", { name: "View Library" }));
+    const viewer = screen.getByRole("dialog", { name: "Library" });
+    const rows = () => [...viewer.querySelectorAll(".pt-library-row")];
+    const before = rows().length;
+    expect(before).toBeGreaterThan(1);
+
+    // Filter by the first row's name; every visible row then contains it.
+    const firstRowName = within(rows()[0]).getByText(/^Card \d+$/).textContent;
+    fireEvent.change(within(viewer).getByLabelText("Filter library"), {
+      target: { value: firstRowName },
+    });
+    const filtered = rows();
+    expect(filtered.length).toBeGreaterThanOrEqual(1);
+    expect(filtered.length).toBeLessThanOrEqual(before);
+    filtered.forEach((r) => expect(r.textContent).toContain(firstRowName));
+
+    // A non-matching filter shows the empty hint.
+    fireEvent.change(within(viewer).getByLabelText("Filter library"), {
+      target: { value: "zzzzz-nope" },
+    });
+    expect(rows().length).toBe(0);
+    expect(within(viewer).getByText(/No cards match/)).toBeInTheDocument();
+  });
+
   it("drags a card out of the library onto the battlefield", () => {
     renderPlaytest({ n: 10, resolveDropTarget: () => "battlefield" });
     fireEvent.click(screen.getByRole("button", { name: "View Library" }));

@@ -210,6 +210,14 @@ test("deck list tab customer journey", async ({ page }) => {
   const libCount = await viewer.locator(".pt-library-row").count();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-7-library-panel.png` });
 
+  // Filtering by name narrows the visible rows, then clears back.
+  await viewer.getByLabel("Filter library").fill("Forest");
+  const forestRows = await viewer.locator(".pt-library-row").count();
+  expect(forestRows).toBeGreaterThan(0);
+  expect(forestRows).toBeLessThanOrEqual(libCount);
+  await viewer.getByLabel("Filter library").fill("");
+  await expect(viewer.locator(".pt-library-row")).toHaveCount(libCount);
+
   // Drag the top library card (by its name) onto the battlefield.
   await dragOnto(
     page,

@@ -775,7 +775,18 @@ function DragGhost({ ghost }) {
  */
 function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
   const [hoverId, setHoverId] = useState(null);
-  const activeId = (hoverId && inst(hoverId) && hoverId) || ids[0] || null;
+  const [filter, setFilter] = useState("");
+
+  const q = filter.trim().toLowerCase();
+  // Keep each card's true library position while filtering the view by name.
+  const rows = ids
+    .map((id, i) => ({ id, pos: i + 1 }))
+    .filter(({ id }) => !q || inst(id).name.toLowerCase().includes(q));
+
+  const activeId =
+    (hoverId && inst(hoverId) && rows.some((r) => r.id === hoverId) && hoverId) ||
+    rows[0]?.id ||
+    null;
   const active = activeId ? inst(activeId) : null;
   const activeImg = active?.card ? cardImageUrl(active.card) : null;
 
@@ -815,8 +826,18 @@ function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
         )}
       </div>
 
+      <div className="pt-library-filter">
+        <input
+          type="text"
+          placeholder="Filter by name…"
+          aria-label="Filter library"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+      </div>
+
       <div className="pt-library-list">
-        {ids.map((id, i) => {
+        {rows.map(({ id, pos }) => {
           const c = inst(id);
           const img = c.card ? cardImageUrl(c.card) : null;
           return (
@@ -835,7 +856,7 @@ function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
                 })
               }
             >
-              <span className="pt-library-pos">{i + 1}</span>
+              <span className="pt-library-pos">{pos}</span>
               <span className="pt-library-name">{c.name}</span>
               <span className="pt-library-actions">
                 <button type="button" className="take" onPointerDown={(e) => e.stopPropagation()} onClick={move(id, "hand")}>
@@ -855,6 +876,9 @@ function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
           );
         })}
         {!ids.length && <p className="hint">The library is empty.</p>}
+        {!!ids.length && !rows.length && (
+          <p className="hint">No cards match “{filter.trim()}”.</p>
+        )}
       </div>
 
       <footer className="pt-library-foot">

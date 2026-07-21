@@ -2751,6 +2751,25 @@ h3 {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
 }
 
+.pt-library-filter {
+  padding: 8px 12px;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.pt-library-filter input {
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #0f0f16;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.85rem;
+}
+
+.pt-library-filter input::placeholder {
+  color: #777;
+}
+
 .pt-library-list {
   flex: 1;
   overflow-y: auto;
