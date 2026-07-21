@@ -2193,6 +2193,29 @@ h3 {
   color: rgba(255, 255, 255, 0.87);
 }
 
+/* The simulator is always dark. Pin its reused app components (which flip to
+   light backgrounds under the OS light preference) so nothing renders light
+   inside the dark overlay. `.playtest`-scoped selectors outrank the plain
+   light-mode overrides. */
+.playtest .preset {
+  background: #1a1a1a;
+  border-color: #555;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.playtest .modal {
+  background: #1e1e2e;
+  border-color: #444;
+}
+
+.playtest .modal p {
+  color: #bbb;
+}
+
+.playtest .hint {
+  color: #888;
+}
+
 /* Top bar */
 .pt-topbar {
   display: flex;
