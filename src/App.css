@@ -2354,6 +2354,21 @@ h3 {
   top: clamp(0px, var(--y, 0px), calc(100% - 128px));
 }
 
+/* Marquee (rubber-band) multi-select rectangle. */
+.pt-marquee {
+  position: absolute;
+  z-index: 40;
+  border: 1px dashed #b9b9c4;
+  background: rgba(185, 185, 196, 0.08);
+  pointer-events: none;
+}
+
+/* A card picked out by the marquee. */
+.pt-card-wrap.pt-selected .pt-card {
+  outline: 3px solid #f2c744;
+  outline-offset: 1px;
+}
+
 .pt-empty-hint {
   color: #666;
   font-size: 0.85rem;
@@ -2680,6 +2695,25 @@ h3 {
 
 .pt-drag-ghost.tapped {
   transform: translate(-50%, -50%) scale(1.05) rotate(-90deg);
+}
+
+/* Count badge on the ghost when a multi-selection is being dragged. */
+.pt-ghost-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #646cff;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
 /* Highlight the drop zone currently under the cursor. */

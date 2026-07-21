@@ -320,6 +320,62 @@ describe("Playtest drag and drop", () => {
   });
 });
 
+describe("Playtest multi-select", () => {
+  // Play the first hand card to the battlefield via its menu (auto-cascade
+  // gives it a distinct position).
+  const playOne = () => {
+    const hand = within(screen.getByRole("region", { name: "Hand" }));
+    fireEvent.click(hand.getAllByRole("button", { name: /^Card \d+$/ })[0]);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Play" }));
+  };
+  const marqueeAll = () => {
+    const field = document.querySelector(".pt-battlefield-cards");
+    fireEvent.pointerDown(field, { button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(window, { clientX: 600, clientY: 600 });
+    fireEvent.pointerUp(window, { clientX: 600, clientY: 600 });
+  };
+  const selectedCount = () =>
+    document.querySelectorAll(".pt-battlefield-cards .pt-card-wrap.pt-selected").length;
+
+  it("marquee-selects battlefield cards and taps them together", () => {
+    renderPlaytest();
+    playOne();
+    playOne();
+    marqueeAll();
+    expect(selectedCount()).toBe(2);
+
+    // Tapping one selected card taps the whole selection.
+    fireEvent.click(document.querySelector(".pt-battlefield-cards .pt-card"));
+    expect(screen.getAllByRole("button", { name: /\(tapped\)$/ })).toHaveLength(2);
+  });
+
+  it("drags a marquee selection to another zone together", () => {
+    renderPlaytest({ resolveDropTarget: () => "graveyard" });
+    playOne();
+    playOne();
+    marqueeAll();
+    expect(selectedCount()).toBe(2);
+
+    dragCard(document.querySelector(".pt-battlefield-cards .pt-card"));
+    expect(screen.getByText("Graveyard (2)")).toBeInTheDocument();
+    expect(selectedCount()).toBe(0); // selection cleared after the move
+  });
+
+  it("a click on empty battlefield clears the selection", () => {
+    renderPlaytest();
+    playOne();
+    playOne();
+    marqueeAll();
+    expect(selectedCount()).toBe(2);
+
+    // A press that doesn't travel is a click → clears.
+    const field = document.querySelector(".pt-battlefield-cards");
+    fireEvent.pointerDown(field, { button: 0, clientX: 400, clientY: 400 });
+    fireEvent.pointerUp(window, { clientX: 401, clientY: 401 });
+    expect(selectedCount()).toBe(0);
+  });
+});
+
 describe("Playtest tap rotation", () => {
   it("keeps the action menu out of the rotated (tapped) layer", () => {
     renderPlaytest();

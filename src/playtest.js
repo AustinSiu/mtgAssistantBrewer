@@ -171,15 +171,58 @@ export function setPosition(state, id, { x, y }) {
   };
 }
 
-/** Create a token directly onto the battlefield. */
+/**
+ * Reposition several battlefield cards at once (multi-select drag). `moves` is
+ * [{ id, pos }]; the moved cards bump to the top of the z-order in their
+ * existing relative order. Does not untap.
+ */
+export function setPositions(state, moves) {
+  const moving = moves.filter((m) => state.zones.battlefield.includes(m.id));
+  if (!moving.length) return state;
+  const byId = new Map(moving.map((m) => [m.id, m.pos]));
+  const cards = { ...state.cards };
+  for (const [id, pos] of byId) cards[id] = { ...cards[id], pos };
+  const rest = state.zones.battlefield.filter((id) => !byId.has(id));
+  const bumped = state.zones.battlefield.filter((id) => byId.has(id));
+  return { ...state, cards, zones: { ...state.zones, battlefield: [...rest, ...bumped] } };
+}
+
+/** Set the tapped state of many cards at once (multi-select tap). */
+export function tapMany(state, ids, tapped) {
+  const cards = { ...state.cards };
+  for (const id of ids) {
+    if (cards[id]) cards[id] = { ...cards[id], tapped };
+  }
+  return { ...state, cards };
+}
+
+/**
+ * Battlefield card ids whose box intersects a marquee rectangle (both in the
+ * battlefield canvas's pixel coordinates). `rect` may have negative width or
+ * height (dragged up/left); the card box is CARD_W × CARD_H at each card's pos.
+ */
+export function cardsInMarquee(state, rect) {
+  const x1 = Math.min(rect.x, rect.x + rect.w);
+  const y1 = Math.min(rect.y, rect.y + rect.h);
+  const x2 = Math.max(rect.x, rect.x + rect.w);
+  const y2 = Math.max(rect.y, rect.y + rect.h);
+  return state.zones.battlefield.filter((id) => {
+    const pos = state.cards[id]?.pos;
+    if (!pos) return false;
+    return pos.x < x2 && pos.x + CARD_W > x1 && pos.y < y2 && pos.y + CARD_H > y1;
+  });
+}
+
+/** Create a token directly onto the battlefield (auto-placed like a play). */
 export function addToken(state, name) {
   const id = `t${state.nextId}`;
+  const pos = cascadePosition(state.zones.battlefield.length);
   return {
     ...state,
     nextId: state.nextId + 1,
     cards: {
       ...state.cards,
-      [id]: { id, name, card: null, tapped: false, token: true },
+      [id]: { id, name, card: null, tapped: false, token: true, pos },
     },
     zones: { ...state.zones, battlefield: [...state.zones.battlefield, id] },
   };
