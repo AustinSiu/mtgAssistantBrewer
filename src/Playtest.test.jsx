@@ -202,6 +202,8 @@ describe("Playtest", () => {
     fireEvent.click(screen.getByRole("button", { name: "View Library" }));
     const viewer = screen.getByRole("dialog", { name: "Library" });
     expect(within(viewer).getByText(/Library \(3\)/)).toBeInTheDocument();
+    // Card names render in the list (regression: they were white-on-white).
+    expect(within(viewer).getAllByText(/^Card \d+$/).length).toBeGreaterThan(0);
 
     fireEvent.click(within(viewer).getAllByRole("button", { name: "Hand" })[0]);
     expect(within(viewer).getByText(/Library \(2\)/)).toBeInTheDocument();
@@ -209,6 +211,19 @@ describe("Playtest", () => {
 
     fireEvent.click(within(viewer).getByRole("button", { name: "Shuffle & close" }));
     expect(screen.queryByRole("dialog", { name: "Library" })).not.toBeInTheDocument();
+  });
+
+  it("drags a card out of the library onto the battlefield", () => {
+    renderPlaytest({ n: 10, resolveDropTarget: () => "battlefield" });
+    fireEvent.click(screen.getByRole("button", { name: "View Library" }));
+    const viewer = screen.getByRole("dialog", { name: "Library" });
+    const row = viewer.querySelector(".pt-library-row");
+    const name = within(row).getByText(/^Card \d+$/).textContent;
+
+    dragCard(row);
+
+    expect(within(viewer).getByText(/Library \(2\)/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name })).toBeInTheDocument(); // now on the field
   });
 });
 

@@ -203,10 +203,22 @@ test("deck list tab customer journey", async ({ page }) => {
   });
   await expect(playtest.getByText("Hand (7)")).toBeVisible();
 
-  // View the library in order, then close it.
+  // Open the library side panel; card names are legible and rows are draggable.
   await playtest.getByRole("button", { name: "View Library", exact: true }).click();
   const viewer = page.getByRole("dialog", { name: "Library" });
-  await expect(viewer.getByText(/top first/)).toBeVisible();
+  await expect(viewer.getByText(/Viewing Library/)).toBeVisible();
+  const libCount = await viewer.locator(".pt-library-row").count();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-7-library-panel.png` });
+
+  // Drag the top library card (by its name) onto the battlefield.
+  await dragOnto(
+    page,
+    viewer.locator(".pt-library-row").first().locator(".pt-library-name"),
+    field,
+    { dx: 40, dy: 40 }
+  );
+  await expect(viewer.locator(".pt-library-row")).toHaveCount(libCount - 1);
+
   await viewer.getByRole("button", { name: "Close", exact: true }).click();
 
   await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-4-playtest.png` });
