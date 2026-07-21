@@ -6,6 +6,9 @@ import {
   mulligan,
   moveCard,
   setPosition,
+  setPositions,
+  tapMany,
+  cardsInMarquee,
   reorderInZone,
   toggleTap,
   nextTurn,
@@ -153,6 +156,55 @@ describe("setPosition", () => {
     const before = g;
     g = setPosition(g, id, { x: 10, y: 10 });
     expect(g).toBe(before);
+  });
+});
+
+describe("multi-select helpers", () => {
+  const twoOnField = () => {
+    let g = start(10);
+    const a = g.zones.hand[0];
+    g = moveCard(g, a, "battlefield", { x: 20, y: 20 });
+    const b = g.zones.hand[0];
+    g = moveCard(g, b, "battlefield", { x: 200, y: 200 });
+    return { g, a, b };
+  };
+
+  it("setPositions moves several cards and bumps them to the top", () => {
+    let { g, a, b } = twoOnField();
+    const c = g.zones.hand[0];
+    g = moveCard(g, c, "battlefield", { x: 300, y: 40 }); // c on top
+    expect(g.zones.battlefield).toEqual([a, b, c]);
+    g = setPositions(g, [
+      { id: a, pos: { x: 25, y: 25 } },
+      { id: b, pos: { x: 205, y: 205 } },
+    ]);
+    expect(g.cards[a].pos).toEqual({ x: 25, y: 25 });
+    expect(g.cards[b].pos).toEqual({ x: 205, y: 205 });
+    // c stays under the moved pair, which bump to the top in order.
+    expect(g.zones.battlefield).toEqual([c, a, b]);
+  });
+
+  it("tapMany sets a uniform tapped state", () => {
+    let { g, a, b } = twoOnField();
+    g = toggleTap(g, a); // a tapped, b untapped
+    g = tapMany(g, [a, b], true);
+    expect(g.cards[a].tapped).toBe(true);
+    expect(g.cards[b].tapped).toBe(true);
+    g = tapMany(g, [a, b], false);
+    expect(g.cards[a].tapped).toBe(false);
+    expect(g.cards[b].tapped).toBe(false);
+  });
+
+  it("cardsInMarquee returns the cards whose box overlaps the rect", () => {
+    const { g, a, b } = twoOnField(); // a at (20,20), b at (200,200)
+    // A rect around a only.
+    expect(cardsInMarquee(g, { x: 0, y: 0, w: 120, h: 120 })).toEqual([a]);
+    // A rect spanning both (also handles negative w/h).
+    expect(
+      cardsInMarquee(g, { x: 400, y: 400, w: -400, h: -400 }).sort()
+    ).toEqual([a, b].sort());
+    // A rect over empty space.
+    expect(cardsInMarquee(g, { x: 600, y: 600, w: 50, h: 50 })).toEqual([]);
   });
 });
 

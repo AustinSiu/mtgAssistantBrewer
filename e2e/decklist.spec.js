@@ -65,6 +65,16 @@ async function dragOnto(page, source, target, { dx = 0, dy = 0 } = {}) {
   await page.mouse.up();
 }
 
+// Rubber-band select: press on empty field (a corner) and drag across it.
+async function marquee(page, field) {
+  const b = await field.boundingBox();
+  await page.mouse.move(b.x + b.width - 40, b.y + b.height - 40); // empty corner
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 5 });
+  await page.mouse.move(b.x + 20, b.y + 20, { steps: 5 });
+  await page.mouse.up();
+}
+
 test("deck list tab customer journey", async ({ page }) => {
   if (!process.env.SCRYFALL_LIVE) await stubScryfall(page);
 
@@ -202,6 +212,13 @@ test("deck list tab customer journey", async ({ page }) => {
     dy: -20,
   });
   await expect(playtest.getByText("Hand (7)")).toBeVisible();
+
+  // Rubber-band select both battlefield cards, then deselect.
+  await marquee(page, field);
+  await expect(playtest.locator(".pt-card-wrap.pt-selected")).toHaveCount(2);
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-8-multiselect.png` });
+  await page.keyboard.press("Escape");
+  await expect(playtest.locator(".pt-card-wrap.pt-selected")).toHaveCount(0);
 
   // Open the library side panel; card names are legible and rows are draggable.
   await playtest.getByRole("button", { name: "View Library", exact: true }).click();

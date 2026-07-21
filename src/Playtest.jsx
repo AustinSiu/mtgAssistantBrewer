@@ -6,6 +6,9 @@ import {
   mulligan,
   moveCard,
   setPosition,
+  setPositions,
+  tapMany,
+  cardsInMarquee,
   reorderInZone,
   toggleTap,
   nextTurn,
@@ -105,6 +108,7 @@ function useCardDrag({ resolveDropTarget, onDrop, onDragStart }) {
         targetZone,
         clientX: e.clientX,
         clientY: e.clientY,
+        group: c.group,
       });
     };
     return self;
@@ -125,13 +129,22 @@ function useCardDrag({ resolveDropTarget, onDrop, onDragStart }) {
 
   const startDrag = (e, meta) => {
     if (e.button != null && e.button !== 0) return; // primary button only
+    const groupCount = meta.group && meta.group.length > 1 ? meta.group.length : 0;
     active.current = {
       id: meta.id,
       sourceZone: meta.sourceZone,
+      group: meta.group,
       startX: e.clientX,
       startY: e.clientY,
       moved: false,
-      ghost: { id: meta.id, name: meta.name, img: meta.img, tapped: meta.tapped, token: meta.token },
+      ghost: {
+        id: meta.id,
+        name: meta.name,
+        img: meta.img,
+        tapped: meta.tapped,
+        token: meta.token,
+        groupCount,
+      },
     };
     wasDragged.current = false;
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -148,6 +161,67 @@ function useCardDrag({ resolveDropTarget, onDrop, onDragStart }) {
   };
 
   return { ghost, startDrag, consumeClick };
+}
+
+/**
+ * Rubber-band selection on the battlefield: press on empty field and drag to
+ * draw a rectangle; release reports it (in battlefield-canvas coordinates) so
+ * the caller can select the cards inside. A press that doesn't travel is a
+ * click and clears the selection instead.
+ */
+function useMarquee({ battlefieldRef, onSelect, onClear }) {
+  const [rect, setRect] = useState(null);
+  const active = useRef(null);
+
+  const cfg = useRef({ onSelect, onClear });
+  useEffect(() => {
+    cfg.current = { onSelect, onClear };
+  });
+
+  const h = useMemo(() => {
+    const self = {};
+    self.cleanup = () => {
+      window.removeEventListener("pointermove", self.onMove);
+      window.removeEventListener("pointerup", self.onUp);
+    };
+    const rectFrom = (a, e) => ({
+      x: a.x,
+      y: a.y,
+      w: e.clientX - a.ox - a.x,
+      h: e.clientY - a.oy - a.y,
+    });
+    self.onMove = (e) => {
+      const a = active.current;
+      if (!a) return;
+      const r = rectFrom(a, e);
+      if (!a.moved && Math.hypot(r.w, r.h) >= DRAG_THRESHOLD) a.moved = true;
+      setRect(r);
+    };
+    self.onUp = (e) => {
+      const a = active.current;
+      self.cleanup();
+      active.current = null;
+      setRect(null);
+      if (!a) return;
+      if (!a.moved) cfg.current.onClear();
+      else cfg.current.onSelect(rectFrom(a, e));
+    };
+    return self;
+  }, []);
+
+  const onPointerDown = (e) => {
+    if (e.button != null && e.button !== 0) return;
+    if (e.target !== e.currentTarget) return; // only the bare battlefield
+    const b = battlefieldRef.current?.getBoundingClientRect();
+    const ox = b?.left ?? 0;
+    const oy = b?.top ?? 0;
+    active.current = { x: e.clientX - ox, y: e.clientY - oy, ox, oy, moved: false };
+    setRect({ x: active.current.x, y: active.current.y, w: 0, h: 0 });
+    window.addEventListener("pointermove", h.onMove);
+    window.addEventListener("pointerup", h.onUp);
+  };
+
+  return { rect, onPointerDown };
 }
 
 /**
@@ -178,8 +252,11 @@ function Playtest({
   const [customToken, setCustomToken] = useState("");
   const [preview, setPreview] = useState(null); // instance id under the cursor
   const [confirmClose, setConfirmClose] = useState(false);
+  const [selected, setSelected] = useState(() => new Set()); // battlefield multi-select
   const battlefieldRef = useRef(null);
   const handRef = useRef(null);
+
+  const clearSelection = () => setSelected((s) => (s.size ? new Set() : s));
 
   const act = (fn) => setGame(fn);
 
@@ -203,6 +280,7 @@ function Playtest({
     setGame(newGame({ deck, commander }));
     closeAllPopups();
     setLibraryOpen(false);
+    clearSelection();
   }
 
   // Translate a screen point into a snapped, in-bounds battlefield offset.
@@ -215,12 +293,42 @@ function Playtest({
     return { x: snap(x), y: snap(y) };
   }
 
-  function handleDrop({ id, sourceZone, targetZone, clientX, clientY }) {
+  // Same delta applied to a battlefield card's stored position, clamped in
+  // bounds — used to slide a whole multi-selection together.
+  function shiftedPos(pos, dx, dy) {
+    const rect = battlefieldRef.current?.getBoundingClientRect();
+    const maxX = rect && rect.width ? rect.width - CARD_W : Infinity;
+    const maxY = rect && rect.height ? rect.height - CARD_H : Infinity;
+    return { x: clamp(pos.x + dx, 0, maxX), y: clamp(pos.y + dy, 0, maxY) };
+  }
+
+  function handleDrop({ id, sourceZone, targetZone, clientX, clientY, group }) {
     if (!targetZone) return; // dropped on nothing
+    // A multi-select drag carries the whole battlefield group; otherwise just
+    // the one card (and any lingering selection is cleared).
+    const isGroup = group && group.length > 1;
+    const ids = isGroup ? group : [id];
+
     if (targetZone === "battlefield") {
       const pos = dropPoint(clientX, clientY);
-      if (sourceZone === "battlefield") act((g) => setPosition(g, id, pos));
-      else act((g) => moveCard(g, id, "battlefield", pos));
+      if (sourceZone === "battlefield") {
+        if (isGroup) {
+          const from = game.cards[id]?.pos ?? pos;
+          const dx = pos.x - from.x;
+          const dy = pos.y - from.y;
+          act((g) =>
+            setPositions(
+              g,
+              ids.map((cid) => ({ id: cid, pos: shiftedPos(g.cards[cid].pos, dx, dy) }))
+            )
+          );
+        } else {
+          clearSelection();
+          act((g) => setPosition(g, id, pos));
+        }
+      } else {
+        act((g) => moveCard(g, id, "battlefield", pos));
+      }
       return;
     }
     if (targetZone === sourceZone) {
@@ -234,9 +342,10 @@ function Playtest({
       }
       return;
     }
-    // Library drop lands on top; everything else appends.
+    // Library drop lands on top; everything else appends. A group moves as one.
     const position = targetZone === "library" ? "start" : "end";
-    act((g) => moveCard(g, id, targetZone, position));
+    act((g) => ids.reduce((s, cid) => moveCard(s, cid, targetZone, position), g));
+    clearSelection();
   }
 
   const dnd = useCardDrag({
@@ -248,6 +357,24 @@ function Playtest({
     onDrop: handleDrop,
   });
 
+  const marquee = useMarquee({
+    battlefieldRef,
+    onSelect: (rect) => setSelected(new Set(cardsInMarquee(game, rect))),
+    onClear: clearSelection,
+  });
+
+  // Tap a battlefield card. If it's part of a multi-selection, tap the whole
+  // group uniformly; otherwise clear any selection and tap just this card.
+  function tapCard(id) {
+    if (selected.has(id) && selected.size > 1) {
+      const value = !game.cards[id].tapped;
+      act((g) => tapMany(g, [...selected], value));
+    } else {
+      clearSelection();
+      act((g) => toggleTap(g, id));
+    }
+  }
+
   // Close request: confirm before tearing down the board.
   const requestClose = () => setConfirmClose(true);
 
@@ -255,7 +382,7 @@ function Playtest({
   // topmost popup first, then the simulator. (A live drag's Escape is handled
   // by useCardDrag before this fires.)
   const keyDeps = useRef();
-  keyDeps.current = { menuFor, tokenOpen, countersOpen, libraryOpen, confirmClose };
+  keyDeps.current = { menuFor, tokenOpen, countersOpen, libraryOpen, confirmClose, hasSelection: selected.size > 0 };
   useEffect(() => {
     function onKey(e) {
       const t = e.target;
@@ -276,6 +403,7 @@ function Playtest({
           else if (open.tokenOpen) setTokenOpen(false);
           else if (open.countersOpen) setCountersOpen(false);
           else if (open.libraryOpen) setLibraryOpen(false);
+          else if (open.hasSelection) clearSelection();
           else requestClose();
           break;
         case "d":
@@ -574,7 +702,12 @@ function Playtest({
         onClick={closeAllPopups}
       >
         <div className="pt-zone-label">Battlefield</div>
-        <div className="pt-battlefield-cards" data-drop="battlefield" ref={battlefieldRef}>
+        <div
+          className="pt-battlefield-cards"
+          data-drop="battlefield"
+          ref={battlefieldRef}
+          onPointerDown={marquee.onPointerDown}
+        >
           {zones.battlefield.map((id) => (
             <PlaytestCard
               key={id}
@@ -583,17 +716,30 @@ function Playtest({
               sourceZone="battlefield"
               dnd={dnd}
               onHover={setPreview}
-              onTap={() => act((g) => toggleTap(g, id))}
+              selected={selected.has(id)}
+              group={selected.has(id) && selected.size > 1 ? [...selected] : null}
+              onTap={() => tapCard(id)}
               menuOpen={menuFor === id}
               onMenu={() => setMenuFor(menuFor === id ? null : id)}
               actions={menuActions(id)}
             />
           ))}
+          {marquee.rect && (
+            <div
+              className="pt-marquee"
+              style={{
+                left: Math.min(marquee.rect.x, marquee.rect.x + marquee.rect.w),
+                top: Math.min(marquee.rect.y, marquee.rect.y + marquee.rect.h),
+                width: Math.abs(marquee.rect.w),
+                height: Math.abs(marquee.rect.h),
+              }}
+            />
+          )}
           {!zones.battlefield.length && (
             <div className="pt-empty-hint">
               Drag a card here from your hand (or click it) to play it.
-              Shortcuts: D draw · N next turn · S shuffle · M mulligan ·
-              T token · V library · R restart.
+              Drag over empty field to select several at once. Shortcuts: D draw ·
+              N next turn · S shuffle · M mulligan · T token · V library · R restart.
             </div>
           )}
         </div>
@@ -762,6 +908,9 @@ function DragGhost({ ghost }) {
           </span>
         )}
       </div>
+      {ghost.groupCount > 1 && (
+        <span className="pt-ghost-count">{ghost.groupCount}</span>
+      )}
     </div>
   );
 }
@@ -932,7 +1081,19 @@ function PileTop({ ids, zone, inst, dnd, onHover, menuFor, setMenuFor, menuActio
  * useCardDrag); a plain click taps it (on the battlefield) or opens its zone
  * menu. Battlefield cards are absolutely placed via their `pos` (CSS --x/--y).
  */
-function PlaytestCard({ inst, tappable, sourceZone, dnd, onHover, onTap, menuOpen, onMenu, actions }) {
+function PlaytestCard({
+  inst,
+  tappable,
+  sourceZone,
+  dnd,
+  onHover,
+  onTap,
+  menuOpen,
+  onMenu,
+  actions,
+  selected,
+  group,
+}) {
   // Fall back to the text frame if the Scryfall image can't be loaded.
   const [imgError, setImgError] = useState(false);
   const img = !imgError && inst.card ? cardImageUrl(inst.card) : null;
@@ -953,6 +1114,7 @@ function PlaytestCard({ inst, tappable, sourceZone, dnd, onHover, onTap, menuOpe
       img,
       tapped: inst.tapped,
       token: inst.token,
+      group,
     });
   }
 
@@ -962,7 +1124,7 @@ function PlaytestCard({ inst, tappable, sourceZone, dnd, onHover, onTap, menuOpe
 
   return (
     <div
-      className={`pt-card-wrap ${dragging ? "pt-dragging" : ""}`}
+      className={`pt-card-wrap ${dragging ? "pt-dragging" : ""} ${selected ? "pt-selected" : ""}`}
       style={style}
       data-hand-id={sourceZone === "hand" ? inst.id : undefined}
       onMouseEnter={() => onHover?.(inst.id)}
