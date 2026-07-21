@@ -2340,6 +2340,20 @@ h3 {
   margin-bottom: 6px;
 }
 
+/* A pile label that opens the zone's side panel. */
+.pt-zone-view {
+  display: block;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.pt-zone-view:hover {
+  color: #a7adff;
+}
+
 /* Free canvas: battlefield cards are absolutely placed by their pos (--x/--y),
    and array order is z-order (later = on top, courtesy of source order). */
 .pt-battlefield-cards {
