@@ -15,6 +15,7 @@ import {
   hasOracleTag,
 } from "./brew";
 import { duplicateNonBasics, toMoxfield } from "./decklist";
+import { toBrewFormat, parseBrewFormat } from "./brewFormat";
 import { reorder, remapIndex } from "./reorder";
 import { cardManaCost, cardManaValue, cardPrimaryType } from "./scryfall";
 
@@ -106,6 +107,7 @@ function DeckBrewer() {
   const [lookup, setLookup] = useState(() => new Map()); // lowername -> {card, matchType}
   const [strip, setStrip] = useState({ loading: false, items: null });
   const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [playtestSetupOpen, setPlaytestSetupOpen] = useState(false);
   const [playtestGame, setPlaytestGame] = useState(null); // { deck, commander }
   const [dragIndex, setDragIndex] = useState(null);
@@ -369,6 +371,22 @@ function DeckBrewer() {
     }
   }
 
+  // Load a brew parsed from the Brewer sub-deck format, replacing the current
+  // one and re-resolving card data.
+  function importBrew({ commander: cmdr, slots: newSlots, subDecks: newSubs }) {
+    setCommander(cmdr ?? "");
+    setSlots(withSlotIds(newSlots));
+    setSubDecks(padSubDecks(newSubs));
+    setActiveIdx(0);
+    setActiveRow(null);
+    setError(null);
+    setLookup(new Map());
+    setTagMembership(new Map());
+    setStrip({ loading: false, items: null });
+    setImportOpen(false);
+    setStep("workspace");
+  }
+
   function takeSuggestion(name, subIdx) {
     if (activeRow == null) return;
     commitCard(subIdx, activeRow, name);
@@ -376,11 +394,17 @@ function DeckBrewer() {
 
   if (step === "commander") {
     return (
-      <CommanderPicker
-        commander={commander}
-        onCommit={setCommander}
-        onLookUp={() => commander.trim() && setStep("workspace")}
-      />
+      <>
+        <CommanderPicker
+          commander={commander}
+          onCommit={setCommander}
+          onLookUp={() => commander.trim() && setStep("workspace")}
+          onImport={() => setImportOpen(true)}
+        />
+        {importOpen && (
+          <ImportModal onImport={importBrew} onClose={() => setImportOpen(false)} />
+        )}
+      </>
     );
   }
 
@@ -395,6 +419,7 @@ function DeckBrewer() {
           onChangeCommander={() => setStep("commander")}
           onPlaytest={() => setPlaytestSetupOpen(true)}
           onExport={() => setExportOpen(true)}
+          onImport={() => setImportOpen(true)}
           onClear={clearAll}
         />
 
@@ -547,9 +572,17 @@ function DeckBrewer() {
       {exportOpen && (
         <ExportModal
           commander={commander}
+          slots={slots}
           subDecks={subDecks}
           subDeckNames={SUB_DECK_NAMES}
           onClose={() => setExportOpen(false)}
+        />
+      )}
+
+      {importOpen && (
+        <ImportModal
+          onImport={importBrew}
+          onClose={() => setImportOpen(false)}
         />
       )}
 
@@ -671,11 +704,12 @@ function PlaytestSetupModal({
 // Export the selected sub-deck(s) to a Moxfield-importable decklist. Every
 // sub-deck is selected by default (the whole 99-card deck); untick some to
 // export one or a subset of the 33-card sub-decks.
-function ExportModal({ commander, subDecks, subDeckNames, onClose }) {
+function ExportModal({ commander, slots, subDecks, subDeckNames, onClose }) {
   const [selected, setSelected] = useState(() =>
     new Set(subDecks.map((_, si) => si))
   );
   const [includeCommander, setIncludeCommander] = useState(true);
+  const [format, setFormat] = useState("moxfield"); // "moxfield" | "brew"
   const [copied, setCopied] = useState(false);
 
   const toggle = (si) =>
@@ -686,11 +720,20 @@ function ExportModal({ commander, subDecks, subDeckNames, onClose }) {
       return next;
     });
 
-  const cards = subDecks.flatMap((sd, si) =>
-    selected.has(si) ? sd.cards : []
-  );
-  const text = toMoxfield({ commander, cards, includeCommander });
+  const selectedIdx = subDecks.map((_, si) => si).filter((si) => selected.has(si));
+  const cards = selectedIdx.flatMap((si) => subDecks[si].cards);
   const cardCount = cards.filter((c) => c.trim()).length;
+
+  const cmdr = includeCommander ? commander : "";
+  const text =
+    format === "brew"
+      ? toBrewFormat({
+          commander: cmdr,
+          slots,
+          subDecks: selectedIdx.map((si) => subDecks[si]),
+          subDeckNames: selectedIdx.map((si) => subDeckNames[si]),
+        })
+      : toMoxfield({ commander, cards, includeCommander });
 
   function copy() {
     navigator.clipboard?.writeText(text).then(
@@ -707,11 +750,36 @@ function ExportModal({ commander, subDecks, subDeckNames, onClose }) {
       <div
         className="modal export-modal"
         role="dialog"
-        aria-label="Export to Moxfield"
+        aria-label="Export deck"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3>Export to Moxfield</h3>
-        <p>Pick which sub-decks to include, then copy the list into Moxfield.</p>
+        <h3>Export</h3>
+        <p>
+          {format === "brew"
+            ? "The Brewer sub-deck format lays the sub-decks side by side and can be re-imported here."
+            : "A flat 100-card list to paste into Moxfield."}
+        </p>
+
+        <div className="export-format">
+          <label className="export-check">
+            <input
+              type="radio"
+              name="export-format"
+              checked={format === "moxfield"}
+              onChange={() => setFormat("moxfield")}
+            />{" "}
+            Moxfield (100-card)
+          </label>
+          <label className="export-check">
+            <input
+              type="radio"
+              name="export-format"
+              checked={format === "brew"}
+              onChange={() => setFormat("brew")}
+            />{" "}
+            Brewer sub-decks
+          </label>
+        </div>
 
         <div className="export-options">
           {subDecks.map((_, si) => (
@@ -738,7 +806,7 @@ function ExportModal({ commander, subDecks, subDeckNames, onClose }) {
 
         <textarea
           className="export-text"
-          aria-label="Moxfield decklist"
+          aria-label={format === "brew" ? "Brewer sub-deck list" : "Moxfield decklist"}
           readOnly
           rows={10}
           value={text}
@@ -758,6 +826,65 @@ function ExportModal({ commander, subDecks, subDeckNames, onClose }) {
             onClick={copy}
           >
             {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Load a brew from the Brewer sub-deck format (the only format import accepts).
+function ImportModal({ onImport, onClose }) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState(null);
+
+  function doImport() {
+    try {
+      onImport(parseBrewFormat(text));
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal export-modal"
+        role="dialog"
+        aria-label="Import brew"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3>Import a brew</h3>
+        <p>
+          Paste a list exported in the <strong>Brewer sub-decks</strong> format
+          (1–3 sub-decks with an optional commander). This replaces your current
+          brew.
+        </p>
+
+        <textarea
+          className="export-text"
+          aria-label="Brew to import"
+          rows={10}
+          placeholder={"Commander: …\n#\tTag\tNote\t33 A\t33 B\t33 C\n1\tRamp\t\tSol Ring\t…"}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setError(null);
+          }}
+        />
+        {error && <p className="import-error">{error}</p>}
+
+        <div className="actions">
+          <button type="button" className="preset" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="submit"
+            disabled={!text.trim()}
+            onClick={doImport}
+          >
+            Import
           </button>
         </div>
       </div>

@@ -5,7 +5,7 @@ import CardNameInput from "./CardNameInput";
  * opening the workspace. A centered single column, matching the design's
  * brand lockup + intro + autocomplete + primary action.
  */
-function CommanderPicker({ commander, onCommit, onLookUp }) {
+function CommanderPicker({ commander, onCommit, onLookUp, onImport }) {
   const ready = commander.trim() !== "";
   return (
     <div className="brew-picker">
@@ -56,6 +56,12 @@ function CommanderPicker({ commander, onCommit, onLookUp }) {
       >
         Look Up Cards →
       </button>
+
+      {onImport && (
+        <button type="button" className="link-btn picker-import" onClick={onImport}>
+          or import a saved brew
+        </button>
+      )}
     </div>
   );
 }
