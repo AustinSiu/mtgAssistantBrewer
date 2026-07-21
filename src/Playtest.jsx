@@ -249,6 +249,7 @@ function Playtest({
   const [tokenOpen, setTokenOpen] = useState(false);
   const [countersOpen, setCountersOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [graveyardOpen, setGraveyardOpen] = useState(false);
   const [customToken, setCustomToken] = useState("");
   const [preview, setPreview] = useState(null); // instance id under the cursor
   const [confirmClose, setConfirmClose] = useState(false);
@@ -280,8 +281,19 @@ function Playtest({
     setGame(newGame({ deck, commander }));
     closeAllPopups();
     setLibraryOpen(false);
+    setGraveyardOpen(false);
     clearSelection();
   }
+
+  // Only one zone side panel is open at a time (they share the right dock).
+  const openLibrary = () => {
+    setGraveyardOpen(false);
+    setLibraryOpen(true);
+  };
+  const openGraveyard = () => {
+    setLibraryOpen(false);
+    setGraveyardOpen(true);
+  };
 
   // Translate a screen point into a snapped, in-bounds battlefield offset.
   // Falls back to a fixed corner when the field has no measurable box (jsdom).
@@ -382,7 +394,7 @@ function Playtest({
   // topmost popup first, then the simulator. (A live drag's Escape is handled
   // by useCardDrag before this fires.)
   const keyDeps = useRef();
-  keyDeps.current = { menuFor, tokenOpen, countersOpen, libraryOpen, confirmClose, hasSelection: selected.size > 0 };
+  keyDeps.current = { menuFor, tokenOpen, countersOpen, libraryOpen, graveyardOpen, confirmClose, hasSelection: selected.size > 0 };
   useEffect(() => {
     function onKey(e) {
       const t = e.target;
@@ -403,6 +415,7 @@ function Playtest({
           else if (open.tokenOpen) setTokenOpen(false);
           else if (open.countersOpen) setCountersOpen(false);
           else if (open.libraryOpen) setLibraryOpen(false);
+          else if (open.graveyardOpen) setGraveyardOpen(false);
           else if (open.hasSelection) clearSelection();
           else requestClose();
           break;
@@ -425,7 +438,12 @@ function Playtest({
           setTokenOpen((o) => !o);
           break;
         case "v":
-          setLibraryOpen((o) => !o);
+          if (open.libraryOpen) setLibraryOpen(false);
+          else openLibrary();
+          break;
+        case "g":
+          if (open.graveyardOpen) setGraveyardOpen(false);
+          else openGraveyard();
           break;
         default:
           return;
@@ -656,7 +674,7 @@ function Playtest({
             type="button"
             className="pt-btn"
             title="V"
-            onClick={() => setLibraryOpen(true)}
+            onClick={openLibrary}
           >
             <u>V</u>iew Library
           </button>
@@ -779,13 +797,14 @@ function Playtest({
               className="pt-cardback"
               aria-label="View library"
               title="View library (V)"
-              onClick={() => setLibraryOpen(true)}
+              onClick={openLibrary}
             />
           </Pile>
           <Pile
             label={`Graveyard (${zones.graveyard.length})`}
             drop="graveyard"
             hover={overZone === "graveyard"}
+            onView={openGraveyard}
           >
             <PileTop
               ids={zones.graveyard}
@@ -836,13 +855,30 @@ function Playtest({
       )}
 
       {libraryOpen && (
-        <LibrarySidePanel
+        <ZoneSidePanel
+          title="Library"
+          zone="library"
           ids={zones.library}
+          quickActions={LIBRARY_ACTIONS}
           inst={inst}
           dnd={dnd}
           onMove={(id, zone, position) => act((g) => moveCard(g, id, zone, position))}
           onShuffle={() => act((g) => shuffleLibrary(g))}
           onClose={() => setLibraryOpen(false)}
+        />
+      )}
+
+      {graveyardOpen && (
+        <ZoneSidePanel
+          title="Graveyard"
+          zone="graveyard"
+          ids={zones.graveyard}
+          reversed
+          quickActions={GRAVEYARD_ACTIONS}
+          inst={inst}
+          dnd={dnd}
+          onMove={(id, zone, position) => act((g) => moveCard(g, id, zone, position))}
+          onClose={() => setGraveyardOpen(false)}
         />
       )}
 
@@ -922,13 +958,25 @@ function DragGhost({ ghost }) {
  * (e.g. back to the top of the library). Colours are explicit so names stay
  * legible regardless of the OS light/dark preference.
  */
-function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
+function ZoneSidePanel({
+  title,
+  zone,
+  ids,
+  reversed, // graveyard reads most-recent first
+  quickActions, // [[label, toZone, position?], …]
+  inst,
+  dnd,
+  onMove,
+  onShuffle, // library only — adds "Shuffle & close"
+  onClose,
+}) {
   const [hoverId, setHoverId] = useState(null);
   const [filter, setFilter] = useState("");
+  const label = title.toLowerCase();
 
   const q = filter.trim().toLowerCase();
-  // Keep each card's true library position while filtering the view by name.
-  const rows = ids
+  const ordered = reversed ? [...ids].reverse() : ids;
+  const rows = ordered
     .map((id, i) => ({ id, pos: i + 1 }))
     .filter(({ id }) => !q || inst(id).name.toLowerCase().includes(q));
 
@@ -939,21 +987,18 @@ function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
   const active = activeId ? inst(activeId) : null;
   const activeImg = active?.card ? cardImageUrl(active.card) : null;
 
-  const move = (id, zone, position) => (e) => {
+  const move = (id, toZone, position) => (e) => {
     e.stopPropagation(); // a button click is not a row drag
-    onMove(id, zone, position);
+    onMove(id, toZone, position);
   };
 
   return (
-    <aside
-      className="pt-library-panel"
-      role="dialog"
-      aria-label="Library"
-      data-drop="library"
-    >
+    <aside className="pt-library-panel" role="dialog" aria-label={title} data-drop={zone}>
       <header className="pt-library-head">
-        <span>Viewing Library ({ids.length})</span>
-        <button type="button" className="pt-close" aria-label="Close library" onClick={onClose}>
+        <span>
+          Viewing {title} ({ids.length})
+        </span>
+        <button type="button" className="pt-close" aria-label={`Close ${label}`} onClick={onClose}>
           ✕
         </button>
       </header>
@@ -971,7 +1016,7 @@ function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
             </div>
           )
         ) : (
-          <p className="hint">The library is empty.</p>
+          <p className="hint">The {label} is empty.</p>
         )}
       </div>
 
@@ -979,7 +1024,7 @@ function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
         <input
           type="text"
           placeholder="Filter by name…"
-          aria-label="Filter library"
+          aria-label={`Filter ${label}`}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
@@ -997,7 +1042,7 @@ function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
               onPointerDown={(e) =>
                 dnd?.startDrag(e, {
                   id,
-                  sourceZone: "library",
+                  sourceZone: zone,
                   name: c.name,
                   img,
                   tapped: false,
@@ -1008,39 +1053,40 @@ function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
               <span className="pt-library-pos">{pos}</span>
               <span className="pt-library-name">{c.name}</span>
               <span className="pt-library-actions">
-                <button type="button" className="take" onPointerDown={(e) => e.stopPropagation()} onClick={move(id, "hand")}>
-                  Hand
-                </button>
-                <button type="button" className="take" onPointerDown={(e) => e.stopPropagation()} onClick={move(id, "battlefield")}>
-                  Field
-                </button>
-                <button type="button" className="take" onPointerDown={(e) => e.stopPropagation()} onClick={move(id, "graveyard")}>
-                  Grave
-                </button>
-                <button type="button" className="take" onPointerDown={(e) => e.stopPropagation()} onClick={move(id, "library", "start")}>
-                  Top
-                </button>
+                {quickActions.map(([lbl, toZone, position]) => (
+                  <button
+                    key={lbl}
+                    type="button"
+                    className="take"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={move(id, toZone, position)}
+                  >
+                    {lbl}
+                  </button>
+                ))}
               </span>
             </div>
           );
         })}
-        {!ids.length && <p className="hint">The library is empty.</p>}
+        {!ids.length && <p className="hint">The {label} is empty.</p>}
         {!!ids.length && !rows.length && (
           <p className="hint">No cards match “{filter.trim()}”.</p>
         )}
       </div>
 
       <footer className="pt-library-foot">
-        <button
-          type="button"
-          className="preset"
-          onClick={() => {
-            onShuffle();
-            onClose();
-          }}
-        >
-          Shuffle &amp; close
-        </button>
+        {onShuffle && (
+          <button
+            type="button"
+            className="preset"
+            onClick={() => {
+              onShuffle();
+              onClose();
+            }}
+          >
+            Shuffle &amp; close
+          </button>
+        )}
         <button type="button" className="submit" onClick={onClose}>
           Close
         </button>
@@ -1049,10 +1095,30 @@ function LibrarySidePanel({ ids, inst, dnd, onMove, onShuffle, onClose }) {
   );
 }
 
-function Pile({ label, drop, hover, children }) {
+// Quick per-row moves offered by each zone panel: [label, toZone, position?].
+const LIBRARY_ACTIONS = [
+  ["Hand", "hand"],
+  ["Field", "battlefield"],
+  ["Grave", "graveyard"],
+  ["Top", "library", "start"],
+];
+const GRAVEYARD_ACTIONS = [
+  ["Hand", "hand"],
+  ["Field", "battlefield"],
+  ["Exile", "exile"],
+  ["Library", "library", "start"],
+];
+
+function Pile({ label, drop, hover, onView, children }) {
   return (
     <div className={`pt-pile ${hover ? "pt-drop-hover" : ""}`} data-drop={drop}>
-      <div className="pt-zone-label">{label}</div>
+      {onView ? (
+        <button type="button" className="pt-zone-label pt-zone-view" onClick={onView}>
+          {label} ▾
+        </button>
+      ) : (
+        <div className="pt-zone-label">{label}</div>
+      )}
       <div className="pt-pile-card">{children}</div>
     </div>
   );

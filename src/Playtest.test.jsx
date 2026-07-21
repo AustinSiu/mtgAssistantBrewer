@@ -89,7 +89,7 @@ describe("Playtest", () => {
     const handCard = screen.getAllByRole("button", { name: /^Card \d+$/ })[0];
     fireEvent.click(handCard);
     fireEvent.click(screen.getByRole("menuitem", { name: "Discard" }));
-    expect(screen.getByText("Graveyard (1)")).toBeInTheDocument();
+    expect(screen.getByText(/Graveyard \(1\)/)).toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Atraxa, Praetors' Voice" })
@@ -251,6 +251,29 @@ describe("Playtest", () => {
     expect(within(viewer).getByText(/Library \(2\)/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name })).toBeInTheDocument(); // now on the field
   });
+
+  it("views the graveyard in a side panel and drags a card out", () => {
+    renderPlaytest({ resolveDropTarget: () => "hand" });
+    // Discard a hand card so the graveyard has one.
+    const handCard = within(screen.getByRole("region", { name: "Hand" })).getAllByRole(
+      "button",
+      { name: /^Card \d+$/ }
+    )[0];
+    const name = handCard.getAttribute("aria-label");
+    fireEvent.click(handCard);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Discard" }));
+
+    // Open the graveyard panel from its pile label.
+    fireEvent.click(screen.getByRole("button", { name: /Graveyard \(1\)/ }));
+    const panel = screen.getByRole("dialog", { name: "Graveyard" });
+    const row = panel.querySelector(".pt-library-row");
+    expect(within(row).getByText(name)).toBeInTheDocument();
+
+    // Drag it back to hand.
+    dragCard(row);
+    expect(screen.getByText("Hand (7)")).toBeInTheDocument();
+    expect(within(panel).getByText(/Viewing Graveyard \(0\)/)).toBeInTheDocument();
+  });
 });
 
 describe("Playtest drag and drop", () => {
@@ -282,7 +305,7 @@ describe("Playtest drag and drop", () => {
     const handCard = screen.getAllByRole("button", { name: /^Card \d+$/ })[0];
     dragCard(handCard);
     expect(screen.getByText("Hand (6)")).toBeInTheDocument();
-    expect(screen.getByText("Graveyard (1)")).toBeInTheDocument();
+    expect(screen.getByText(/Graveyard \(1\)/)).toBeInTheDocument();
   });
 
   it("Escape cancels an in-flight drag, leaving state untouched", () => {
@@ -297,7 +320,7 @@ describe("Playtest drag and drop", () => {
     // A release after the cancel drops nothing.
     fireEvent.pointerUp(window, { clientX: 120, clientY: 90 });
     expect(screen.getByText("Hand (7)")).toBeInTheDocument();
-    expect(screen.getByText("Graveyard (0)")).toBeInTheDocument();
+    expect(screen.getByText(/Graveyard \(0\)/)).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled(); // Escape was consumed by the drag
   });
 
@@ -357,7 +380,7 @@ describe("Playtest multi-select", () => {
     expect(selectedCount()).toBe(2);
 
     dragCard(document.querySelector(".pt-battlefield-cards .pt-card"));
-    expect(screen.getByText("Graveyard (2)")).toBeInTheDocument();
+    expect(screen.getByText(/Graveyard \(2\)/)).toBeInTheDocument();
     expect(selectedCount()).toBe(0); // selection cleared after the move
   });
 

@@ -192,8 +192,16 @@ test("deck list tab customer journey", async ({ page }) => {
 
   // Drag the board card onto the graveyard pile to discard it.
   await dragOnto(page, boardCard.locator(".pt-card"), playtest.locator('[data-drop="graveyard"]'));
-  await expect(playtest.getByText("Graveyard (1)")).toBeVisible();
+  await expect(playtest.getByText(/Graveyard \(1\)/)).toBeVisible();
   await expect(playtest.getByText("Hand (7)")).toBeVisible();
+
+  // View the graveyard in its side panel (legible names, draggable rows), then close.
+  await playtest.getByRole("button", { name: /Graveyard \(1\)/ }).click();
+  const grave = page.getByRole("dialog", { name: "Graveyard" });
+  await expect(grave.getByText(/Viewing Graveyard \(1\)/)).toBeVisible();
+  await expect(grave.locator(".pt-library-row")).toHaveCount(1);
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-9-graveyard-panel.png` });
+  await grave.getByRole("button", { name: "Close", exact: true }).click();
 
   // Keyboard shortcut: D draws a card.
   await page.keyboard.press("d");
