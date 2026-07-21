@@ -39,9 +39,10 @@ export const TOKEN_PRESETS = [
 /** Player-level counters (Moxfield's Counters dropdown). */
 export const PLAYER_COUNTERS = ["Poison", "Energy", "Experience"];
 
-// Card box (px) — kept in sync with .pt-card in App.css.
-export const CARD_W = 92;
-export const CARD_H = 128;
+// Card box (px) — one size across every zone; kept in sync with the
+// --pt-cw / --pt-ch custom properties on .playtest in App.css.
+export const CARD_W = 120;
+export const CARD_H = 168;
 
 /**
  * Auto-placement for cards that land on the battlefield without a drop point
