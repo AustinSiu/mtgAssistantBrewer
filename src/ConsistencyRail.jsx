@@ -14,6 +14,7 @@ function ConsistencyRail({
   lookup,
   duplicateNames,
   divergentCount,
+  unmetTargets = 0,
 }) {
   const total = slots.length;
   const resolvedCard = (name) => lookup?.get(name.trim().toLowerCase())?.card;
@@ -63,6 +64,16 @@ function ConsistencyRail({
         divergentCount === 1
           ? "1 card differs from 33 A"
           : `${divergentCount} cards differ from 33 A`,
+    });
+  }
+  if (unmetTargets) {
+    attention.push({
+      kind: "amber",
+      dot: "●",
+      text:
+        unmetTargets === 1
+          ? "1 role is short of its target"
+          : `${unmetTargets} roles are short of target`,
     });
   }
   const emptyActive = total - filled(activeIdx);

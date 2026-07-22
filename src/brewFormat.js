@@ -1,10 +1,12 @@
 /**
  * Deck Brewer's own export/import format: a tab-separated table that lays the
  * 1–3 sub-decks out side by side so their composition is clear, and carries
- * enough (commander + per-slot tag/note + each sub-deck's card) to reload the
- * whole brew later.
+ * enough (commander + game plan + role targets + per-slot tag/note + each
+ * sub-deck's card) to reload the whole brew later.
  *
  *   Commander: Atraxa, Praetors' Voice
+ *   Plan: Ramp into Atraxa by turn 4, grind value, win with proliferate.
+ *   Targets: Ramp=4	Removal=3	Card Draw=3
  *   #	Tag	Note	33 A	33 B	33 C
  *   1	Ramp	early accel	Sol Ring	Arcane Signet	Mind Stone
  *   2	Removal		Swords to Plowshares	Path to Exile
@@ -14,16 +16,32 @@
 import { CARD_COUNT as SLOT_COUNT, SUB_DECK_NAMES } from "./deckShape";
 
 const cell = (s) => (s ?? "").replace(/\t/g, " ").trim();
+// The plan is one line in the export, so collapse any internal newlines.
+const oneLine = (s) => (s ?? "").replace(/\s+/g, " ").trim();
 
 /**
  * Render the brew as the tab-separated sub-deck table. `subDecks` should be
  * pre-filtered to the sub-decks to include (1–3); `subDeckNames` labels them.
+ * `plan` (string) and `targets` ({ [tag]: count }) are optional.
  */
-export function toBrewFormat({ commander, slots, subDecks, subDeckNames = SUB_DECK_NAMES }) {
+export function toBrewFormat({
+  commander,
+  plan,
+  targets,
+  slots,
+  subDecks,
+  subDeckNames = SUB_DECK_NAMES,
+}) {
   const names = subDeckNames.slice(0, subDecks.length);
   const lines = [];
   const cmdr = (commander ?? "").trim();
   if (cmdr) lines.push(`Commander: ${cmdr}`);
+  const planLine = oneLine(plan);
+  if (planLine) lines.push(`Plan: ${planLine}`);
+  const targetPairs = Object.entries(targets ?? {})
+    .filter(([, n]) => n > 0)
+    .map(([tag, n]) => `${cell(tag)}=${n}`);
+  if (targetPairs.length) lines.push(["Targets:", ...targetPairs].join("\t"));
   lines.push(["#", "Tag", "Note", ...names].join("\t"));
   slots.forEach((slot, i) => {
     lines.push(
@@ -39,20 +57,37 @@ export function toBrewFormat({ commander, slots, subDecks, subDeckNames = SUB_DE
 }
 
 /**
- * Parse the sub-deck table back into { commander, slots, subDecks }. Slots are
- * padded to SLOT_COUNT; each sub-deck's cards to SLOT_COUNT. Throws when the
- * text isn't in this format (import only accepts the sub-deck format).
+ * Parse the sub-deck table back into { commander, plan, targets, slots,
+ * subDecks }. Slots are padded to SLOT_COUNT; each sub-deck's cards to
+ * SLOT_COUNT. Throws when the text isn't in this format (import only accepts
+ * the sub-deck format).
  */
 export function parseBrewFormat(text) {
   const lines = (text ?? "").split(/\r?\n/);
 
   let commander = "";
+  let plan = "";
+  const targets = {};
   let headerIdx = -1;
   let subCount = 0;
   for (let i = 0; i < lines.length; i++) {
     const cmdr = lines[i].match(/^\s*commander:\s*(.+?)\s*$/i);
     if (cmdr) {
       commander = cmdr[1];
+      continue;
+    }
+    const planMatch = lines[i].match(/^\s*plan:\s*(.+?)\s*$/i);
+    if (planMatch) {
+      plan = planMatch[1];
+      continue;
+    }
+    if (/^\s*targets:\t/i.test(lines[i])) {
+      for (const pair of lines[i].split("\t").slice(1)) {
+        const eq = pair.lastIndexOf("=");
+        if (eq < 1) continue;
+        const n = parseInt(pair.slice(eq + 1), 10);
+        if (n > 0) targets[pair.slice(0, eq).trim()] = n;
+      }
       continue;
     }
     const cells = lines[i].split("\t");
@@ -92,5 +127,5 @@ export function parseBrewFormat(text) {
   }
   for (const sd of subDecks) sd.flags = Array(SLOT_COUNT).fill(null);
 
-  return { commander, slots, subDecks };
+  return { commander, plan, targets, slots, subDecks };
 }
