@@ -5,6 +5,10 @@ up to 3 sub-decks of 33 cards built on a shared slot skeleton, so the deck's
 composition (lands : ramp : removal : win conditions : …) stays deliberate
 and consistent.
 
+The methodology this tool supports — its core tenets, process, and how the
+features map to it — is documented in
+[`docs/33-card-strategy.md`](./docs/33-card-strategy.md).
+
 ## Features
 
 ### Deck Brewer
