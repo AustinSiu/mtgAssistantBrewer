@@ -1,14 +1,5 @@
 import { cardColorIdentity } from "./scryfall";
-
-// Color-identity pip colors (design tokens); R isn't in the handoff, so use a
-// muted MTG red. Colorless shows a single grey pip.
-const PIP_COLORS = {
-  W: "#f7f0d8",
-  U: "#4a7fd0",
-  B: "#3a3a3a",
-  R: "#c0564a",
-  G: "#5a9e63",
-};
+import { COLOR_HEX } from "./colors";
 
 function ColorPips({ commanderCard }) {
   if (!commanderCard) return null;
@@ -20,7 +11,7 @@ function ColorPips({ commanderCard }) {
         <span
           key={`${c}-${i}`}
           className="ci-pip"
-          style={{ background: PIP_COLORS[c] ?? "#888" }}
+          style={{ background: COLOR_HEX[c] ?? "#888" }}
         />
       ))}
     </span>

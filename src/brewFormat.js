@@ -11,8 +11,7 @@
  *   …33 rows
  */
 
-export const SUB_DECK_NAMES = ["33 A", "33 B", "33 C"];
-export const SLOT_COUNT = 33;
+import { CARD_COUNT as SLOT_COUNT, SUB_DECK_NAMES } from "./deckShape";
 
 const cell = (s) => (s ?? "").replace(/\t/g, " ").trim();
 
@@ -52,7 +51,7 @@ export function parseBrewFormat(text) {
   let subCount = 0;
   for (let i = 0; i < lines.length; i++) {
     const cmdr = lines[i].match(/^\s*commander:\s*(.+?)\s*$/i);
-    if (cmdr && headerIdx === -1) {
+    if (cmdr) {
       commander = cmdr[1];
       continue;
     }
@@ -86,16 +85,12 @@ export function parseBrewFormat(text) {
     }
   }
 
-  // Pad to a full 33-slot skeleton.
+  // Pad to a full 33-slot skeleton (slots and cards grow in lockstep above).
   while (slots.length < SLOT_COUNT) {
     slots.push({ tag: "", note: "" });
     for (const sd of subDecks) sd.cards.push("");
   }
-  for (const sd of subDecks) {
-    sd.cards = sd.cards.slice(0, SLOT_COUNT);
-    while (sd.cards.length < SLOT_COUNT) sd.cards.push("");
-    sd.flags = Array(SLOT_COUNT).fill(null);
-  }
+  for (const sd of subDecks) sd.flags = Array(SLOT_COUNT).fill(null);
 
   return { commander, slots, subDecks };
 }
