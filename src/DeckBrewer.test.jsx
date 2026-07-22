@@ -412,6 +412,94 @@ describe('DeckBrewer', () => {
     expect(screen.queryByRole('dialog', { name: 'Playtest' })).not.toBeInTheDocument();
   });
 
+  // Fetch routes for a token-making commander (Atraxa's all_parts is fabricated
+  // to exercise the wiring; real all_parts is confirmed against Scryfall). The
+  // `art` flag controls whether the token-art fetch (collection by id) succeeds.
+  function tokenFetch({ art = true } = {}) {
+    const tokenId = 'tok-angel';
+    return [
+      autocompleteRoute,
+      [
+        'cards/named?fuzzy=Atraxa',
+        () =>
+          ok(
+            mockCard("Atraxa, Praetors' Voice", {
+              color_identity: ['W', 'U', 'B', 'G'],
+              all_parts: [{ id: tokenId, component: 'token', name: 'Angel' }],
+            })
+          ),
+      ],
+      [
+        'cards/collection',
+        (url, options) => {
+          const { identifiers } = JSON.parse(options.body);
+          if (identifiers[0]?.id) {
+            // Token art fetched by Scryfall id — may fail (rate limit, etc.).
+            if (!art) return { ok: false, status: 429, json: async () => ({}) };
+            return ok({
+              data: identifiers.map(({ id }) => ({
+                ...mockCard('Angel', { type_line: 'Token Creature — Angel' }),
+                id,
+                image_uris: { normal: 'https://img/angel.png' },
+              })),
+              not_found: [],
+            });
+          }
+          return ok({
+            data: identifiers.map(({ name }) => mockCard(name, { cmc: 1 })),
+            not_found: [],
+          });
+        },
+      ],
+    ];
+  }
+
+  async function openTokenMenu() {
+    fireEvent.click(screen.getByRole('button', { name: '▶ Playtest' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'Playtest setup' })).getByRole(
+        'button',
+        { name: 'Start Playtest' }
+      )
+    );
+    const overlay = screen.getByRole('dialog', { name: 'Playtest' });
+    fireEvent.click(within(overlay).getByRole('button', { name: /Add.*Token/ }));
+    return { overlay, menu: screen.getByRole('dialog', { name: 'Add token' }) };
+  }
+
+  it("lists the commander's tokens (with art) in Playtest, not the presets", async () => {
+    setupFetch(tokenFetch({ art: true }));
+    render(<DeckBrewer />);
+    await enterWorkspace();
+    await pick('33 A card 1', 'sol ring', 'Sol Ring');
+
+    const { overlay, menu } = await openTokenMenu();
+    // The deck's own tokens replace the generic presets, and carry art.
+    const angelBtn = await within(menu).findByRole('button', { name: /Angel/ });
+    expect(within(menu).queryByRole('button', { name: 'Treasure' })).not.toBeInTheDocument();
+    expect(angelBtn.querySelector('img.pt-token-thumb')).toBeTruthy();
+
+    // Creating it puts an image-bearing token on the battlefield.
+    fireEvent.click(angelBtn);
+    expect(
+      within(overlay).getByRole('button', { name: /^Angel/ }).querySelector('img')
+    ).toBeTruthy();
+  });
+
+  it('still lists deck tokens (by name) when the token-art fetch fails', async () => {
+    setupFetch(tokenFetch({ art: false }));
+    render(<DeckBrewer />);
+    await enterWorkspace();
+    await pick('33 A card 1', 'sol ring', 'Sol Ring');
+
+    const { menu } = await openTokenMenu();
+    // The token is sourced from all_parts, so it lists even with no art…
+    const angelBtn = await within(menu).findByRole('button', { name: /Angel/ });
+    expect(within(menu).queryByRole('button', { name: 'Treasure' })).not.toBeInTheDocument();
+    // …just without a thumbnail.
+    expect(angelBtn.querySelector('img.pt-token-thumb')).toBeNull();
+  });
+
   it('exports selected sub-decks to a Moxfield decklist', async () => {
     render(<DeckBrewer />);
     await enterWorkspace();

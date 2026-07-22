@@ -118,8 +118,16 @@ function DeckBrewer() {
   // consistency check. Keyed "lowername|otag" -> boolean.
   const [tagMembership, setTagMembership] = useState(() => new Map());
 
+  // Tokens the deck can make — from the commander (often the token engine) as
+  // well as every resolved sub-deck card.
   const deckTokens = useDeckTokens(
-    [...lookup.values()].map((v) => v.card)
+    useMemo(
+      () => [
+        ...(commanderCard ? [commanderCard] : []),
+        ...[...lookup.values()].map((v) => v.card),
+      ],
+      [commanderCard, lookup]
+    )
   );
 
   const lookupRef = useRef(lookup);
