@@ -90,6 +90,9 @@ function DeckBrewer() {
   const [saved] = useState(loadSaved);
 
   const [commander, setCommander] = useState(saved?.commander ?? "");
+  const [plan, setPlan] = useState(saved?.plan ?? "");
+  // Role targets: category label -> desired slot count (the plan's shape).
+  const [targets, setTargets] = useState(saved?.targets ?? {});
   const [step, setStep] = useState(
     (saved?.commander ?? "").trim() ? "workspace" : "commander"
   );
@@ -128,12 +131,12 @@ function DeckBrewer() {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ commander, slots, subDecks, activeIdx })
+        JSON.stringify({ commander, plan, targets, slots, subDecks, activeIdx })
       );
     } catch {
       // storage full/unavailable: persistence is best-effort
     }
-  }, [commander, slots, subDecks, activeIdx]);
+  }, [commander, plan, targets, slots, subDecks, activeIdx]);
 
   // Resolve the commander to its card (for color identity) whenever it changes.
   useEffect(() => {
@@ -218,6 +221,21 @@ function DeckBrewer() {
     0
   );
   const totalSlots = CARD_COUNT * subDecks.length;
+
+  // Role targets: set/clear a category's desired slot count (0/blank removes it).
+  function setTarget(tag, count) {
+    setTargets((prev) => {
+      const next = { ...prev };
+      if (count > 0) next[tag] = count;
+      else delete next[tag];
+      return next;
+    });
+  }
+
+  // How many role targets the plan (slots carrying that tag) falls short of.
+  const unmetTargets = Object.entries(targets).filter(
+    ([tag, n]) => n > 0 && slots.filter((s) => s.tag.trim() === tag).length < n
+  ).length;
 
   // Resolved cards across every sub-deck (plus the commander) for the stats.
   const statCards = useMemo(
@@ -374,6 +392,8 @@ function DeckBrewer() {
   function clearAll() {
     if (filledCount && !window.confirm("Clear the whole deck?")) return;
     setCommander("");
+    setPlan("");
+    setTargets({});
     setSlots(emptySlots());
     setSubDecks(emptySubDecks());
     setActiveIdx(0);
@@ -391,8 +411,16 @@ function DeckBrewer() {
 
   // Load a brew parsed from the Brewer sub-deck format, replacing the current
   // one and re-resolving card data.
-  function importBrew({ commander: cmdr, slots: newSlots, subDecks: newSubs }) {
+  function importBrew({
+    commander: cmdr,
+    plan: newPlan,
+    targets: newTargets,
+    slots: newSlots,
+    subDecks: newSubs,
+  }) {
     setCommander(cmdr ?? "");
+    setPlan(newPlan ?? "");
+    setTargets(newTargets ?? {});
     setSlots(withSlotIds(newSlots));
     setSubDecks(padSubDecks(newSubs));
     setActiveIdx(0);
@@ -438,6 +466,8 @@ function DeckBrewer() {
           onImport={() => setImportOpen(true)}
           onClear={clearAll}
         />
+
+        <GamePlan plan={plan} onChange={setPlan} />
 
         <div className="ws-body">
           <div className="ws-matrix">
@@ -573,6 +603,7 @@ function DeckBrewer() {
             lookup={lookup}
             duplicateNames={duplicateNames}
             divergentCount={divergentCount}
+            unmetTargets={unmetTargets}
           />
         </div>
       </div>
@@ -583,13 +614,21 @@ function DeckBrewer() {
         </p>
       )}
 
-      <CompositionSummary slots={slots} subDecks={subDecks} lookup={lookup} />
+      <CompositionSummary
+        slots={slots}
+        subDecks={subDecks}
+        lookup={lookup}
+        targets={targets}
+        onSetTarget={setTarget}
+      />
 
       <DeckStats cards={statCards} />
 
       {exportOpen && (
         <ExportModal
           commander={commander}
+          plan={plan}
+          targets={targets}
           slots={slots}
           subDecks={subDecks}
           subDeckNames={SUB_DECK_NAMES}
@@ -717,7 +756,7 @@ function PlaytestSetupModal({
 // Export the selected sub-deck(s) to a Moxfield-importable decklist. Every
 // sub-deck is selected by default (the whole 99-card deck); untick some to
 // export one or a subset of the 33-card sub-decks.
-function ExportModal({ commander, slots, subDecks, subDeckNames, onClose }) {
+function ExportModal({ commander, plan, targets, slots, subDecks, subDeckNames, onClose }) {
   const [selected, setSelected] = useState(() =>
     new Set(subDecks.map((_, si) => si))
   );
@@ -742,6 +781,8 @@ function ExportModal({ commander, slots, subDecks, subDeckNames, onClose }) {
     format === "brew"
       ? toBrewFormat({
           commander: cmdr,
+          plan,
+          targets,
           slots,
           subDecks: selectedIdx.map((si) => subDecks[si]),
           subDeckNames: selectedIdx.map((si) => subDeckNames[si]),
@@ -1042,9 +1083,39 @@ function SuggestionStrip({
   );
 }
 
-function CompositionSummary({ slots, subDecks, lookup }) {
-  // Per tag: how many slots carry it, and how many of those each sub-deck
-  // has filled — equal columns mean consistent composition.
+// A short deck-level thesis — what the deck does across a game. The strategy's
+// first step: plan before cards.
+function GamePlan({ plan, onChange }) {
+  return (
+    <div className="game-plan">
+      <label className="game-plan-label" htmlFor="game-plan-input">
+        Game plan <span className="th-hint">· what this deck does, turn by turn</span>
+      </label>
+      <textarea
+        id="game-plan-input"
+        className="game-plan-input"
+        rows={2}
+        placeholder="e.g. Ramp into the commander by turn 4, grind card advantage, close with evasive damage."
+        value={plan}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+// The role/quantity status for one tag: how the plan's slot count compares to
+// its target. null when no target is set.
+function roleStatus(actual, target) {
+  if (!(target > 0)) return null;
+  if (actual === target) return { cls: "role-met", text: "✓" };
+  if (actual < target) return { cls: "role-short", text: `short ${target - actual}` };
+  return { cls: "role-over", text: `over ${actual - target}` };
+}
+
+function CompositionSummary({ slots, subDecks, lookup, targets, onSetTarget }) {
+  // Per tag: how many slots carry it, and how many of those each sub-deck has
+  // filled — equal columns mean consistent composition. `targets` adds the
+  // plan's desired count per role, so composition becomes a checklist.
   const tagOrder = [];
   const byTag = new Map();
   slots.forEach((slot, i) => {
@@ -1057,24 +1128,36 @@ function CompositionSummary({ slots, subDecks, lookup }) {
     t.slotCount++;
     t.slotIndexes.push(i);
   });
+  // Include roles that have a target but no slots yet — a forward-looking
+  // checklist item still short of its goal.
+  Object.keys(targets).forEach((tag) => {
+    if (!byTag.has(tag)) {
+      byTag.set(tag, { slotCount: 0, slotIndexes: [] });
+      tagOrder.push(tag);
+    }
+  });
 
   const foundCounts = subDecks.map(
     (sd) =>
       sd.cards.filter((c) => lookup.get(c.trim().toLowerCase())?.card).length
   );
 
+  const targetTotal = Object.values(targets).reduce((a, b) => a + b, 0);
+  const addable = TAG_OPTIONS.filter((t) => t !== "Custom" && !(t in targets));
+
   return (
     <div className="detail">
-      <h3>Composition by tag</h3>
+      <h3>Composition &amp; role targets</h3>
       <p className="hint">
-        Cards filled per sub-deck for each tag — matching counts mean the
-        sub-decks stay consistent.
+        Slots per role vs your target — the plan&apos;s shape. Sub-deck columns
+        show cards filled; matching counts mean the sub-decks stay consistent.
       </p>
       <div className="table-wrap">
         <table className="summary-table">
           <thead>
             <tr>
-              <th>Tag</th>
+              <th>Role (tag)</th>
+              <th>Target</th>
               <th>Slots</th>
               {subDecks.map((_, si) => (
                 <th key={si}>{SUB_DECK_NAMES[si]}</th>
@@ -1084,10 +1167,31 @@ function CompositionSummary({ slots, subDecks, lookup }) {
           <tbody>
             {tagOrder.map((label) => {
               const { slotCount, slotIndexes } = byTag.get(label);
+              const untagged = label === "(untagged)";
+              const status = roleStatus(slotCount, targets[label]);
               return (
                 <tr key={label} className="static-row">
                   <td>{label}</td>
-                  <td>{slotCount}</td>
+                  <td className="target-cell">
+                    {untagged ? (
+                      <span className="hint">—</span>
+                    ) : (
+                      <input
+                        type="number"
+                        min="0"
+                        className="target-input"
+                        aria-label={`${label} target`}
+                        value={targets[label] ?? ""}
+                        onChange={(e) =>
+                          onSetTarget(label, parseInt(e.target.value, 10) || 0)
+                        }
+                      />
+                    )}
+                  </td>
+                  <td className={status ? status.cls : ""}>
+                    {slotCount}
+                    {status && <span className="role-flag"> {status.text}</span>}
+                  </td>
                   {subDecks.map((sd, si) => (
                     <td key={si}>
                       {slotIndexes.filter((i) => sd.cards[i].trim()).length}
@@ -1100,6 +1204,11 @@ function CompositionSummary({ slots, subDecks, lookup }) {
               <td>
                 <strong>Found on Scryfall</strong>
               </td>
+              <td className="target-cell">
+                {targetTotal > 0 && (
+                  <span className="hint">{targetTotal}/{CARD_COUNT}</span>
+                )}
+              </td>
               <td>{CARD_COUNT}</td>
               {subDecks.map((sd, si) => (
                 <td key={si}>
@@ -1110,6 +1219,23 @@ function CompositionSummary({ slots, subDecks, lookup }) {
           </tbody>
         </table>
       </div>
+      {addable.length > 0 && (
+        <select
+          className="add-role"
+          aria-label="Add a role target"
+          value=""
+          onChange={(e) => {
+            if (e.target.value) onSetTarget(e.target.value, 1);
+          }}
+        >
+          <option value="">+ Add role target…</option>
+          {addable.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }

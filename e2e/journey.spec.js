@@ -154,6 +154,20 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await stats.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/10-deck-stats.png` });
 
+  // 6c. Plan layer: a deck-level game plan + a role target that reads as a
+  // checklist. Mana Rock has 1 slot; a target of 2 leaves it "short 1".
+  await page
+    .locator("#game-plan-input")
+    .fill("Ramp into Atraxa, then grind proliferate value.");
+  await page.getByLabel("Mana Rock target").fill("2");
+  await expect(page.getByText("short 1")).toBeVisible();
+  await expect(page.getByText(/role is short of its target/)).toBeVisible();
+  const compositionPanel = page
+    .locator(".detail")
+    .filter({ hasText: "Composition & role targets" });
+  await compositionPanel.scrollIntoViewIfNeeded();
+  await compositionPanel.screenshot({ path: `${SCREENSHOT_DIR}/11-role-targets.png` });
+
   // 7. Export — either a flat Moxfield list or the re-importable sub-deck format
   await page.getByRole("button", { name: "Export" }).click();
   const exportDialog = page.getByRole("dialog", { name: "Export deck" });
@@ -166,6 +180,9 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   const brewText = await exportDialog.getByLabel("Brewer sub-deck list").inputValue();
   expect(brewText).toContain("Commander: Atraxa");
   expect(brewText).toContain("33 A\t33 B\t33 C");
+  // The plan + role targets ride along in the sub-deck export.
+  expect(brewText).toContain("Plan: Ramp into Atraxa");
+  expect(brewText).toContain("Mana Rock=2");
   await page.screenshot({ path: `${SCREENSHOT_DIR}/07-export.png` });
   await exportDialog.getByRole("button", { name: "Close" }).click();
 
@@ -177,6 +194,9 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await importDialog.getByLabel("Brew to import").fill(brewText);
   await importDialog.getByRole("button", { name: "Import" }).click();
   await expect(page.getByLabel("33 B card 1", { exact: true })).toHaveValue("Mana Vault");
+  // The plan and role target came back with the brew.
+  await expect(page.locator("#game-plan-input")).toHaveValue(/Ramp into Atraxa/);
+  await expect(page.getByLabel("Mana Rock target")).toHaveValue("2");
 
   // State survives a reload (localStorage reopens straight into the workspace)
   await page.reload();

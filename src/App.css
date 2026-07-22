@@ -3328,3 +3328,116 @@ button.pt-cardback:hover {
     font-size: 0.95rem;
   }
 }
+
+/* ---- Game plan + role targets ---- */
+
+.game-plan {
+  margin: 0.5rem 0 1rem;
+}
+
+.game-plan-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ccc;
+  margin-bottom: 0.35rem;
+}
+
+.game-plan-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+  background: #161616;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.game-plan-input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+/* Role-target column in the composition table */
+.target-cell {
+  white-space: nowrap;
+}
+
+.target-input {
+  width: 3.2rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 5px;
+  border: 1px solid #444;
+  background: #1a1a1a;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.target-input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.role-flag {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.role-met {
+  color: #6ac48a;
+}
+
+.role-short {
+  color: #e0a94a;
+}
+
+.role-over {
+  color: #d98a80;
+}
+
+.add-role {
+  margin-top: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  border: 1px dashed #555;
+  background: transparent;
+  color: #a9b0ff;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.add-role:hover {
+  border-color: #646cff;
+}
+
+@media (prefers-color-scheme: light) {
+  .game-plan-label {
+    color: #333;
+  }
+  .game-plan-input {
+    background: #fff;
+    border-color: #ccc;
+  }
+  .target-input {
+    background: #fff;
+    border-color: #bbb;
+  }
+  .role-met {
+    color: #2e8b57;
+  }
+  .role-short {
+    color: #b7791f;
+  }
+  .role-over {
+    color: #c0564a;
+  }
+  .add-role {
+    color: #4a51d0;
+  }
+}

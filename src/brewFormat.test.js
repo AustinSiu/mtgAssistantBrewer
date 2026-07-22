@@ -34,6 +34,22 @@ describe("toBrewFormat", () => {
     const text = toBrewFormat({ commander: "", slots, subDecks: [sub([])] });
     expect(text.split("\n")[0]).toBe("#\tTag\tNote\t33 A");
   });
+
+  it("emits the plan (one line) and role-target lines when present", () => {
+    const slots = Array.from({ length: SLOT_COUNT }, () => slot());
+    const text = toBrewFormat({
+      commander: "Krenko",
+      plan: "Go wide with\ngoblins, then fling.",
+      targets: { Ramp: 4, Removal: 3, Skip: 0 },
+      slots,
+      subDecks: [sub([])],
+    });
+    const lines = text.split("\n");
+    expect(lines[0]).toBe("Commander: Krenko");
+    expect(lines[1]).toBe("Plan: Go wide with goblins, then fling."); // newline collapsed
+    expect(lines[2]).toBe("Targets:\tRamp=4\tRemoval=3"); // zero target dropped
+    expect(lines[3]).toBe("#\tTag\tNote\t33 A");
+  });
 });
 
 describe("parseBrewFormat", () => {
@@ -59,6 +75,28 @@ describe("parseBrewFormat", () => {
       expect(sd.cards).toHaveLength(SLOT_COUNT);
       expect(sd.flags).toHaveLength(SLOT_COUNT);
     });
+  });
+
+  it("round-trips the plan and role targets", () => {
+    const slots = Array.from({ length: SLOT_COUNT }, () => slot());
+    const text = toBrewFormat({
+      commander: "Krenko",
+      plan: "Go wide, then fling.",
+      targets: { Ramp: 4, "Card Draw": 3 },
+      slots,
+      subDecks: [sub([])],
+    });
+    const parsed = parseBrewFormat(text);
+    expect(parsed.plan).toBe("Go wide, then fling.");
+    expect(parsed.targets).toEqual({ Ramp: 4, "Card Draw": 3 });
+  });
+
+  it("defaults plan and targets when absent", () => {
+    const parsed = parseBrewFormat(
+      ["Commander: Krenko", "#\tTag\tNote\t33 A", "1\tRamp\t\tSol Ring"].join("\n")
+    );
+    expect(parsed.plan).toBe("");
+    expect(parsed.targets).toEqual({});
   });
 
   it("accepts a single sub-deck", () => {

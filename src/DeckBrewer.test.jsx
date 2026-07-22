@@ -143,12 +143,35 @@ describe('DeckBrewer', () => {
       );
     });
 
-    const summary = within(screen.getByText('Composition by tag').closest('.detail'));
-    const rockRow = summary.getByText('Mana Rock').closest('tr');
+    const summary = within(
+      screen.getByText('Composition & role targets').closest('.detail')
+    );
+    const rockRow = summary.getByRole('cell', { name: 'Mana Rock' }).closest('tr');
+    // Tag, Target (empty input), Slots (1), then 33 A / 33 B / 33 C fill counts:
     // 1 slot tagged Mana Rock, filled in 33 A and 33 B, empty in 33 C.
     expect(within(rockRow).getAllByRole('cell').map((c) => c.textContent)).toEqual([
-      'Mana Rock', '1', '1', '1', '0',
+      'Mana Rock', '', '1', '1', '1', '0',
     ]);
+  });
+
+  it('tracks a role target and flags it as short until met', async () => {
+    render(<DeckBrewer />);
+    await enterWorkspace();
+    setTag(1, 'Removal');
+
+    const detail = () =>
+      within(screen.getByText('Composition & role targets').closest('.detail'));
+    const removalRow = () =>
+      detail().getByRole('cell', { name: 'Removal' }).closest('tr');
+    // Set a target of 2 for Removal; only 1 slot carries it → short 1.
+    fireEvent.change(within(removalRow()).getByLabelText('Removal target'), {
+      target: { value: '2' },
+    });
+    expect(within(removalRow()).getByText('short 1')).toBeInTheDocument();
+
+    // A second Removal slot meets the target.
+    setTag(2, 'Removal');
+    expect(within(removalRow()).getByText('✓')).toBeInTheDocument();
   });
 
   it('opens the suggestion strip for the active cell, excludes deck cards, and takes into the active column', async () => {
