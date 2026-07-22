@@ -412,6 +412,50 @@ describe('DeckBrewer', () => {
     expect(textarea.value).toBe('1 Sol Ring');
   });
 
+  it('round-trips a brew through the sub-deck export/import format', async () => {
+    render(<DeckBrewer />);
+    await enterWorkspace();
+    await pick('33 A card 1', 'sol ring', 'Sol Ring');
+    await pick('33 B card 1', 'cultivate', 'Cultivate');
+    setTag(1, 'Ramp');
+
+    // Export in the Brewer sub-deck format and capture the text.
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Brewer sub-decks' }));
+    const exported = screen.getByLabelText('Brewer sub-deck list').value;
+    expect(exported).toContain('Commander: Atraxa');
+    expect(exported).toContain('Ramp');
+    expect(exported).toContain('Sol Ring');
+    expect(exported).toContain('Cultivate');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    // Change something first to prove import overwrote it, then re-import.
+    setTag(1, 'Removal');
+    fireEvent.click(screen.getByRole('button', { name: 'Import' })); // header opens the modal
+    const dialog = screen.getByRole('dialog', { name: 'Import brew' });
+    fireEvent.change(within(dialog).getByLabelText('Brew to import'), {
+      target: { value: exported },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Import' }));
+
+    await screen.findAllByPlaceholderText('Card name…');
+    expect(screen.getByLabelText('33 A card 1')).toHaveValue('Sol Ring');
+    expect(screen.getByLabelText('33 B card 1')).toHaveValue('Cultivate');
+    expect(screen.getByLabelText('Slot 1 tag')).toHaveValue('Ramp');
+  });
+
+  it('rejects a non-sub-deck import with an error', async () => {
+    render(<DeckBrewer />);
+    await enterWorkspace();
+    fireEvent.click(screen.getByRole('button', { name: 'Import' })); // header opens the modal
+    const dialog = screen.getByRole('dialog', { name: 'Import brew' });
+    fireEvent.change(within(dialog).getByLabelText('Brew to import'), {
+      target: { value: '1 Sol Ring\n2 Forest' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Import' }));
+    expect(screen.getByText(/Deck Brewer sub-deck export/)).toBeInTheDocument();
+  });
+
   it('shows an error message when a card resolution request fails', async () => {
     setupFetch([
       autocompleteRoute,

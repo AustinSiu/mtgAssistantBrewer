@@ -39,6 +39,7 @@ function WorkspaceHeader({
   onChangeCommander,
   onPlaytest,
   onExport,
+  onImport,
   onClear,
 }) {
   return (
@@ -69,6 +70,11 @@ function WorkspaceHeader({
         <button type="button" className="ws-secondary" onClick={onExport}>
           Export
         </button>
+        {onImport && (
+          <button type="button" className="ws-secondary" onClick={onImport}>
+            Import
+          </button>
+        )}
         <button type="button" className="ws-secondary" onClick={onChangeCommander}>
           Change commander
         </button>

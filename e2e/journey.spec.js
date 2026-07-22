@@ -146,15 +146,37 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${SCREENSHOT_DIR}/06-consistency.png` });
 
-  // 7. Export to a Moxfield-importable decklist (whole deck or sub-decks)
+  // 6b. Deck stats section: mana curve + per-colour symbol/production breakdown.
+  const stats = page.getByRole("region", { name: "Deck stats" });
+  await expect(stats.getByText("Deck Stats")).toBeVisible();
+  await expect(stats.getByText(/Mana curve/)).toBeVisible();
+  await expect(stats.getByText("White")).toBeVisible();
+  await stats.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/10-deck-stats.png` });
+
+  // 7. Export — either a flat Moxfield list or the re-importable sub-deck format
   await page.getByRole("button", { name: "Export" }).click();
-  const exportDialog = page.getByRole("dialog", { name: "Export to Moxfield" });
+  const exportDialog = page.getByRole("dialog", { name: "Export deck" });
   await expect(exportDialog.getByLabel("Moxfield decklist")).toHaveValue(
     /Commander\n1 Atraxa/
   );
   await expect(exportDialog.getByLabel("Moxfield decklist")).toHaveValue(/Mana Vault/);
+  // Switch to the Brewer sub-deck format (lays sub-decks side by side).
+  await exportDialog.getByRole("radio", { name: "Brewer sub-decks" }).click();
+  const brewText = await exportDialog.getByLabel("Brewer sub-deck list").inputValue();
+  expect(brewText).toContain("Commander: Atraxa");
+  expect(brewText).toContain("33 A\t33 B\t33 C");
   await page.screenshot({ path: `${SCREENSHOT_DIR}/07-export.png` });
   await exportDialog.getByRole("button", { name: "Close" }).click();
+
+  // Re-import that sub-deck export → the brew comes back after a Clear.
+  page.once("dialog", (d) => d.accept()); // confirm the Clear prompt
+  await page.getByRole("button", { name: "Clear" }).click();
+  await page.getByRole("button", { name: /or import a saved brew/ }).click();
+  const importDialog = page.getByRole("dialog", { name: "Import brew" });
+  await importDialog.getByLabel("Brew to import").fill(brewText);
+  await importDialog.getByRole("button", { name: "Import" }).click();
+  await expect(page.getByLabel("33 B card 1", { exact: true })).toHaveValue("Mana Vault");
 
   // State survives a reload (localStorage reopens straight into the workspace)
   await page.reload();
