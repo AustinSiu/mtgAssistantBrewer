@@ -151,11 +151,22 @@ describe("Playtest", () => {
     renderPlaytest();
     fireEvent.click(screen.getByRole("button", { name: /Add Token/ }));
     fireEvent.click(screen.getByRole("button", { name: "Treasure" }));
+    // The menu stays open after creating a token; close it so only the
+    // battlefield token carries the "Treasure" name.
+    fireEvent.click(screen.getByRole("button", { name: /Add Token/ }));
     const token = screen.getByRole("button", { name: "Treasure" }); // battlefield card
     fireEvent.click(screen.getByRole("button", { name: "Actions for Treasure" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Remove token" }));
     expect(screen.queryByRole("button", { name: "Treasure" })).not.toBeInTheDocument();
     expect(token).not.toBeInTheDocument();
+  });
+
+  it("keeps the token menu open after creating a token", () => {
+    renderPlaytest();
+    fireEvent.click(screen.getByRole("button", { name: /Add Token/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Treasure" }));
+    // Still open, so several tokens can be added in a row.
+    expect(screen.getByRole("dialog", { name: "Add token" })).toBeInTheDocument();
   });
 
   it("adds a custom token from the input", () => {
@@ -168,22 +179,26 @@ describe("Playtest", () => {
     expect(screen.getByRole("button", { name: "4/4 Angel" })).toBeInTheDocument();
   });
 
-  it("restricts the token menu to the deck's tokens, with art", () => {
+  it("restricts the token menu to the deck's tokens, shown as name + stats", () => {
     const tokenCard = {
       name: "Goblin",
       type_line: "Token Creature — Goblin",
+      power: "1",
+      toughness: "1",
       image_uris: { normal: "https://cards.scryfall.io/normal/goblin.jpg" },
     };
     renderPlaytest({ tokens: [{ name: "Goblin", card: tokenCard }] });
     fireEvent.click(screen.getByRole("button", { name: /Add Token/ }));
     const menu = screen.getByRole("dialog", { name: "Add token" });
 
-    // The deck's token is listed (with a thumbnail); the generic presets aren't.
-    expect(within(menu).getByRole("button", { name: /Goblin/ })).toBeInTheDocument();
+    // The deck's token is listed as name + P/T; the generic presets aren't; and
+    // the menu is text-only (no thumbnails).
+    expect(within(menu).getByRole("button", { name: "Goblin(1/1)" })).toBeInTheDocument();
     expect(within(menu).queryByRole("button", { name: "Clue" })).not.toBeInTheDocument();
-    expect(menu.querySelector(".pt-token-thumb")).not.toBeNull();
+    expect(menu.querySelector("img")).toBeNull();
 
-    // Creating it puts an image-bearing token on the battlefield (not a proxy).
+    // Creating it still puts an image-bearing token on the battlefield (the
+    // token card's art is used there, not in the menu).
     fireEvent.click(within(menu).getByRole("button", { name: /Goblin/ }));
     const board = document.querySelector(".pt-battlefield-cards .pt-card-wrap");
     expect(board.querySelector(".pt-card img")).not.toBeNull();

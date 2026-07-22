@@ -261,6 +261,8 @@ test("deck brewer playtest lists the commander's tokens with art", async ({ page
             data: identifiers.map(({ id }) => ({
               ...card("Angel", { type_line: "Token Creature — Angel" }),
               id,
+              power: "4",
+              toughness: "4",
               image_uris: {
                 normal:
                   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC",
@@ -286,15 +288,20 @@ test("deck brewer playtest lists the commander's tokens with art", async ({ page
   // One card so the Playtest has a deck to shuffle.
   await pickName(page, "33 A card 1", "sol ring", "Sol Ring");
 
-  // Playtest → Add Token: the commander's Angel token shows (with art), and the
-  // generic presets (Treasure, …) are gone.
+  // Playtest → Add Token: the commander's Angel token shows as name + stats
+  // (4/4), and the generic presets (Treasure, …) are gone.
   await page.getByRole("button", { name: /Playtest/ }).click();
   await page.getByRole("button", { name: "Start Playtest" }).click();
   const overlay = page.getByRole("dialog", { name: "Playtest" });
   await overlay.getByRole("button", { name: /Add.*Token/ }).click();
   const tokenMenu = page.getByRole("dialog", { name: "Add token" });
   await expect(tokenMenu.getByRole("button", { name: /Angel/ })).toBeVisible();
-  await expect(tokenMenu.locator(".pt-token-thumb").first()).toBeVisible();
   await expect(tokenMenu.getByRole("button", { name: "Treasure" })).toHaveCount(0);
+  await expect(tokenMenu.getByText("(4/4)")).toBeVisible(); // name + P/T stats
   await page.screenshot({ path: `${SCREENSHOT_DIR}/12-deck-brewer-tokens.png` });
+
+  // Creating a token leaves the menu open (add several in a row).
+  await tokenMenu.getByRole("button", { name: /Angel/ }).click();
+  await expect(tokenMenu).toBeVisible();
+  await expect(overlay.getByRole("button", { name: "Angel", exact: true })).toBeVisible();
 });

@@ -2642,18 +2642,17 @@ h3 {
   background: #2a2a4a;
 }
 
-/* Deck-token rows carry a small art thumbnail. */
+/* Deck-token rows: token name on the left, its stats (P/T) muted on the right. */
 .pt-token-item {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
-.pt-token-thumb {
-  width: 26px;
-  height: 36px;
-  object-fit: cover;
-  border-radius: 3px;
+.pt-token-pt {
+  color: #8a8a9a;
+  font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 

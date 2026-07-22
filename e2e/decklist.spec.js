@@ -217,19 +217,23 @@ test("deck list tab customer journey", async ({ page }) => {
   await page.keyboard.press("d");
   await expect(playtest.getByText("Hand (8)")).toBeVisible();
 
-  // Add Token lists only the deck's tokens (Sol Ring makes a Treasure), each
-  // with art; creating one puts an image-bearing token on the battlefield.
+  // Add Token lists only the deck's tokens (Sol Ring makes a Treasure), shown
+  // as name (+ stats for creatures) and text-only; creating one puts an
+  // image-bearing token on the battlefield.
   await playtest.getByRole("button", { name: /Add Token/ }).click();
   const tokenMenu = playtest.getByRole("dialog", { name: "Add token" });
   const treasureToken = tokenMenu.getByRole("button", { name: /Treasure/ });
   await expect(treasureToken).toBeVisible();
-  await expect(tokenMenu.locator(".pt-token-thumb").first()).toBeVisible();
+  await expect(tokenMenu.locator("img")).toHaveCount(0); // text-only menu
   await page.screenshot({ path: `${SCREENSHOT_DIR}/decklist-10-deck-tokens.png` });
   const boardBefore = await playtest.locator(".pt-battlefield-cards .pt-card-wrap").count();
   await treasureToken.click();
   await expect(playtest.locator(".pt-battlefield-cards .pt-card-wrap")).toHaveCount(
     boardBefore + 1
   );
+  // The menu stays open until dismissed; close it before continuing.
+  await playtest.getByRole("button", { name: /Add Token/ }).click();
+  await expect(tokenMenu).toBeHidden();
 
   // Drag a fresh hand card onto the field so the board isn't bare.
   await dragOnto(page, playtest.locator(".pt-hand-cards .pt-card").first(), field, {
