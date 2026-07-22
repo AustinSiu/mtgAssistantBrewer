@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import CardNameInput from "./CardNameInput";
 import CommanderPicker from "./CommanderPicker";
 import WorkspaceHeader from "./WorkspaceHeader";
@@ -19,10 +19,9 @@ import { duplicateNonBasics, toMoxfield } from "./decklist";
 import { toBrewFormat, parseBrewFormat } from "./brewFormat";
 import { reorder, remapIndex } from "./reorder";
 import { cardManaCost, cardManaValue, cardPrimaryType } from "./scryfall";
+import { CARD_COUNT, MAX_SUB_DECKS, SUB_DECK_NAMES } from "./deckShape";
 
-export const CARD_COUNT = 33;
-export const MAX_SUB_DECKS = 3;
-const SUB_DECK_NAMES = ["33 A", "33 B", "33 C"];
+export { CARD_COUNT, MAX_SUB_DECKS };
 // Sub-deck accent colors (design tokens: A green, B rust, C violet).
 const ACCENTS = ["#5a9e63", "#c06a55", "#8b7fd4"];
 const STORAGE_KEY = "mtgBrewer.matrix.v1";
@@ -221,14 +220,22 @@ function DeckBrewer() {
   const totalSlots = CARD_COUNT * subDecks.length;
 
   // Resolved cards across every sub-deck (plus the commander) for the stats.
-  const statCards = [
-    ...(commanderCard ? [commanderCard] : []),
-    ...subDecks.flatMap((sd) =>
-      sd.cards
-        .map((n) => lookup.get(n.trim().toLowerCase())?.card)
-        .filter(Boolean)
-    ),
-  ];
+  const statCards = useMemo(
+    () => [
+      ...(commanderCard ? [commanderCard] : []),
+      ...subDecks.flatMap((sd) =>
+        sd.cards
+          .map((n) => lookup.get(n.trim().toLowerCase())?.card)
+          .filter(Boolean)
+      ),
+    ],
+    [commanderCard, subDecks, lookup]
+  );
+
+  // Rendered in both the commander-picker and workspace steps.
+  const importModal = importOpen && (
+    <ImportModal onImport={importBrew} onClose={() => setImportOpen(false)} />
+  );
 
   // Resolve oracle-tag membership for the 33 A consistency check: for every
   // filled cell in a row that has a mapped tag, ask Scryfall (once, cached)
@@ -412,9 +419,7 @@ function DeckBrewer() {
           onLookUp={() => commander.trim() && setStep("workspace")}
           onImport={() => setImportOpen(true)}
         />
-        {importOpen && (
-          <ImportModal onImport={importBrew} onClose={() => setImportOpen(false)} />
-        )}
+        {importModal}
       </>
     );
   }
@@ -592,12 +597,7 @@ function DeckBrewer() {
         />
       )}
 
-      {importOpen && (
-        <ImportModal
-          onImport={importBrew}
-          onClose={() => setImportOpen(false)}
-        />
-      )}
+      {importModal}
 
       {playtestSetupOpen && (
         <PlaytestSetupModal

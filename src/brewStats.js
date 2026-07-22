@@ -1,6 +1,5 @@
 import { cardManaCost, cardManaValue, cardTypeLine } from "./scryfall";
-
-export const COLORS = ["W", "U", "B", "R", "G", "C"];
+import { WUBRGC } from "./colors";
 
 /**
  * Mana-symbol and curve stats for a set of resolved Scryfall cards (nulls
@@ -15,8 +14,8 @@ export const COLORS = ["W", "U", "B", "R", "G", "C"];
  * nothing.
  */
 export function brewStats(cards) {
-  const pips = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
-  const production = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+  const pips = Object.fromEntries(WUBRGC.map((c) => [c, 0]));
+  const production = Object.fromEntries(WUBRGC.map((c) => [c, 0]));
   const curve = Array(8).fill(0);
   let mvSum = 0;
   let nonLand = 0;
@@ -35,8 +34,9 @@ export function brewStats(cards) {
     }
 
     if (!cardTypeLine(card).includes("Land")) {
-      curve[Math.min(7, Math.round(cardManaValue(card)))] += 1;
-      mvSum += cardManaValue(card);
+      const mv = cardManaValue(card);
+      curve[Math.min(7, Math.round(mv))] += 1;
+      mvSum += mv;
       nonLand += 1;
     }
   }

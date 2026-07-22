@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { toBrewFormat, parseBrewFormat, SLOT_COUNT } from "./brewFormat";
+import { toBrewFormat, parseBrewFormat } from "./brewFormat";
+import { CARD_COUNT as SLOT_COUNT } from "./deckShape";
 
 const slot = (tag = "", note = "") => ({ tag, note });
 const sub = (cards) => ({

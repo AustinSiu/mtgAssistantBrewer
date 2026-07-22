@@ -4,6 +4,7 @@ import ManaCost from "./ManaCost";
 import Playtest from "./Playtest";
 import { useDeckTokens } from "./useDeckTokens";
 import { CATEGORY_SUGGESTIONS } from "./brew";
+import { WUBRGC } from "./colors";
 import {
   parseDecklist,
   groupEntries,
@@ -20,7 +21,6 @@ import {
 
 const STORAGE_KEY = "mtgBrewer.decklist.v1";
 const COLLECTION_CHUNK = 75;
-const WUBRG = ["W", "U", "B", "R", "G", "C"];
 
 let nextId = 1;
 const makeId = () => `e${nextId++}`;
@@ -476,7 +476,7 @@ function DeckStats({ stats, groups }) {
           <div className="stat-label">est. value</div>
         </div>
         <div className="stat colors">
-          {WUBRG.filter((c) => stats.colors[c] > 0).map((c) => (
+          {WUBRGC.filter((c) => stats.colors[c] > 0).map((c) => (
             <span key={c} className="color-count">
               <img
                 className="mana-pip"

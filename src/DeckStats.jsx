@@ -1,21 +1,6 @@
-import { brewStats, COLORS } from "./brewStats";
-
-const COLOR_STYLE = {
-  W: "#f7f0d8",
-  U: "#4a7fd0",
-  B: "#5a5a5a",
-  R: "#c0564a",
-  G: "#5a9e63",
-  C: "#9a9a9a",
-};
-const COLOR_NAME = {
-  W: "White",
-  U: "Blue",
-  B: "Black",
-  R: "Red",
-  G: "Green",
-  C: "Colorless",
-};
+import { useMemo } from "react";
+import { brewStats } from "./brewStats";
+import { WUBRGC, COLOR_HEX, COLOR_NAME } from "./colors";
 
 /**
  * Deck-wide stats below the Brewer workspace: the mana-value curve, plus a
@@ -23,7 +8,7 @@ const COLOR_NAME = {
  * cards can produce each colour. `cards` is the resolved Scryfall cards.
  */
 function DeckStats({ cards }) {
-  const s = brewStats(cards);
+  const s = useMemo(() => brewStats(cards), [cards]);
   const maxCurve = Math.max(1, ...s.curve);
   const pct = (n, d) => (d ? Math.round((n / d) * 100) : 0);
 
@@ -57,29 +42,29 @@ function DeckStats({ cards }) {
         <div className="stats-colors">
           <div className="stats-heading">Mana symbols &amp; production</div>
           <div className="color-rows">
-            {COLORS.map((c) => (
-              <div key={c} className="color-row">
-                <span
-                  className="color-dot"
-                  style={{ background: COLOR_STYLE[c] }}
-                  aria-hidden="true"
-                />
-                <span className="color-name">{COLOR_NAME[c]}</span>
-                <span className="color-bar-track">
+            {WUBRGC.map((c) => {
+              const share = c === "C" ? null : pct(s.pips[c], s.totalColorPips);
+              return (
+                <div key={c} className="color-row">
                   <span
-                    className="color-bar-fill"
-                    style={{
-                      width: `${c === "C" ? 0 : pct(s.pips[c], s.totalColorPips)}%`,
-                      background: COLOR_STYLE[c],
-                    }}
+                    className="color-dot"
+                    style={{ background: COLOR_HEX[c] }}
+                    aria-hidden="true"
                   />
-                </span>
-                <span className="color-pct">
-                  {c === "C" ? "—" : `${pct(s.pips[c], s.totalColorPips)}%`}
-                </span>
-                <span className="color-prod">{s.production[c]} produce</span>
-              </div>
-            ))}
+                  <span className="color-name">{COLOR_NAME[c]}</span>
+                  <span className="color-bar-track">
+                    <span
+                      className="color-bar-fill"
+                      style={{ width: `${share ?? 0}%`, background: COLOR_HEX[c] }}
+                    />
+                  </span>
+                  <span className="color-pct">
+                    {share == null ? "—" : `${share}%`}
+                  </span>
+                  <span className="color-prod">{s.production[c]} produce</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
