@@ -2656,25 +2656,6 @@ h3 {
   flex-shrink: 0;
 }
 
-.pt-token-custom {
-  display: flex;
-  gap: 0.35rem;
-  padding: 0.35rem 0.25rem 0.15rem;
-  border-top: 1px solid #333;
-  margin-top: 0.25rem;
-}
-
-.pt-token-custom input {
-  flex: 1;
-  min-width: 0;
-  padding: 0.3rem 0.45rem;
-  border-radius: 6px;
-  border: 1px solid #555;
-  background: #111;
-  color: inherit;
-  font-size: 0.82rem;
-}
-
 .pt-counter-row {
   display: flex;
   align-items: center;

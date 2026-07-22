@@ -258,7 +258,6 @@ function Playtest({
   const [countersOpen, setCountersOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
-  const [customToken, setCustomToken] = useState("");
   const [preview, setPreview] = useState(null); // instance id under the cursor
   const [confirmClose, setConfirmClose] = useState(false);
   const [selected, setSelected] = useState(() => new Set()); // battlefield multi-select
@@ -536,7 +535,6 @@ function Playtest({
     act((g) => addToken(g, trimmed, card));
     // Leave the menu open so several tokens can be added in a row; it closes on
     // the Add Token toggle, Escape, or opening another menu.
-    setCustomToken("");
   }
 
   const activeCounters = PLAYER_COUNTERS.filter((k) => playerCounters[k] > 0);
@@ -665,24 +663,6 @@ function Playtest({
                         {name}
                       </button>
                     ))}
-                <form
-                  className="pt-token-custom"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    makeToken(customToken);
-                  }}
-                >
-                  <input
-                    type="text"
-                    placeholder="Custom token…"
-                    aria-label="Custom token name"
-                    value={customToken}
-                    onChange={(e) => setCustomToken(e.target.value)}
-                  />
-                  <button type="submit" className="pt-btn" disabled={!customToken.trim()}>
-                    Add
-                  </button>
-                </form>
               </div>
             )}
           </div>

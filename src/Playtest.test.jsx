@@ -140,8 +140,8 @@ describe("Playtest", () => {
 
   it("shortcuts are ignored while typing in a field", () => {
     renderPlaytest();
-    fireEvent.click(screen.getByRole("button", { name: /Add Token/ }));
-    const input = screen.getByLabelText("Custom token name");
+    fireEvent.click(screen.getByRole("button", { name: /View Library/ }));
+    const input = screen.getByLabelText("Filter library");
     fireEvent.keyDown(input, { key: "d" });
     fireEvent.keyDown(input, { key: "r" });
     expect(screen.getByText("Hand (7)")).toBeInTheDocument(); // no draw, no restart
@@ -167,16 +167,6 @@ describe("Playtest", () => {
     fireEvent.click(screen.getByRole("button", { name: "Treasure" }));
     // Still open, so several tokens can be added in a row.
     expect(screen.getByRole("dialog", { name: "Add token" })).toBeInTheDocument();
-  });
-
-  it("adds a custom token from the input", () => {
-    renderPlaytest();
-    fireEvent.click(screen.getByRole("button", { name: /Add Token/ }));
-    fireEvent.change(screen.getByLabelText("Custom token name"), {
-      target: { value: "4/4 Angel" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    expect(screen.getByRole("button", { name: "4/4 Angel" })).toBeInTheDocument();
   });
 
   it("restricts the token menu to the deck's tokens, shown as name + stats", () => {
