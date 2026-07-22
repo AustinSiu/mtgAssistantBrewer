@@ -31,6 +31,13 @@ const DRAG_THRESHOLD = 5; // px of travel before a press becomes a drag
 const snap = (v) => Math.round(v / GRID) * GRID;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+// A creature token's power/toughness (e.g. "4/4", "*/*") for the Add Token
+// menu; null for non-creature tokens or when the token card hasn't resolved.
+const tokenPT = (card) =>
+  card?.power != null && card?.toughness != null
+    ? `${card.power}/${card.toughness}`
+    : null;
+
 // Default hit-test: the drop zone under a screen point, or null. Component
 // tests inject a stub instead (jsdom has no layout).
 const domResolveDropTarget = (x, y) =>
@@ -251,7 +258,6 @@ function Playtest({
   const [countersOpen, setCountersOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
-  const [customToken, setCustomToken] = useState("");
   const [preview, setPreview] = useState(null); // instance id under the cursor
   const [confirmClose, setConfirmClose] = useState(false);
   const [selected, setSelected] = useState(() => new Set()); // battlefield multi-select
@@ -527,8 +533,8 @@ function Playtest({
     const trimmed = name.trim();
     if (!trimmed) return;
     act((g) => addToken(g, trimmed, card));
-    setTokenOpen(false);
-    setCustomToken("");
+    // Leave the menu open so several tokens can be added in a row; it closes on
+    // the Add Token toggle, Escape, or opening another menu.
   }
 
   const activeCounters = PLAYER_COUNTERS.filter((k) => playerCounters[k] > 0);
@@ -634,7 +640,7 @@ function Playtest({
               <div className="pt-popover" role="dialog" aria-label="Add token">
                 {tokens.length > 0
                   ? tokens.map(({ name, card }, i) => {
-                      const img = card ? cardImageUrl(card) : null;
+                      const pt = tokenPT(card);
                       return (
                         <button
                           key={`${name}-${i}`}
@@ -642,8 +648,8 @@ function Playtest({
                           className="pt-popover-item pt-token-item"
                           onClick={() => makeToken(name, card)}
                         >
-                          {img && <img src={img} alt="" className="pt-token-thumb" />}
-                          <span>{name}</span>
+                          <span className="pt-token-name">{name}</span>
+                          {pt && <span className="pt-token-pt">({pt})</span>}
                         </button>
                       );
                     })
@@ -657,24 +663,6 @@ function Playtest({
                         {name}
                       </button>
                     ))}
-                <form
-                  className="pt-token-custom"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    makeToken(customToken);
-                  }}
-                >
-                  <input
-                    type="text"
-                    placeholder="Custom token…"
-                    aria-label="Custom token name"
-                    value={customToken}
-                    onChange={(e) => setCustomToken(e.target.value)}
-                  />
-                  <button type="submit" className="pt-btn" disabled={!customToken.trim()}>
-                    Add
-                  </button>
-                </form>
               </div>
             )}
           </div>

@@ -229,3 +229,79 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await page.getByRole("button", { name: "Open the Deck Brewer" }).click();
   await expect(page.getByText("Composition matrix")).toBeVisible();
 });
+
+// The Add Token menu should list the tokens the deck's cards can make —
+// including the commander's — each with art, instead of the generic presets.
+test("deck brewer playtest lists the commander's tokens with art", async ({ page }) => {
+  test.skip(!!process.env.SCRYFALL_LIVE, "uses fabricated all_parts");
+  const tokenId = "tok-angel";
+  await page.route("https://api.scryfall.com/**", async (route) => {
+    const url = decodeURIComponent(route.request().url());
+    if (url.includes("/cards/autocomplete")) {
+      return route.fulfill({ json: { data: catalogMatches(url.split("q=")[1]) } });
+    }
+    if (url.includes("fuzzy=Atraxa")) {
+      return route.fulfill({
+        json: card("Atraxa, Praetors' Voice", {
+          mana_cost: "{G}{W}{U}{B}",
+          type_line: "Legendary Creature — Phyrexian Angel Horror",
+          cmc: 4,
+          color_identity: ["W", "U", "B", "G"],
+          // Atraxa doesn't really make tokens; fabricated to exercise the flow.
+          all_parts: [{ id: tokenId, component: "token", name: "Angel" }],
+        }),
+      });
+    }
+    if (url.includes("/cards/collection")) {
+      const { identifiers } = route.request().postDataJSON();
+      if (identifiers[0]?.id) {
+        // Token art fetched by Scryfall id (a tiny inline PNG so it loads offline).
+        return route.fulfill({
+          json: {
+            data: identifiers.map(({ id }) => ({
+              ...card("Angel", { type_line: "Token Creature — Angel" }),
+              id,
+              power: "4",
+              toughness: "4",
+              image_uris: {
+                normal:
+                  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC",
+              },
+            })),
+            not_found: [],
+          },
+        });
+      }
+      return route.fulfill({
+        json: { data: identifiers.map(({ name }) => card(name, { cmc: 1 })), not_found: [] },
+      });
+    }
+    return route.fulfill({ status: 404, json: {} });
+  });
+
+  await page.goto("/");
+  await page.fill('input[aria-label="Commander"]', "atraxa");
+  await page.getByRole("option", { name: "Atraxa, Praetors' Voice" }).click();
+  await page.getByRole("button", { name: /Look Up Cards/ }).click();
+  await expect(page.getByText("Composition matrix")).toBeVisible();
+
+  // One card so the Playtest has a deck to shuffle.
+  await pickName(page, "33 A card 1", "sol ring", "Sol Ring");
+
+  // Playtest → Add Token: the commander's Angel token shows as name + stats
+  // (4/4), and the generic presets (Treasure, …) are gone.
+  await page.getByRole("button", { name: /Playtest/ }).click();
+  await page.getByRole("button", { name: "Start Playtest" }).click();
+  const overlay = page.getByRole("dialog", { name: "Playtest" });
+  await overlay.getByRole("button", { name: /Add.*Token/ }).click();
+  const tokenMenu = page.getByRole("dialog", { name: "Add token" });
+  await expect(tokenMenu.getByRole("button", { name: /Angel/ })).toBeVisible();
+  await expect(tokenMenu.getByRole("button", { name: "Treasure" })).toHaveCount(0);
+  await expect(tokenMenu.getByText("(4/4)")).toBeVisible(); // name + P/T stats
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/12-deck-brewer-tokens.png` });
+
+  // Creating a token leaves the menu open (add several in a row).
+  await tokenMenu.getByRole("button", { name: /Angel/ }).click();
+  await expect(tokenMenu).toBeVisible();
+  await expect(overlay.getByRole("button", { name: "Angel", exact: true })).toBeVisible();
+});
