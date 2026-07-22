@@ -194,4 +194,18 @@ test("deck brewer matrix customer journey", async ({ page }) => {
   await expect(page.locator(".headline-value")).toHaveText("58.8%");
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${SCREENSHOT_DIR}/08-hypergeometric.png`, fullPage: true });
+
+  // 9. Strategy tab: the in-app deck-building philosophy that guides the tool.
+  await page.click('button:has-text("Strategy")');
+  await expect(
+    page.getByRole("heading", { name: /33-Card Deck-Building Strategy/ })
+  ).toBeVisible();
+  await expect(page.getByText("3 × 33 cards")).toBeVisible();
+  await expect(page.getByText("The seven tenets")).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/09-strategy.png`, fullPage: true });
+
+  // A "jump to" button hands the reader off to the matching tab.
+  await page.getByRole("button", { name: "Open the Deck Brewer" }).click();
+  await expect(page.getByText("Composition matrix")).toBeVisible();
 });

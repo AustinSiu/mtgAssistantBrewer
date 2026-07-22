@@ -3064,3 +3064,267 @@ button.pt-cardback:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- Guide / Strategy tab ---- */
+
+.guide {
+  max-width: 860px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+
+.guide-hero {
+  text-align: center;
+  padding: 0.5rem 0 1.5rem;
+  border-bottom: 1px solid #333;
+  margin-bottom: 2rem;
+}
+
+.guide-hero .subtitle {
+  max-width: 44rem;
+  margin: 0.25rem auto 1.25rem;
+}
+
+.guide-eq {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid #3a3a55;
+  border-radius: 10px;
+  background: #171728;
+  font-size: 1.05rem;
+}
+
+.guide-eq-part {
+  font-weight: 600;
+}
+
+.guide-eq-op {
+  color: #888;
+}
+
+.guide-eq-total {
+  color: #fff;
+  background: #646cff;
+  border-radius: 6px;
+  padding: 0.1rem 0.6rem;
+}
+
+.guide-lede {
+  max-width: 42rem;
+  margin: 1.25rem auto 0;
+  color: #bbb;
+}
+
+.guide-section {
+  margin-bottom: 2.5rem;
+}
+
+.guide-section > h2 {
+  margin-top: 0;
+}
+
+.guide-note {
+  color: #999;
+  margin: 0.25rem 0 1.1rem;
+  max-width: 46rem;
+}
+
+/* Card grids */
+.guide-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.guide-cards-3 {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.guide-card {
+  border: 1px solid #333;
+  border-radius: 10px;
+  background: #1a1a1a;
+  padding: 1rem 1.1rem;
+}
+
+.guide-card h3 {
+  margin: 0 0 0.35rem;
+  color: #cbd0ff;
+}
+
+.guide-card p {
+  margin: 0 0 0.75rem;
+  color: #bbb;
+  font-size: 0.92rem;
+}
+
+.guide-card p:last-of-type {
+  margin-bottom: 0;
+}
+
+/* Numbered tenets / steps */
+.guide-tenets,
+.guide-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.guide-tenet,
+.guide-step {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: 0.9rem;
+  align-items: start;
+  border: 1px solid #2c2c2c;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  background: #161616;
+}
+
+.guide-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: #646cff;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.guide-tenet h3,
+.guide-step h3 {
+  margin: 0 0 0.2rem;
+}
+
+.guide-tenet p,
+.guide-step p {
+  margin: 0;
+  color: #aaa;
+  font-size: 0.92rem;
+}
+
+.guide-jump,
+.guide-cta {
+  margin-top: 0.6rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #646cff;
+  background: transparent;
+  color: #a9b0ff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.guide-jump:hover,
+.guide-cta:hover {
+  background: #646cff;
+  color: #fff;
+}
+
+.guide-cta {
+  font-weight: 600;
+}
+
+/* Role checklist */
+.guide-roles {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.5rem;
+}
+
+.guide-role {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid #2c2c2c;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  background: #161616;
+}
+
+.guide-role-count {
+  min-width: 2.6rem;
+  text-align: center;
+  font-weight: 700;
+  color: #cbd0ff;
+  background: #23233a;
+  border-radius: 6px;
+  padding: 0.15rem 0.3rem;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.guide-role-name {
+  font-size: 0.92rem;
+}
+
+.guide-footer {
+  border-top: 1px solid #333;
+  padding-top: 1rem;
+  color: #888;
+  font-size: 0.88rem;
+}
+
+.guide-footer a {
+  color: #a9b0ff;
+}
+
+@media (prefers-color-scheme: light) {
+  .guide-eq {
+    background: #eef0ff;
+    border-color: #c7cbf0;
+  }
+  .guide-lede {
+    color: #444;
+  }
+  .guide-note {
+    color: #666;
+  }
+  .guide-card,
+  .guide-tenet,
+  .guide-step,
+  .guide-role {
+    background: #fafafa;
+    border-color: #ddd;
+  }
+  .guide-card h3 {
+    color: #3a3f9e;
+  }
+  .guide-card p,
+  .guide-tenet p,
+  .guide-step p {
+    color: #555;
+  }
+  .guide-role-count {
+    color: #3a3f9e;
+    background: #e7e9ff;
+  }
+  .guide-cta,
+  .guide-jump {
+    color: #4a51d0;
+  }
+  .guide-footer a,
+  .guide-card h3 {
+    color: #4a51d0;
+  }
+}
+
+@media (max-width: 640px) {
+  .guide-eq {
+    font-size: 0.95rem;
+  }
+}
