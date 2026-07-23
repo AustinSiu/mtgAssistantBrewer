@@ -139,6 +139,7 @@ function App() {
 
 function DrawDetail({ step }) {
   const { label, cardsSeen, ev, probs } = step;
+  if (!probs || !probs.length) return null;
   const maxProb = Math.max(...probs);
 
   return (
