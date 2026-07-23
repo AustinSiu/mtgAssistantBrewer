@@ -43,6 +43,10 @@ reliability, not for a globally "correct" list.
 
 ## Before you start
 
+- **Start from current code.** Never branch off local `main` — `git fetch` moves
+  `origin/main`, not your local `main`, so local `main` is often stale. Fetch, then
+  branch off the remote tip: `git fetch origin && git switch -c <branch> origin/main`
+  (equivalently `git checkout -B <branch> origin/main`).
 - **Check for existing work.** Look at open PRs and branches for the issue before
   opening a new one — don't ship a second PR for a problem another PR already
   addresses. One issue → one branch/PR.
