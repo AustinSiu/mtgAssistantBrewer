@@ -1,0 +1,4 @@
+# Cloudflare Pages SPA fallback: serve index.html for any path (200, not a
+# redirect) so deep links / refreshes render the app instead of 404ing.
+# Ignored by GitHub Pages (which uses dist/404.html), harmless there.
+/*    /index.html    200

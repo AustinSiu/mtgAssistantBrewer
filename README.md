@@ -55,6 +55,17 @@ npm install
 npm run dev
 ```
 
+## Deployment & PR previews
+
+- **Production:** GitHub Pages, built by `.github/workflows/deploy-pages.yml` on
+  push to `main`. It's served under `/mtgAssistantBrewer/`, so that build uses
+  `--base=/mtgAssistantBrewer/`.
+- **Per-PR previews:** Cloudflare Pages builds every pull request to its own URL
+  for interactive review (real browser, real Scryfall) before merge. Dashboard
+  settings — build command `npm run build` (default root base), output directory
+  `dist`, production branch `main`; Node pinned via `.nvmrc`. The SPA fallback
+  lives in `public/_redirects` (ignored by GitHub Pages).
+
 ## Tests
 
 ```
