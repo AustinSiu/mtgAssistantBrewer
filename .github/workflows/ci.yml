@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+    # `labeled`/`unlabeled` so applying the no-test-needed opt-out re-runs the gate.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  # The "verify before every PR" suite (CLAUDE.md). A test-presence gate only
+  # means something if the tests actually run here.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx vitest run
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+
+  # A code change under src/ must come with a test change — the regression test
+  # that proves a bug fix addresses a real path (CLAUDE.md → "Diagnosing bugs").
+  # Opt out of a legitimate no-behavior change with the `no-test-needed` label.
+  require-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Require a test change when src/ changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          if echo "$LABELS" | grep -q '"no-test-needed"'; then
+            echo "Opt-out: 'no-test-needed' label present — skipping the gate."
+            exit 0
+          fi
+          changed=$(git diff --name-only "$BASE_SHA...HEAD")
+          echo "Changed files:"; echo "$changed"; echo
+          src=$(echo "$changed" | grep -E '^src/.*\.(js|jsx)$' | grep -vE '\.test\.(js|jsx)$' || true)
+          tests=$(echo "$changed" | grep -E '\.test\.(js|jsx)$|^e2e/.*\.spec\.js$' || true)
+          if [ -n "$src" ] && [ -z "$tests" ]; then
+            echo "::error::Source under src/ changed, but no test (*.test.* or e2e/*.spec.js) was added or modified."
+            echo "Add a regression test that fails without your change (see CLAUDE.md -> 'Diagnosing bugs')."
+            echo "For a genuine no-behavior change (pure refactor, config), add the 'no-test-needed' label to this PR."
+            exit 1
+          fi
+          echo "OK: source changes are accompanied by a test change (or no src/ code changed)."

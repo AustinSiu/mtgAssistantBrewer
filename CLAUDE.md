@@ -71,3 +71,8 @@ fix merged. Before claiming you've found the cause:
 - **Separate cause from symptom.** Resilience (error boundaries, guards, retries)
   is a different claim than a root-cause fix, with a different evidence bar. Keep
   them in different PRs.
+
+CI enforces this: `.github/workflows/ci.yml` runs the verify suite and **fails a
+PR that changes `src/*.{js,jsx}` without also changing a test**. For a genuine
+no-behavior change (pure refactor, config), add the `no-test-needed` label to
+opt out.
