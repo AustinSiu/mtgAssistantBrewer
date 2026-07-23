@@ -125,7 +125,6 @@ export function parseBrewFormat(text) {
     slots.push({ tag: "", note: "" });
     for (const sd of subDecks) sd.cards.push("");
   }
-  for (const sd of subDecks) sd.flags = Array(SLOT_COUNT).fill(null);
 
   return { commander, plan, targets, slots, subDecks };
 }

@@ -383,6 +383,29 @@ describe('DeckBrewer', () => {
     expect(screen.getByLabelText('Slot 2 tag')).toHaveValue('Ramp');
   });
 
+  it('restores the matrix after a row reorder without crashing (regression)', async () => {
+    const { unmount } = render(<DeckBrewer />);
+    await enterWorkspace();
+    await pick('33 A card 1', 'sol ring', 'Sol Ring');
+    setTag(1, 'Mana Rock');
+    setTag(2, 'Removal');
+
+    // Reorder rows, which persists the sub-decks. This used to drop a field
+    // that made the next load throw on a spread of undefined.
+    const handle1 = screen.getByLabelText('Reorder row 1');
+    const row2 = screen.getByLabelText('Reorder row 2').closest('tr');
+    fireEvent.dragStart(handle1);
+    fireEvent.dragOver(row2);
+    fireEvent.dragEnd(handle1);
+    unmount();
+
+    // Remount (a page refresh) restores cleanly, with the reorder intact.
+    render(<DeckBrewer />);
+    expect(await screen.findByText("Atraxa, Praetors' Voice")).toBeInTheDocument();
+    expect(screen.getByLabelText('Slot 1 tag')).toHaveValue('Removal');
+    expect(screen.getByLabelText('33 A card 2')).toHaveValue('Sol Ring');
+  });
+
   it('opens the Playtest setup, gates on cards, and starts the simulator', async () => {
     render(<DeckBrewer />);
     await enterWorkspace();
@@ -553,7 +576,7 @@ describe('DeckBrewer', () => {
     expect(screen.getByLabelText('33 A card 1')).toHaveValue('Sol Ring');
     expect(screen.getByLabelText('33 B card 1')).toHaveValue('Cultivate');
     expect(screen.getByLabelText('Slot 1 tag')).toHaveValue('Ramp');
-  });
+  }, 15000); // export→import drives several card-resolution fetches; keep it off the 5s edge
 
   it('rejects a non-sub-deck import with an error', async () => {
     render(<DeckBrewer />);

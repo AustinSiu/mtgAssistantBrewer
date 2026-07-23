@@ -42,10 +42,7 @@ const emptySlots = () =>
     tag: "",
   }));
 
-const emptySubDeck = () => ({
-  cards: Array(CARD_COUNT).fill(""),
-  flags: Array(CARD_COUNT).fill(null),
-});
+const emptySubDeck = () => ({ cards: Array(CARD_COUNT).fill("") });
 
 const emptySubDecks = () =>
   Array.from({ length: MAX_SUB_DECKS }, emptySubDeck);
@@ -59,11 +56,21 @@ function withSlotIds(slots) {
   }));
 }
 
-/** Normalize saved sub-decks to exactly MAX_SUB_DECKS columns. */
+/** A sub-deck's cards as exactly CARD_COUNT strings, tolerating short/absent
+ * saved data (older saves, or a mid-reorder write). */
+function normalizeCards(cards) {
+  const next = Array.isArray(cards) ? cards.slice(0, CARD_COUNT) : [];
+  while (next.length < CARD_COUNT) next.push("");
+  return next;
+}
+
+/** Normalize saved sub-decks to exactly MAX_SUB_DECKS columns, each a full
+ * CARD_COUNT-length card array. Defensive so a malformed/partial save can't
+ * crash the load. */
 function padSubDecks(subDecks) {
-  const next = subDecks
+  const next = (Array.isArray(subDecks) ? subDecks : [])
     .slice(0, MAX_SUB_DECKS)
-    .map((sd) => ({ cards: [...sd.cards], flags: [...sd.flags] }));
+    .map((sd) => ({ cards: normalizeCards(sd?.cards) }));
   while (next.length < MAX_SUB_DECKS) next.push(emptySubDeck());
   return next;
 }

@@ -73,7 +73,6 @@ describe("parseBrewFormat", () => {
     expect(parsed.subDecks[2].cards.slice(0, 2)).toEqual(["Mind Stone", "Beast Within"]);
     parsed.subDecks.forEach((sd) => {
       expect(sd.cards).toHaveLength(SLOT_COUNT);
-      expect(sd.flags).toHaveLength(SLOT_COUNT);
     });
   });
 
