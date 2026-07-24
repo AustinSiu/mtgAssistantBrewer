@@ -112,4 +112,42 @@ describe("parseBrewFormat", () => {
     expect(() => parseBrewFormat("1 Sol Ring\n2 Forest")).toThrow(/Deck Brewer/);
     expect(() => parseBrewFormat("")).toThrow();
   });
+
+  it("recovers a percent-encoded paste (mobile clipboards escape tabs/newlines)", () => {
+    const slots = [slot("Anthem")];
+    while (slots.length < SLOT_COUNT) slots.push(slot());
+    const subDecks = [
+      sub(["Sylvan Anthem"]),
+      sub(["Bad Moon"]),
+      sub(["Comforting Counsel"]),
+    ];
+    const text = toBrewFormat({
+      commander: "Lathril, Blade of the Elves",
+      slots,
+      subDecks,
+    });
+    // Some phone clipboards paste the export with every tab (%09) and newline
+    // (%0A) percent-encoded — the exact shape the user reported.
+    const encoded = encodeURIComponent(text);
+    expect(encoded).not.toContain("\t"); // precondition: no literal tabs survive
+
+    const parsed = parseBrewFormat(encoded);
+    expect(parsed.commander).toBe("Lathril, Blade of the Elves");
+    expect(parsed.slots[0]).toEqual({ tag: "Anthem", note: "" });
+    expect(parsed.subDecks).toHaveLength(3);
+    expect(parsed.subDecks[0].cards[0]).toBe("Sylvan Anthem");
+    expect(parsed.subDecks[1].cards[0]).toBe("Bad Moon");
+    expect(parsed.subDecks[2].cards[0]).toBe("Comforting Counsel");
+  });
+
+  it("leaves an un-encoded card name containing '%' untouched", () => {
+    // A real paste can legitimately contain a '%'. Decoding must not corrupt it
+    // when the text is already tab-structured.
+    const parsed = parseBrewFormat(
+      ["Commander: Krenko", "#\tTag\tNote\t33 A", "1\tRamp\t\t100% Foil %20"].join(
+        "\n"
+      )
+    );
+    expect(parsed.subDecks[0].cards[0]).toBe("100% Foil %20");
+  });
 });

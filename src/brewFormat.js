@@ -57,13 +57,33 @@ export function toBrewFormat({
 }
 
 /**
+ * Some mobile clipboards percent-encode the tabs and newlines that hold this
+ * format together, so a clean export pasted on a phone arrives as
+ * "commander:%20Lathril%0A%23%09Tag…" — every structural tab (%09) and newline
+ * (%0A) escaped, which parseBrewFormat then can't recognise. If the text
+ * carries no literal tab but looks percent-encoded, decode it and keep the
+ * result only when it actually recovers the tab-separated structure; a genuine
+ * paste that merely happens to contain a "%" is left untouched.
+ */
+function decodePastedText(text) {
+  const raw = text ?? "";
+  if (raw.includes("\t") || !/%09|%0A/i.test(raw)) return raw;
+  try {
+    const decoded = decodeURIComponent(raw);
+    return decoded.includes("\t") ? decoded : raw;
+  } catch {
+    return raw; // malformed % sequence — leave the original for the normal error
+  }
+}
+
+/**
  * Parse the sub-deck table back into { commander, plan, targets, slots,
  * subDecks }. Slots are padded to SLOT_COUNT; each sub-deck's cards to
  * SLOT_COUNT. Throws when the text isn't in this format (import only accepts
  * the sub-deck format).
  */
 export function parseBrewFormat(text) {
-  const lines = (text ?? "").split(/\r?\n/);
+  const lines = decodePastedText(text).split(/\r?\n/);
 
   let commander = "";
   let plan = "";
