@@ -18,6 +18,7 @@
   --panel: #1a1a1a;
   --border: #555;
   --accent: #646cff;
+  --accent-rgb: 100, 108, 255; /* base accent as channels, for rgba() tints */
   --text-muted: #888;
   --danger: #ff8a8a;
   --warning: #e8a33d;
@@ -94,12 +95,12 @@
 }
 
 .tab:hover {
-  border-color: #646cff;
+  border-color: var(--accent);
 }
 
 .tab.active {
-  background: #646cff;
-  border-color: #646cff;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 
@@ -177,12 +178,12 @@ h3 {
 }
 
 .preset:hover {
-  border-color: #646cff;
+  border-color: var(--accent);
 }
 
 .preset.active {
-  background: #646cff;
-  border-color: #646cff;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 
@@ -327,11 +328,11 @@ h3 {
 }
 
 .sub-name:hover {
-  color: #646cff;
+  color: var(--accent);
 }
 
 .badge-active {
-  background: #646cff;
+  background: var(--accent);
   color: #fff;
   border-radius: 999px;
   padding: 0.05rem 0.5rem;
@@ -387,7 +388,7 @@ h3 {
 }
 
 .cell-td.active {
-  background: rgba(100, 108, 255, 0.08);
+  background: rgba(var(--accent-rgb), 0.08);
 }
 
 .cell-td.flagged input {
@@ -420,7 +421,7 @@ h3 {
 }
 
 .suggest-btn:hover {
-  border-color: #646cff;
+  border-color: var(--accent);
 }
 
 .cell-note {
@@ -500,7 +501,7 @@ h3 {
 }
 
 .take {
-  border: 1px solid #646cff;
+  border: 1px solid var(--accent);
   color: #8b92ff;
   background: transparent;
   border-radius: 5px;
@@ -511,7 +512,7 @@ h3 {
 }
 
 .take:hover {
-  background: #646cff;
+  background: var(--accent);
   color: #fff;
 }
 
@@ -638,8 +639,8 @@ h3 {
 .submit {
   padding: 0.5rem 1.25rem;
   border-radius: 6px;
-  border: 1px solid #646cff;
-  background: #646cff;
+  border: 1px solid var(--accent);
+  background: var(--accent);
   color: #fff;
   cursor: pointer;
   font-size: 0.95rem;
@@ -727,7 +728,7 @@ h3 {
 
 .bar {
   height: 16px;
-  background: #646cff;
+  background: var(--accent);
   border-radius: 3px;
   min-width: 1px;
   transition: width 0.2s;
@@ -821,8 +822,8 @@ h3 {
 }
 
 .group-toggle .toggle.on {
-  background: #646cff;
-  border-color: #646cff;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 
@@ -1083,7 +1084,7 @@ h3 {
 
 .curve-bar {
   width: 60%;
-  background: #646cff;
+  background: var(--accent);
   border-radius: 3px 3px 0 0;
   min-height: 2px;
 }
@@ -1125,8 +1126,8 @@ h3 {
   }
 
   .group-toggle .toggle.on {
-    background: #646cff;
-    border-color: #646cff;
+    background: var(--accent);
+    border-color: var(--accent);
     color: #fff;
   }
 
@@ -1175,8 +1176,8 @@ h3 {
   }
 
   .tab.active {
-    background: #646cff;
-    border-color: #646cff;
+    background: var(--accent);
+    border-color: var(--accent);
     color: #fff;
   }
 
@@ -1223,7 +1224,7 @@ h3 {
   }
 
   .cell-td.active {
-    background: rgba(100, 108, 255, 0.07);
+    background: rgba(var(--accent-rgb), 0.07);
   }
 
   .cell-td.flagged input {
@@ -1285,8 +1286,8 @@ h3 {
   }
 
   .preset.active {
-    background: #646cff;
-    border-color: #646cff;
+    background: var(--accent);
+    border-color: var(--accent);
     color: #fff;
   }
 
@@ -1369,7 +1370,7 @@ h3 {
   margin: 0 0 24px;
   padding: 12px 14px;
   border: 1px solid #2f2f38;
-  border-left: 3px solid #646cff;
+  border-left: 3px solid var(--accent);
   border-radius: 8px;
   background: #16161e;
   display: flex;
@@ -1503,7 +1504,7 @@ h3 {
 }
 
 .ws-secondary:hover {
-  border-color: #646cff;
+  border-color: var(--accent);
 }
 
 .ws-clear {
@@ -1605,7 +1606,7 @@ h3 {
 /* The row being dragged shifts live through the list; tint it so it reads
    as the one in motion. */
 .brew-workspace tr.dragging > td {
-  background: rgba(100, 108, 255, 0.14);
+  background: rgba(var(--accent-rgb), 0.14);
 }
 
 .brew-workspace tr.active-row > td {
@@ -1613,7 +1614,7 @@ h3 {
 }
 
 .brew-workspace tr.active-row {
-  outline: 2px solid #646cff;
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
@@ -1671,7 +1672,7 @@ h3 {
 }
 
 .brew-workspace .cell-td.active {
-  background: rgba(100, 108, 255, 0.08);
+  background: rgba(var(--accent-rgb), 0.08);
 }
 
 .brew-workspace .cell-td.active input {
@@ -1744,7 +1745,7 @@ h3 {
   background: #16161e;
   padding: 0.6rem 0.8rem;
   border-radius: 8px;
-  border-left: 2px solid #646cff;
+  border-left: 2px solid var(--accent);
   margin: 0.2rem 0 0.5rem;
   display: block;
 }
@@ -1848,7 +1849,7 @@ h3 {
 }
 
 .fill-active {
-  color: #646cff;
+  color: var(--accent);
 }
 
 .fill-count {
@@ -2015,7 +2016,7 @@ h3 {
   padding: 0.85rem 1rem;
   border: 1px solid #3a3a52;
   border-radius: 8px;
-  background: rgba(100, 108, 255, 0.06);
+  background: rgba(var(--accent-rgb), 0.06);
 }
 
 .how-it-works h3 {
@@ -2055,7 +2056,7 @@ h3 {
   border-radius: 10px;
   padding: 1.25rem;
   text-align: center;
-  background: rgba(100, 108, 255, 0.06);
+  background: rgba(var(--accent-rgb), 0.06);
   margin-bottom: 1.5rem;
 }
 
@@ -2189,7 +2190,7 @@ h3 {
   padding: 1rem;
   border: 1px solid #3a3a52;
   border-radius: 8px;
-  background: rgba(100, 108, 255, 0.06);
+  background: rgba(var(--accent-rgb), 0.06);
 }
 
 .quick-stats h3 {
@@ -2342,7 +2343,7 @@ h3 {
 }
 
 .pt-life-btn:hover {
-  border-color: #646cff;
+  border-color: var(--accent);
 }
 
 .pt-life-value {
@@ -2378,7 +2379,7 @@ h3 {
 }
 
 .pt-btn:hover:not(:disabled) {
-  border-color: #646cff;
+  border-color: var(--accent);
 }
 
 .pt-btn:disabled {
@@ -2387,8 +2388,8 @@ h3 {
 }
 
 .pt-btn.primary {
-  background: #646cff;
-  border-color: #646cff;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
   font-weight: 600;
 }
@@ -2414,7 +2415,7 @@ h3 {
   display: flex;
   flex-direction: column;
   background:
-    linear-gradient(rgba(100, 108, 255, 0.02), rgba(100, 108, 255, 0.02)),
+    linear-gradient(rgba(var(--accent-rgb), 0.02), rgba(var(--accent-rgb), 0.02)),
     repeating-linear-gradient(0deg, transparent 0 39px, #1d1d1d 39px 40px),
     repeating-linear-gradient(90deg, transparent 0 39px, #1d1d1d 39px 40px);
 }
@@ -2574,7 +2575,7 @@ h3 {
 }
 
 .pt-card:hover {
-  border-color: #646cff;
+  border-color: var(--accent);
 }
 
 .pt-card img {
@@ -2624,7 +2625,7 @@ h3 {
 }
 
 .pt-card-menu-btn:hover {
-  border-color: #646cff;
+  border-color: var(--accent);
   color: #fff;
 }
 
@@ -2791,7 +2792,7 @@ h3 {
   height: 1.4rem;
   padding: 0 0.3rem;
   border-radius: 999px;
-  background: #646cff;
+  background: var(--accent);
   color: #fff;
   font-size: 0.8rem;
   font-weight: 700;
@@ -2803,14 +2804,14 @@ h3 {
 
 /* Highlight the drop zone currently under the cursor. */
 .pt-drop-hover {
-  outline: 2px solid #646cff;
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
   border-radius: 8px;
 }
 
 .pt-pile.pt-drop-hover,
 .pt-hand.pt-drop-hover {
-  background: rgba(100, 108, 255, 0.08);
+  background: rgba(var(--accent-rgb), 0.08);
 }
 
 /* Hover preview: a large version of the card under the cursor, docked to the
@@ -2973,7 +2974,7 @@ button.pt-cardback {
 }
 
 button.pt-cardback:hover {
-  border-color: #646cff;
+  border-color: var(--accent);
 }
 
 /* ---- Deck stats (below the Brewer workspace) ---- */
@@ -3039,7 +3040,7 @@ button.pt-cardback:hover {
   width: 100%;
   min-height: 2px;
   border-radius: 3px 3px 0 0;
-  background: linear-gradient(#8b7fd4, #646cff);
+  background: linear-gradient(#8b7fd4, var(--accent));
 }
 
 .curve-n {
@@ -3152,7 +3153,7 @@ button.pt-cardback:hover {
 
 .guide-eq-total {
   color: #fff;
-  background: #646cff;
+  background: var(--accent);
   border-radius: 6px;
   padding: 0.1rem 0.6rem;
 }
@@ -3239,7 +3240,7 @@ button.pt-cardback:hover {
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
-  background: #646cff;
+  background: var(--accent);
   color: #fff;
   font-weight: 700;
   font-size: 0.95rem;
@@ -3262,7 +3263,7 @@ button.pt-cardback:hover {
   margin-top: 0.6rem;
   padding: 0.35rem 0.8rem;
   border-radius: 6px;
-  border: 1px solid #646cff;
+  border: 1px solid var(--accent);
   background: transparent;
   color: #a9b0ff;
   cursor: pointer;
@@ -3272,7 +3273,7 @@ button.pt-cardback:hover {
 
 .guide-jump:hover,
 .guide-cta:hover {
-  background: #646cff;
+  background: var(--accent);
   color: #fff;
 }
 
@@ -3403,7 +3404,7 @@ button.pt-cardback:hover {
 
 .game-plan-input:focus {
   outline: none;
-  border-color: #646cff;
+  border-color: var(--accent);
 }
 
 /* Role-target column in the composition table */
@@ -3425,7 +3426,7 @@ button.pt-cardback:hover {
 
 .target-input:focus {
   outline: none;
-  border-color: #646cff;
+  border-color: var(--accent);
 }
 
 .role-flag {
@@ -3457,7 +3458,7 @@ button.pt-cardback:hover {
 }
 
 .add-role:hover {
-  border-color: #646cff;
+  border-color: var(--accent);
 }
 
 @media (prefers-color-scheme: light) {
