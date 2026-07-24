@@ -17,14 +17,14 @@ const res = (status, body) => ({
   json: async () => body,
 });
 
-describe("Scryfall rate limiting + 429 retry", () => {
+describe("Scryfall rate limiting + retry (429 and CORS-blocked rejections)", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
     resetScryfallRateLimit();
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("retries a 429 with backoff, then resolves", async () => {
+  it("retries a visible 429 with backoff, then resolves", async () => {
     let calls = 0;
     fetch.mockImplementation(async () => {
       calls += 1;
@@ -38,10 +38,35 @@ describe("Scryfall rate limiting + 429 retry", () => {
     expect(result.data).toHaveLength(1);
   });
 
-  it("gives up after the retry cap and surfaces the failure", async () => {
+  // The real browser symptom of issue #46: a rate-limited 429 is CORS-blocked,
+  // so `fetch` *rejects* (TypeError "Load failed") — it never arrives as a 429
+  // Response. This must be retried too. (This case FAILS against the first
+  // version of the fix, which only retried `res.status === 429`.)
+  it("retries a rejected fetch (a CORS-blocked 429), then resolves", async () => {
+    let calls = 0;
+    fetch.mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) throw new TypeError("Load failed");
+      return res(200, { data: [card("Sol Ring")], not_found: [] });
+    });
+
+    const result = await lookupCollection(["Sol Ring"]);
+    expect(calls).toBe(2);
+    expect(result.data).toHaveLength(1);
+  });
+
+  it("gives up after the retry cap — visible 429 surfaces the failure", async () => {
     fetch.mockImplementation(async () => res(429, {}));
     // 1 initial try + MAX_RETRIES(3) = 4 attempts, then lookupCollection throws on !ok.
     await expect(lookupCardsByIds(["tok-1"])).rejects.toThrow(/HTTP 429/);
+    expect(fetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("gives up after the retry cap — persistent rejection is rethrown", async () => {
+    fetch.mockImplementation(async () => {
+      throw new TypeError("Load failed");
+    });
+    await expect(lookupCollection(["X"])).rejects.toThrow(/Load failed/);
     expect(fetch).toHaveBeenCalledTimes(4);
   });
 });

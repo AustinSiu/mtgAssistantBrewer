@@ -8,10 +8,12 @@ const API_BASE = "https://api.scryfall.com";
 // callers, and retry a 429 with backoff. This keeps loading a populated brew —
 // which fans out into many parallel lookups (per-card collection, per-(card,tag)
 // otag searches, token art) — under Scryfall's limiter.
-const REQUEST_SPACING_MS = 100;
+const REQUEST_SPACING_MS = 150; // ~6.7 req/s, comfortably under Scryfall's ~10/s
 const MAX_RETRIES = 3;
 
 let nextSlot = 0;
+
+const backoffMs = (attempt) => REQUEST_SPACING_MS * 2 ** (attempt + 1);
 
 function reserveSlot() {
   const now = Date.now();
@@ -23,16 +25,26 @@ function reserveSlot() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** fetch() a Scryfall path through the shared rate limiter, retrying 429s. */
+/**
+ * fetch() a Scryfall path through the shared rate limiter, retrying on rate
+ * limiting. A rate-limited 429 usually reaches the browser as a CORS-blocked
+ * *rejection* (`TypeError` — "Load failed" / "Failed to fetch"), not a 429
+ * `Response` (Scryfall's 429 omits `Access-Control-Allow-Origin`), so we retry
+ * **both** thrown errors and a visible 429, with backoff.
+ */
 async function scryfallFetch(path, options) {
   for (let attempt = 0; ; attempt++) {
     await reserveSlot();
-    const res = await fetch(`${API_BASE}${path}`, options);
-    if (res.status !== 429 || attempt >= MAX_RETRIES) return res;
-    const retryAfter = Number(res.headers?.get?.("Retry-After"));
-    await sleep(
-      retryAfter > 0 ? retryAfter * 1000 : REQUEST_SPACING_MS * 2 ** (attempt + 1)
-    );
+    try {
+      const res = await fetch(`${API_BASE}${path}`, options);
+      if (res.status !== 429 || attempt >= MAX_RETRIES) return res;
+      const retryAfter = Number(res.headers?.get?.("Retry-After"));
+      await sleep(retryAfter > 0 ? retryAfter * 1000 : backoffMs(attempt));
+    } catch (err) {
+      // Network / CORS-blocked-429 rejection: back off and retry, or give up.
+      if (attempt >= MAX_RETRIES) throw err;
+      await sleep(backoffMs(attempt));
+    }
   }
 }
 
