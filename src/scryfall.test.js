@@ -1,11 +1,50 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   buildSimilarQuery,
   cardImageUrl,
   cardPrimaryType,
   cardTokenParts,
+  lookupCollection,
+  lookupCardsByIds,
+  resetScryfallRateLimit,
 } from "./scryfall";
 import { card } from "../test/fixtures";
+
+const res = (status, body) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  headers: { get: () => null },
+  json: async () => body,
+});
+
+describe("Scryfall rate limiting + 429 retry", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+    resetScryfallRateLimit();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("retries a 429 with backoff, then resolves", async () => {
+    let calls = 0;
+    fetch.mockImplementation(async () => {
+      calls += 1;
+      return calls === 1
+        ? res(429, {}) // rate-limited once…
+        : res(200, { data: [card("Sol Ring")], not_found: [] }); // …then OK
+    });
+
+    const result = await lookupCollection(["Sol Ring"]);
+    expect(calls).toBe(2); // the 429 was retried, not surfaced to the caller
+    expect(result.data).toHaveLength(1);
+  });
+
+  it("gives up after the retry cap and surfaces the failure", async () => {
+    fetch.mockImplementation(async () => res(429, {}));
+    // 1 initial try + MAX_RETRIES(3) = 4 attempts, then lookupCollection throws on !ok.
+    await expect(lookupCardsByIds(["tok-1"])).rejects.toThrow(/HTTP 429/);
+    expect(fetch).toHaveBeenCalledTimes(4);
+  });
+});
 
 describe("cardPrimaryType", () => {
   it("picks the primary type by detection priority", () => {

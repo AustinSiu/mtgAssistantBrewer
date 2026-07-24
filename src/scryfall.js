@@ -1,10 +1,49 @@
 const API_BASE = "https://api.scryfall.com";
 
-/** GET a Scryfall API path with the standard headers. */
+// --- Rate limiting -----------------------------------------------------------
+// Scryfall asks for ~50-100ms between requests and returns HTTP 429 on bursts.
+// (Its 429 responses omit `Access-Control-Allow-Origin`, so a browser surfaces
+// them as CORS errors.) Route EVERY request through here: reserve a start slot
+// so requests are spaced ~REQUEST_SPACING_MS apart across all (parallel)
+// callers, and retry a 429 with backoff. This keeps loading a populated brew —
+// which fans out into many parallel lookups (per-card collection, per-(card,tag)
+// otag searches, token art) — under Scryfall's limiter.
+const REQUEST_SPACING_MS = 100;
+const MAX_RETRIES = 3;
+
+let nextSlot = 0;
+
+function reserveSlot() {
+  const now = Date.now();
+  const start = Math.max(now, nextSlot);
+  nextSlot = start + REQUEST_SPACING_MS;
+  const wait = start - now;
+  return wait > 0 ? new Promise((r) => setTimeout(r, wait)) : Promise.resolve();
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** fetch() a Scryfall path through the shared rate limiter, retrying 429s. */
+async function scryfallFetch(path, options) {
+  for (let attempt = 0; ; attempt++) {
+    await reserveSlot();
+    const res = await fetch(`${API_BASE}${path}`, options);
+    if (res.status !== 429 || attempt >= MAX_RETRIES) return res;
+    const retryAfter = Number(res.headers?.get?.("Retry-After"));
+    await sleep(
+      retryAfter > 0 ? retryAfter * 1000 : REQUEST_SPACING_MS * 2 ** (attempt + 1)
+    );
+  }
+}
+
+/** Test hook: reset the rate limiter so timing doesn't leak between tests. */
+export function resetScryfallRateLimit() {
+  nextSlot = 0;
+}
+
+/** GET a Scryfall API path with the standard headers (rate-limited). */
 function scryfallGet(path) {
-  return fetch(`${API_BASE}${path}`, {
-    headers: { Accept: "application/json" },
-  });
+  return scryfallFetch(path, { headers: { Accept: "application/json" } });
 }
 
 /**
@@ -16,7 +55,7 @@ function scryfallGet(path) {
  * the order of the requested identifiers.
  */
 export async function lookupCollection(names) {
-  const res = await fetch(`${API_BASE}/cards/collection`, {
+  const res = await scryfallFetch(`/cards/collection`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -52,7 +91,7 @@ export async function lookupCardsByIds(ids) {
   const out = [];
   for (let i = 0; i < unique.length; i += 75) {
     const chunk = unique.slice(i, i + 75);
-    const res = await fetch(`${API_BASE}/cards/collection`, {
+    const res = await scryfallFetch(`/cards/collection`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ identifiers: chunk.map((id) => ({ id })) }),
