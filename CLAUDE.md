@@ -28,15 +28,54 @@ reliability, not for a globally "correct" list.
 - Key modules: `DeckBrewer.jsx` (matrix workspace), `CommanderPicker.jsx`,
   `WorkspaceHeader.jsx`, `ConsistencyRail.jsx`, `DeckStats.jsx`,
   `Playtest.jsx`; pure logic in `brew.js`, `brewFormat.js`, `brewStats.js`,
-  `decklist.js`, `scryfall.js`, `hypergeometric.js`.
+  `decklistModel.js`, `playtestEngine.js`, `scryfall.js`, `hypergeometric.js`.
+- A component (`Playtest.jsx`) and its pure-logic sibling (`playtestEngine.js`)
+  must **not** share a case-only name. Extensionless imports resolve `.js` before
+  `.jsx`, so a `Playtest.jsx` + `playtest.js` pair makes `import Playtest from
+  "./Playtest"` load the *logic* module on case-insensitive filesystems
+  (macOS/Windows) — a blank page there while Linux CI stays green. CI guards this
+  (the filename check in `ci.yml`).
+
+## Building & testing
+
+Commands and **when** to run them:
+
+- `npm run dev` — Vite dev server, for local interactive work.
+- `npm run lint` — ESLint. Before every commit/PR.
+- `npx vitest run` — unit/component tests (jsdom + Testing Library). Fast; run
+  constantly while working. jsdom has **no layout engine** (`getBoundingClientRect`
+  returns 0), so it checks logic and rendered markup, not pixels or real drag
+  geometry.
+- `npm run build` — Vite production build. Run before e2e and before any PR.
+- Playwright e2e — **build first**, then
+  `CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx playwright test`.
+  It serves the built `dist/` via `npm run preview`, so a stale `dist/` silently
+  tests old code. Regenerates `docs/screenshots/`.
+
+**Before opening/updating a PR:** run all four green (lint → vitest → build → e2e),
+then revert render-noise screenshot diffs and embed only the shots your change
+affects. Don't open/update a PR on red.
+
+**Blind spots the suite can't catch — verify these in a real browser (local `dev`
+or a Cloudflare Pages PR preview):**
+
+- **Scryfall is stubbed** everywhere (CI/sandbox can't reach `api.scryfall.com`).
+  Real API behavior — card shapes, `all_parts`, rate limits — is only exercised
+  against a real browser hitting the live API.
+- **Case-sensitivity:** CI runs on Linux (case-sensitive); macOS/Windows aren't.
+  See the filename rule under "Project shape". CI guards it, but a preview build
+  (also Linux) will *not* reveal a case bug — only a local macOS/Windows build does.
+- **Visual / layout / UX:** jsdom can't render and scripted e2e screenshots only
+  approximate; judge visual polish and interaction feel in a real browser.
+
+CI (`.github/workflows/ci.yml`) enforces this on every PR: `verify`
+(lint → vitest → build → e2e), `require-tests` (a `src/*.{js,jsx}` change needs a
+test change, or the `no-test-needed` label), and the filename-collision check.
 
 ## Working conventions
 
-- **Verify before every PR:** `npm run lint`, `npx vitest run`, `npm run build`,
-  and Playwright e2e (`CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome
-  npx playwright test`). Don't open/update a PR on red. Note the e2e runs against
-  the built `dist/` via `npm run preview`, so **rebuild before running e2e** or it
-  serves stale code.
+- **Verify before every PR:** run the full suite green — see "Building & testing"
+  above. Don't open/update a PR on red.
 - Follow the `pr-workflow` and `pr-screenshots` skills for all PRs (check a PR's
   state before editing; never stack new commits on merged history; regenerate +
   embed customer-journey screenshots, reverting render-noise diffs).

@@ -15,7 +15,7 @@ import {
   fetchSimilar,
   hasOracleTag,
 } from "./brew";
-import { duplicateNonBasics, toMoxfield } from "./decklist";
+import { duplicateNonBasics, toMoxfield } from "./decklistModel";
 import { toBrewFormat, parseBrewFormat } from "./brewFormat";
 import { reorder, remapIndex } from "./reorder";
 import { cardManaCost, cardManaValue, cardPrimaryType } from "./scryfall";

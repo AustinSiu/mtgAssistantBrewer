@@ -11,7 +11,7 @@ import {
   deckStats,
   duplicateNonBasics,
   COMMANDER_TARGET,
-} from "./decklist";
+} from "./decklistModel";
 import {
   lookupCollection,
   cardManaCost,

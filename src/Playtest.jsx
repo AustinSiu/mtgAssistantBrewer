@@ -22,7 +22,7 @@ import {
   PLAYER_COUNTERS,
   CARD_W,
   CARD_H,
-} from "./playtest";
+} from "./playtestEngine";
 import { cardImageUrl, cardManaCost, cardTypeLabel } from "./scryfall";
 
 const GRID = 20; // drop-snap grid (half the 40px battlefield background)

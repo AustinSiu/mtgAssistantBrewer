@@ -20,7 +20,7 @@ import {
   findZone,
   STARTING_LIFE,
   OPENING_HAND,
-} from "./playtest";
+} from "./playtestEngine";
 
 // rng ≈ 1 makes Fisher-Yates the identity permutation → deterministic tests.
 const noShuffle = () => 0.9999999;
