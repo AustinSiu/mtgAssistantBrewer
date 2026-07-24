@@ -1,3 +1,67 @@
+/* ==== Design tokens ==========================================================
+ *
+ * The shared token layer for the app. Semantic colors, the radius scale, and
+ * the spacing scale are defined here; the MTG-color (`--mtg-color-*`) and
+ * sub-deck accent (`--subdeck-*`) tokens are injected from JS at startup so
+ * they can't drift from their canonical palettes — see `designTokens.js`.
+ *
+ * This layer only *defines* tokens; call sites are migrated onto them in
+ * separate, screenshot-verified passes (see issue #49), so adding it is a
+ * no-visual-change diff.
+ *
+ * Light values come from `@media (prefers-color-scheme: light)` and, for an
+ * explicit override, `:root[data-theme="…"]`.
+ */
+:root {
+  /* Semantic colors (dark, default) */
+  --bg: #242424;
+  --panel: #1a1a1a;
+  --border: #555;
+  --accent: #646cff;
+  --text-muted: #888;
+  --danger: #ff8a8a;
+  --warning: #e8a33d;
+  --success: #6ac48a;
+
+  /* Radius scale */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-pill: 999px;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+}
+
+/* Light theme: override only the tokens whose value changes. */
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --border: #ccc;
+  --text-muted: #666;
+  --danger: #c03030;
+  --warning: #b07a1a;
+  --success: #2e8b57;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #ffffff;
+    --panel: #ffffff;
+    --border: #ccc;
+    --text-muted: #666;
+    --danger: #c03030;
+    --warning: #b07a1a;
+    --success: #2e8b57;
+  }
+}
+
 .app {
   max-width: 1140px;
   margin: 0 auto;
