@@ -19,6 +19,8 @@
   --border: #555;
   --accent: #646cff;
   --accent-rgb: 100, 108, 255; /* base accent as channels, for rgba() tints */
+  --accent-text: #8b92ff; /* accent-colored text & links (dark base) */
+  --accent-text-soft: #a7adff; /* softer accent text: headings, hover, 2nd links */
   --text-muted: #888;
   --danger: #ff8a8a;
   --warning: #e8a33d;
@@ -485,7 +487,7 @@ h3 {
 }
 
 .sugg a {
-  color: #8b92ff;
+  color: var(--accent-text);
   font-weight: 500;
   text-decoration: none;
 }
@@ -502,7 +504,7 @@ h3 {
 
 .take {
   border: 1px solid var(--accent);
-  color: #8b92ff;
+  color: var(--accent-text);
   background: transparent;
   border-radius: 5px;
   padding: 0.15rem 0.55rem;
@@ -751,7 +753,7 @@ h3 {
   margin-top: 0.6rem;
   background: none;
   border: none;
-  color: #8b92ff;
+  color: var(--accent-text);
   cursor: pointer;
   font-size: 0.85rem;
   padding: 0;
@@ -909,7 +911,7 @@ h3 {
 }
 
 .name-cell a {
-  color: #8b92ff;
+  color: var(--accent-text);
   text-decoration: none;
 }
 
@@ -999,7 +1001,7 @@ h3 {
 }
 
 .icon-btn:hover {
-  color: #8b92ff;
+  color: var(--accent-text);
 }
 
 .icon-btn.on {
@@ -1513,7 +1515,7 @@ h3 {
 }
 
 .ws-clear:hover {
-  color: #8b92ff;
+  color: var(--accent-text);
 }
 
 /* Body: matrix + rail */
@@ -1596,7 +1598,7 @@ h3 {
 }
 
 .brew-workspace .drag-handle:hover {
-  color: #8b92ff;
+  color: var(--accent-text);
 }
 
 .brew-workspace .drag-handle:active {
@@ -1725,7 +1727,7 @@ h3 {
 }
 
 .brew-workspace .sub-name:hover {
-  color: #a7adff;
+  color: var(--accent-text-soft);
 }
 
 .brew-workspace .badge-active {
@@ -1781,7 +1783,7 @@ h3 {
 
 .strip-card-name {
   font-weight: 500;
-  color: #8b92ff;
+  color: var(--accent-text);
   display: block;
 }
 
@@ -2022,7 +2024,7 @@ h3 {
 .how-it-works h3 {
   margin: 0 0 0.5rem;
   font-size: 0.9rem;
-  color: #a7adff;
+  color: var(--accent-text-soft);
 }
 
 .how-it-works p {
@@ -2070,7 +2072,7 @@ h3 {
   font-weight: 800;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
-  background: linear-gradient(135deg, #8b92ff, #b98bff);
+  background: linear-gradient(135deg, var(--accent-text), #b98bff);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -2141,10 +2143,10 @@ h3 {
 }
 
 .curve-legend .lg.atleast {
-  color: #8b92ff;
+  color: var(--accent-text);
 }
 .curve-legend .lg.atleast::before {
-  border-top-color: #8b92ff;
+  border-top-color: var(--accent-text);
 }
 .curve-legend .lg.zero {
   color: #d98b8b;
@@ -2176,7 +2178,7 @@ h3 {
 }
 
 .curve-line.atleast {
-  stroke: #8b92ff;
+  stroke: var(--accent-text);
 }
 
 .curve-line.zero {
@@ -2196,7 +2198,7 @@ h3 {
 .quick-stats h3 {
   margin: 0 0 0.6rem;
   font-size: 0.9rem;
-  color: #a7adff;
+  color: var(--accent-text-soft);
 }
 
 .quick-stats div {
@@ -2440,7 +2442,7 @@ h3 {
 }
 
 .pt-zone-view:hover {
-  color: #a7adff;
+  color: var(--accent-text-soft);
 }
 
 /* Free canvas: battlefield cards are absolutely placed by their pos (--x/--y),
@@ -2740,7 +2742,7 @@ h3 {
 }
 
 .pt-counter-summary {
-  color: #a7adff;
+  color: var(--accent-text-soft);
   font-size: 0.8rem;
 }
 
@@ -3265,7 +3267,7 @@ button.pt-cardback:hover {
   border-radius: 6px;
   border: 1px solid var(--accent);
   background: transparent;
-  color: #a9b0ff;
+  color: var(--accent-text-soft);
   cursor: pointer;
   font-size: 0.85rem;
   transition: background 0.15s, color 0.15s;
@@ -3325,7 +3327,7 @@ button.pt-cardback:hover {
 }
 
 .guide-footer a {
-  color: #a9b0ff;
+  color: var(--accent-text-soft);
 }
 
 @media (prefers-color-scheme: light) {
@@ -3452,7 +3454,7 @@ button.pt-cardback:hover {
   border-radius: 6px;
   border: 1px dashed #555;
   background: transparent;
-  color: #a9b0ff;
+  color: var(--accent-text-soft);
   cursor: pointer;
   font-size: 0.85rem;
 }
