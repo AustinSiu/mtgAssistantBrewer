@@ -6,7 +6,7 @@ import {
   isBasicLand,
   duplicateNonBasics,
   toMoxfield,
-} from "./decklist";
+} from "./decklistModel";
 import { card } from "../test/fixtures";
 
 describe("parseDecklist", () => {

@@ -57,3 +57,24 @@ jobs:
             exit 1
           fi
           echo "OK: source changes are accompanied by a test change (or no src/ code changed)."
+
+  # Catch source files whose names collide case-insensitively (extension stripped):
+  # `Playtest.jsx` + `playtest.js` breaks `import X from "./Playtest"` on
+  # case-insensitive filesystems (macOS/Windows) while Linux CI stays green.
+  filenames:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No case-insensitive source-name collisions
+        run: |
+          set -euo pipefail
+          dupes=$(git ls-files '*.js' '*.jsx' '*.ts' '*.tsx' \
+            | sed -E 's/\.(js|jsx|ts|tsx)$//' \
+            | tr '[:upper:]' '[:lower:]' \
+            | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "::error::Source files collide case-insensitively (break extensionless imports on macOS/Windows):"
+            echo "$dupes"
+            exit 1
+          fi
+          echo "OK: no case-insensitive filename collisions."
