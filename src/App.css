@@ -47,13 +47,23 @@
   --radius-xl: 10px;
   --radius-pill: 999px;
 
-  /* Spacing scale */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
+  /* Spacing scale — token name is its px size at the default root font size.
+     Dense (2px) through 12px where small paddings cluster, then a 4px grid. */
+  --space-2: 0.125rem;
+  --space-4: 0.25rem;
+  --space-6: 0.375rem;
+  --space-8: 0.5rem;
+  --space-10: 0.625rem;
+  --space-12: 0.75rem;
+  --space-16: 1rem;
+  --space-20: 1.25rem;
+  --space-24: 1.5rem;
+  --space-32: 2rem;
+
+  /* Horizontal inset for a section inside the .brew-workspace card. The card
+     itself is full-bleed (no padding) so dividers and the rail's background can
+     span its full width — so every section must inset its own content. */
+  --ws-inset: var(--space-20);
 }
 
 /* Light theme: override only the tokens whose value changes. Kept in sync with
@@ -96,7 +106,7 @@
 .app {
   max-width: 1140px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: var(--space-32) var(--space-16);
 }
 
 .calc-pane > div {
@@ -107,14 +117,14 @@
 
 .tabs {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-8);
+  margin-bottom: var(--space-24);
   border-bottom: 1px solid var(--border-subtle);
-  padding-bottom: 0.75rem;
+  padding-bottom: var(--space-12);
 }
 
 .tab {
-  padding: 0.5rem 1rem;
+  padding: var(--space-8) var(--space-16);
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -136,24 +146,24 @@
 
 h1 {
   font-size: 1.8rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--space-4);
 }
 
 h2 {
   font-size: 1.3rem;
-  margin-top: 2rem;
-  margin-bottom: 0.25rem;
+  margin-top: var(--space-32);
+  margin-bottom: var(--space-4);
 }
 
 h3 {
   font-size: 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-8);
 }
 
 .subtitle {
   color: var(--text-muted);
   margin-top: 0;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-24);
 }
 
 .hint {
@@ -165,14 +175,14 @@ h3 {
 
 .form {
   display: flex;
-  gap: 1.5rem;
+  gap: var(--space-24);
   flex-wrap: wrap;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-6);
 }
 
 .field label {
@@ -182,7 +192,7 @@ h3 {
 
 .field input[type="number"] {
   width: 100px;
-  padding: 0.5rem 0.6rem;
+  padding: var(--space-8) var(--space-10);
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -192,12 +202,12 @@ h3 {
 
 .input-row {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-8);
   align-items: center;
 }
 
 .preset {
-  padding: 0.5rem 1rem;
+  padding: var(--space-8) var(--space-16);
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -220,8 +230,8 @@ h3 {
 /* ---- Commander section ---- */
 
 .form-section {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
+  margin-bottom: var(--space-24);
+  padding-bottom: var(--space-16);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -229,7 +239,7 @@ h3 {
   display: block;
   font-weight: 600;
   font-size: 0.9rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-8);
 }
 
 .form-section .autocomplete {
@@ -238,7 +248,7 @@ h3 {
 
 .form-section input[type="text"] {
   width: 100%;
-  padding: 0.5rem 0.6rem;
+  padding: var(--space-8) var(--space-10);
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -267,7 +277,7 @@ h3 {
   right: 0;
   z-index: 10;
   margin: 0;
-  padding: 0.25rem;
+  padding: var(--space-4);
   list-style: none;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -279,7 +289,7 @@ h3 {
 }
 
 .suggestions li {
-  padding: 0.35rem 0.5rem;
+  padding: var(--space-6) var(--space-8);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
@@ -314,7 +324,7 @@ h3 {
 
 .matrix-table th {
   text-align: left;
-  padding: 0.4rem 0.5rem;
+  padding: var(--space-6) var(--space-8);
   border-bottom: 2px solid var(--border-subtle);
   font-size: 0.72rem;
   text-transform: uppercase;
@@ -365,11 +375,11 @@ h3 {
   background: var(--accent);
   color: #fff;
   border-radius: 999px;
-  padding: 0.05rem 0.5rem;
+  padding: var(--space-2) var(--space-8);
   font-size: 0.65rem;
   text-transform: none;
   letter-spacing: 0;
-  margin-left: 0.4rem;
+  margin-left: var(--space-6);
 }
 
 .sub-remove {
@@ -378,8 +388,8 @@ h3 {
   color: var(--text-dim);
   cursor: pointer;
   font-size: 0.8rem;
-  margin-left: 0.4rem;
-  padding: 0 0.15rem;
+  margin-left: var(--space-6);
+  padding: 0 var(--space-2);
 }
 
 .sub-remove:hover {
@@ -387,7 +397,7 @@ h3 {
 }
 
 .matrix-table td {
-  padding: 0.25rem 0.3rem;
+  padding: var(--space-4) var(--space-4);
   border-bottom: 1px solid var(--border-faint);
   vertical-align: top;
 }
@@ -397,12 +407,12 @@ h3 {
   text-align: right;
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
-  padding-top: 0.6rem;
+  padding-top: var(--space-10);
   width: 1.8rem;
 }
 
 .matrix-table input {
-  padding: 0.35rem 0.5rem;
+  padding: var(--space-6) var(--space-8);
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -432,7 +442,7 @@ h3 {
 
 .cell-wrap {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-4);
   align-items: center;
 }
 
@@ -446,7 +456,7 @@ h3 {
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.8rem;
-  padding: 0.25rem 0.35rem;
+  padding: var(--space-4) var(--space-6);
   line-height: 1;
 }
 
@@ -456,7 +466,7 @@ h3 {
 
 .cell-note {
   font-size: 0.72rem;
-  margin-top: 0.15rem;
+  margin-top: var(--space-2);
   line-height: 1.3;
 }
 
@@ -475,8 +485,8 @@ h3 {
   border-radius: 4px;
   font-size: 0.68rem;
   cursor: pointer;
-  margin-left: 0.35rem;
-  padding: 0 0.3rem;
+  margin-left: var(--space-6);
+  padding: 0 var(--space-4);
 }
 
 .dismiss:hover {
@@ -488,12 +498,12 @@ h3 {
 
 .sugg-row td {
   background: var(--panel-tint);
-  padding: 0.5rem 0.75rem;
+  padding: var(--space-8) var(--space-12);
 }
 
 .sugg-strip {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-12);
   align-items: flex-start;
   flex-wrap: wrap;
 }
@@ -503,14 +513,14 @@ h3 {
   color: var(--text-faint);
   min-width: 160px;
   max-width: 300px;
-  padding-top: 0.25rem;
+  padding-top: var(--space-4);
 }
 
 .sugg {
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   background: var(--panel-tint);
-  padding: 0.5rem 0.65rem;
+  padding: var(--space-8) var(--space-10);
   font-size: 0.83rem;
 }
 
@@ -527,7 +537,7 @@ h3 {
 .sugg .meta {
   color: var(--text-muted);
   font-size: 0.76rem;
-  margin: 0.15rem 0 0.4rem;
+  margin: var(--space-2) 0 var(--space-6);
 }
 
 .take {
@@ -535,10 +545,10 @@ h3 {
   color: var(--accent-text);
   background: transparent;
   border-radius: 5px;
-  padding: 0.15rem 0.55rem;
+  padding: var(--space-2) var(--space-8);
   font-size: 0.75rem;
   cursor: pointer;
-  margin-right: 0.3rem;
+  margin-right: var(--space-4);
 }
 
 .take:hover {
@@ -556,7 +566,7 @@ h3 {
   align-items: center;
   justify-content: center;
   z-index: 100;
-  padding: 1rem;
+  padding: var(--space-16);
 }
 
 .modal {
@@ -564,7 +574,7 @@ h3 {
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
-  padding: 1.1rem 1.25rem;
+  padding: var(--space-16) var(--space-20);
   max-width: 480px;
 }
 
@@ -579,13 +589,13 @@ h3 {
 
 .modal .actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-8);
   justify-content: flex-end;
 }
 
 .dont-warn {
   display: block;
-  margin-top: 0.8rem;
+  margin-top: var(--space-12);
   font-size: 0.78rem;
   color: var(--text-muted);
 }
@@ -599,28 +609,28 @@ h3 {
 .export-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  margin: 0.5rem 0 0.75rem;
+  gap: var(--space-8) var(--space-16);
+  margin: var(--space-8) 0 var(--space-12);
 }
 
 .export-format {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  margin: 0.25rem 0 0.5rem;
-  padding-bottom: 0.5rem;
+  gap: var(--space-8) var(--space-20);
+  margin: var(--space-4) 0 var(--space-8);
+  padding-bottom: var(--space-8);
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .import-error {
   color: #ff8a8a;
   font-size: 0.85rem;
-  margin: 0.4rem 0 0;
+  margin: var(--space-6) 0 0;
 }
 
 .picker-import {
   display: block;
-  margin-top: 0.9rem;
+  margin-top: var(--space-16);
   font-size: 0.85rem;
 }
 
@@ -628,13 +638,13 @@ h3 {
   font-size: 0.85rem;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-4);
   cursor: pointer;
 }
 
 .export-text {
   width: 100%;
-  padding: 0.5rem 0.6rem;
+  padding: var(--space-8) var(--space-10);
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -660,14 +670,14 @@ h3 {
 
 .form-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-12);
   align-items: center;
   justify-content: flex-end;
-  margin-top: 1rem;
+  margin-top: var(--space-16);
 }
 
 .submit {
-  padding: 0.5rem 1.25rem;
+  padding: var(--space-8) var(--space-20);
   border-radius: 6px;
   border: 1px solid var(--accent);
   background: var(--accent);
@@ -685,7 +695,13 @@ h3 {
 
 .error {
   color: #ff8a8a;
-  margin-top: 1rem;
+  margin-top: var(--space-16);
+}
+
+/* `.error` is shared with the Deck List tab, which sits inside the padded
+   `.app` container — so only the workspace copy needs the section inset. */
+.brew-workspace > .error {
+  padding: 0 var(--ws-inset);
 }
 
 .static-row {
@@ -711,7 +727,7 @@ h3 {
 .dist-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 0.5rem;
+  margin-top: var(--space-8);
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
 }
@@ -719,7 +735,7 @@ h3 {
 .summary-table th,
 .dist-table th {
   text-align: left;
-  padding: 0.5rem 0.75rem;
+  padding: var(--space-8) var(--space-12);
   border-bottom: 2px solid var(--border-subtle);
   font-size: 0.8rem;
   text-transform: uppercase;
@@ -729,7 +745,7 @@ h3 {
 
 .summary-table td,
 .dist-table td {
-  padding: 0.4rem 0.75rem;
+  padding: var(--space-6) var(--space-12);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -753,7 +769,7 @@ h3 {
 }
 
 .bar-cell {
-  padding-right: 1rem;
+  padding-right: var(--space-16);
 }
 
 .bar {
@@ -767,8 +783,8 @@ h3 {
 /* ---- Detail panel ---- */
 
 .detail {
-  margin-top: 1.5rem;
-  padding: 1rem;
+  margin-top: var(--space-24);
+  padding: var(--space-16);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   background: var(--panel-tint);
@@ -778,7 +794,7 @@ h3 {
 
 .link-btn {
   display: inline-block;
-  margin-top: 0.6rem;
+  margin-top: var(--space-10);
   background: none;
   border: none;
   color: var(--accent-text);
@@ -789,10 +805,10 @@ h3 {
 }
 
 .paste-box {
-  margin-top: 0.75rem;
+  margin-top: var(--space-12);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-8);
   max-width: 400px;
 }
 
@@ -805,7 +821,7 @@ h3 {
 
 .paste-box textarea {
   width: 100%;
-  padding: 0.5rem 0.6rem;
+  padding: var(--space-8) var(--space-10);
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -822,8 +838,8 @@ h3 {
 .list-toolbar {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin: 1.25rem 0 0.5rem;
+  gap: var(--space-16);
+  margin: var(--space-20) 0 var(--space-8);
   flex-wrap: wrap;
 }
 
@@ -834,7 +850,7 @@ h3 {
 }
 
 .group-toggle .toggle {
-  padding: 0.35rem 0.8rem;
+  padding: var(--space-6) var(--space-12);
   border: 1px solid var(--border);
   background: var(--panel);
   color: inherit;
@@ -860,17 +876,17 @@ h3 {
 /* ---- Deck groups + rows ---- */
 
 .deck-group {
-  margin-top: 1.25rem;
+  margin-top: var(--space-20);
 }
 
 .group-head {
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
+  gap: var(--space-8);
   font-size: 0.95rem;
   border-bottom: 1px solid var(--border-subtle);
-  padding-bottom: 0.35rem;
-  margin-bottom: 0.25rem;
+  padding-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
 }
 
 .group-count {
@@ -904,7 +920,7 @@ h3 {
 /* col-name has no fixed width and absorbs the remaining space. */
 
 .list-table td {
-  padding: 0.3rem 0.5rem;
+  padding: var(--space-4) var(--space-8);
   border-bottom: 1px solid var(--border-faint);
   vertical-align: middle;
 }
@@ -949,13 +965,13 @@ h3 {
 
 .crown {
   color: #e8a33d;
-  margin-left: 0.35rem;
+  margin-left: var(--space-6);
 }
 
 .dup-flag {
   display: inline-block;
-  margin-left: 0.4rem;
-  padding: 0 0.35rem;
+  margin-left: var(--space-6);
+  padding: 0 var(--space-6);
   border-radius: 999px;
   font-size: 0.68rem;
   background: #3a1e1e;
@@ -985,7 +1001,7 @@ h3 {
 }
 
 .mana-slash {
-  margin: 0 2px;
+  margin: 0 var(--space-2);
   color: var(--text-muted);
 }
 
@@ -999,7 +1015,7 @@ h3 {
 
 .tag-cell .tag-input {
   width: 6.5rem;
-  padding: 0.2rem 0.4rem;
+  padding: var(--space-4) var(--space-6);
   border-radius: 5px;
   border: 1px solid var(--border-subtle);
   background: var(--panel);
@@ -1025,7 +1041,7 @@ h3 {
   color: var(--text-dim);
   cursor: pointer;
   font-size: 0.9rem;
-  padding: 0 0.25rem;
+  padding: 0 var(--space-4);
 }
 
 .icon-btn:hover {
@@ -1039,12 +1055,12 @@ h3 {
 /* ---- Deck stats ---- */
 
 .deck-stats {
-  margin-top: 1rem;
+  margin-top: var(--space-16);
 }
 
 .stats-row {
   display: flex;
-  gap: 2rem;
+  gap: var(--space-32);
   align-items: flex-start;
   flex-wrap: wrap;
 }
@@ -1079,7 +1095,7 @@ h3 {
 
 .stat.colors {
   display: flex;
-  gap: 0.6rem;
+  gap: var(--space-10);
   align-items: center;
   flex-wrap: wrap;
 }
@@ -1087,20 +1103,20 @@ h3 {
 .color-count {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: var(--space-4);
   font-variant-numeric: tabular-nums;
 }
 
 .curve {
-  margin-top: 1rem;
+  margin-top: var(--space-16);
 }
 
 .curve-bars {
   display: flex;
   align-items: flex-end;
-  gap: 0.4rem;
+  gap: var(--space-6);
   height: 70px;
-  margin-top: 0.35rem;
+  margin-top: var(--space-6);
 }
 
 .curve-col {
@@ -1128,11 +1144,11 @@ h3 {
 .curve-mv {
   font-size: 0.7rem;
   color: var(--text-muted);
-  margin-top: 0.15rem;
+  margin-top: var(--space-2);
 }
 
 .group-legend {
-  margin-top: 1rem;
+  margin-top: var(--space-16);
 }
 
 /* ---- Light mode ---- */
@@ -1361,8 +1377,8 @@ h3 {
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 6px;
+  gap: var(--space-12);
+  margin-bottom: var(--space-6);
 }
 
 .brand-tile {
@@ -1392,20 +1408,20 @@ h3 {
 .brand-intro {
   color: var(--text-muted);
   font-size: 0.95rem;
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-16);
 }
 
 .brew-tenets {
   list-style: none;
-  margin: 0 0 24px;
-  padding: 12px 14px;
+  margin: 0 0 var(--space-24);
+  padding: var(--space-12) var(--space-16);
   border: 1px solid var(--border-faint);
   border-left: 3px solid var(--accent);
   border-radius: 8px;
   background: var(--panel-tint);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-8);
   font-size: 0.85rem;
   line-height: 1.4;
   color: #b9b9c4;
@@ -1419,12 +1435,12 @@ h3 {
   display: block;
   font-weight: 600;
   font-size: 0.9rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-8);
 }
 
 .brew-picker .autocomplete input {
   width: 100%;
-  padding: 0.6rem 0.7rem;
+  padding: var(--space-10) var(--space-12);
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -1433,8 +1449,8 @@ h3 {
 }
 
 .look-up {
-  margin-top: 18px;
-  padding: 0.6rem 1.3rem;
+  margin-top: var(--space-20);
+  padding: var(--space-10) var(--space-20);
   border-radius: 8px;
   font-size: 0.95rem;
 }
@@ -1457,8 +1473,8 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 16px 20px;
+  gap: var(--space-16);
+  padding: var(--space-16) var(--ws-inset);
   border-bottom: 1px solid var(--border-faint);
   flex-wrap: wrap;
 }
@@ -1466,7 +1482,7 @@ h3 {
 .ws-commander {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-16);
 }
 
 .ws-commander-name {
@@ -1481,8 +1497,8 @@ h3 {
 
 .ci-pips {
   display: inline-flex;
-  gap: 3px;
-  margin-left: 6px;
+  gap: var(--space-4);
+  margin-left: var(--space-6);
   vertical-align: middle;
 }
 
@@ -1497,7 +1513,7 @@ h3 {
 .ws-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--space-20);
 }
 
 .ws-counter {
@@ -1523,7 +1539,7 @@ h3 {
 }
 
 .ws-secondary {
-  padding: 0.5rem 1.1rem;
+  padding: var(--space-8) var(--space-16);
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -1553,7 +1569,7 @@ h3 {
 
 .ws-matrix {
   flex: 1;
-  padding: 16px 20px;
+  padding: var(--space-16) var(--ws-inset);
   min-width: 0;
   overflow-x: auto;
 }
@@ -1561,7 +1577,7 @@ h3 {
 .matrix-caption {
   font-size: 13px;
   color: var(--text-faint);
-  margin-bottom: 8px;
+  margin-bottom: var(--space-8);
 }
 
 .matrix-caption-hint {
@@ -1578,7 +1594,7 @@ h3 {
 
 .brew-workspace .matrix-table th {
   text-align: left;
-  padding: 0.4rem 0.5rem;
+  padding: var(--space-6) var(--space-8);
   border-bottom: 2px solid var(--border-subtle);
   font-size: 0.68rem;
   text-transform: uppercase;
@@ -1591,7 +1607,7 @@ h3 {
   width: 44px;
   text-align: center;
   color: var(--text-dim);
-  padding: 0.4rem 0.35rem;
+  padding: var(--space-6) var(--space-6);
 }
 
 .brew-workspace .matrix-table th.tag-col,
@@ -1604,7 +1620,7 @@ h3 {
 }
 
 .brew-workspace .matrix-table td {
-  padding: 0.3rem 0.3rem;
+  padding: var(--space-4) var(--space-4);
   border-bottom: 1px solid var(--border-faint);
   vertical-align: top;
 }
@@ -1612,7 +1628,7 @@ h3 {
 .brew-workspace .matrix-table td.num {
   color: var(--text-dim);
   font-size: 0.78rem;
-  padding-top: 0.55rem;
+  padding-top: var(--space-8);
   width: 44px;
   white-space: nowrap;
 }
@@ -1621,7 +1637,7 @@ h3 {
   cursor: grab;
   color: #555;
   font-size: 0.85rem;
-  margin-right: 0.15rem;
+  margin-right: var(--space-2);
   user-select: none;
 }
 
@@ -1651,7 +1667,7 @@ h3 {
 .brew-workspace .matrix-table input,
 .brew-workspace .tag-input {
   width: 100%;
-  padding: 0.35rem 0.5rem;
+  padding: var(--space-6) var(--space-8);
   border-radius: 6px;
   border: 1px solid var(--border-subtle);
   background: var(--panel);
@@ -1668,7 +1684,7 @@ h3 {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  padding-right: 1.5rem;
+  padding-right: var(--space-24);
   cursor: pointer;
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="%23888" stroke-width="1.5" stroke-linecap="round"/></svg>');
   background-repeat: no-repeat;
@@ -1678,13 +1694,13 @@ h3 {
 .brew-workspace .otag-line {
   color: var(--text-dim);
   font-size: 0.72rem;
-  margin-top: 0.15rem;
+  margin-top: var(--space-2);
   min-height: 0.9rem;
 }
 
 .brew-workspace .note-input {
   width: 100%;
-  padding: 0.35rem 0.5rem;
+  padding: var(--space-6) var(--space-8);
   border-radius: 6px;
   border: 1px solid var(--border-subtle);
   background: var(--panel);
@@ -1720,7 +1736,7 @@ h3 {
 
 .brew-workspace .cell-note {
   font-size: 0.7rem;
-  margin-top: 0.15rem;
+  margin-top: var(--space-2);
   line-height: 1.3;
 }
 
@@ -1773,17 +1789,17 @@ h3 {
 
 .brew-workspace .sugg-strip {
   background: var(--panel-tint);
-  padding: 0.6rem 0.8rem;
+  padding: var(--space-10) var(--space-12);
   border-radius: 8px;
   border-left: 2px solid var(--accent);
-  margin: 0.2rem 0 0.5rem;
+  margin: var(--space-4) 0 var(--space-8);
   display: block;
 }
 
 .strip-label-row {
   font-size: 0.78rem;
   color: var(--text-faint);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-8);
 }
 
 .strip-meta {
@@ -1797,7 +1813,7 @@ h3 {
 
 .strip-cards {
   display: flex;
-  gap: 0.6rem;
+  gap: var(--space-10);
   flex-wrap: wrap;
 }
 
@@ -1805,7 +1821,7 @@ h3 {
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   background: var(--panel-tint);
-  padding: 0.5rem 0.6rem;
+  padding: var(--space-8) var(--space-10);
   font-size: 0.8rem;
 }
 
@@ -1818,18 +1834,18 @@ h3 {
 .strip-card-meta {
   color: var(--text-muted);
   font-size: 0.72rem;
-  margin: 0.15rem 0 0.4rem;
+  margin: var(--space-2) 0 var(--space-6);
   font-variant-numeric: tabular-nums;
 }
 
 .strip-card-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: var(--space-4);
 }
 
 .brew-workspace .take {
-  padding: 0.12rem 0.5rem;
+  padding: var(--space-2) var(--space-8);
   font-size: 0.72rem;
   margin: 0;
 }
@@ -1839,7 +1855,7 @@ h3 {
   width: 280px;
   flex-shrink: 0;
   border-left: 1px solid var(--border-faint);
-  padding: 16px;
+  padding: var(--space-16);
   background: var(--panel-tint);
 }
 
@@ -1849,7 +1865,7 @@ h3 {
   letter-spacing: 0.08em;
   color: var(--text-muted);
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-10);
 }
 
 .rail-sub {
@@ -1862,20 +1878,20 @@ h3 {
 .rail-divider {
   height: 1px;
   background: #333;
-  margin: 14px 0;
+  margin: var(--space-16) 0;
 }
 
 .fill-bars {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .fill-bar-top {
   display: flex;
   justify-content: space-between;
   font-size: 0.8rem;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-4);
 }
 
 .fill-active {
@@ -1902,13 +1918,13 @@ h3 {
 .attention {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--space-8);
   font-size: 0.8rem;
 }
 
 .attention-row {
   display: flex;
-  gap: 7px;
+  gap: var(--space-8);
   align-items: flex-start;
 }
 
@@ -1931,7 +1947,7 @@ h3 {
 .mv-curve {
   display: flex;
   align-items: flex-end;
-  gap: 4px;
+  gap: var(--space-4);
   height: 54px;
 }
 
@@ -1944,10 +1960,10 @@ h3 {
 
 .mv-axis {
   display: flex;
-  gap: 4px;
+  gap: var(--space-4);
   font-size: 0.64rem;
   color: var(--text-dim);
-  margin-top: 3px;
+  margin-top: var(--space-4);
 }
 
 .mv-axis span {
@@ -1985,11 +2001,11 @@ h3 {
    ============================================================ */
 .hyp-head {
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-24);
 }
 
 .hyp-head h1 {
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-8);
 }
 
 .hyp-head .subtitle {
@@ -2000,7 +2016,7 @@ h3 {
 .hyp-grid {
   display: grid;
   grid-template-columns: 320px 1fr;
-  gap: 1.5rem;
+  gap: var(--space-24);
   align-items: start;
 }
 
@@ -2009,16 +2025,16 @@ h3 {
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
   background: var(--panel-tint);
-  padding: 1.25rem;
+  padding: var(--space-20);
 }
 
 .panel-title {
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-16);
   font-size: 1.05rem;
 }
 
 .hyp-field {
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-16);
 }
 
 .hyp-field input[type="number"] {
@@ -2028,35 +2044,35 @@ h3 {
 .preset-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: 0.4rem;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
 }
 
 .preset-row .preset {
-  padding: 0.25rem 0.5rem;
+  padding: var(--space-4) var(--space-8);
   font-size: 0.8rem;
 }
 
 .play-toggle {
-  margin-top: 0.4rem;
+  margin-top: var(--space-6);
 }
 
 .how-it-works {
-  margin: 1.25rem 0;
-  padding: 0.85rem 1rem;
+  margin: var(--space-20) 0;
+  padding: var(--space-12) var(--space-16);
   border: 1px solid #3a3a52;
   border-radius: 8px;
   background: rgba(var(--accent-rgb), 0.06);
 }
 
 .how-it-works h3 {
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--space-8);
   font-size: 0.9rem;
   color: var(--accent-text-soft);
 }
 
 .how-it-works p {
-  margin: 0 0 0.6rem;
+  margin: 0 0 var(--space-10);
   font-size: 0.82rem;
   line-height: 1.5;
   color: var(--text-faint);
@@ -2071,7 +2087,7 @@ h3 {
   font-size: 0.8rem;
   color: #cdd0ff;
   background: rgba(0, 0, 0, 0.25);
-  padding: 0.4rem 0.5rem;
+  padding: var(--space-6) var(--space-8);
   border-radius: 5px;
 }
 
@@ -2084,10 +2100,10 @@ h3 {
 .headline {
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
-  padding: 1.25rem;
+  padding: var(--space-20);
   text-align: center;
   background: rgba(var(--accent-rgb), 0.06);
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-24);
 }
 
 .headline-label {
@@ -2104,7 +2120,7 @@ h3 {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin: 0.25rem 0;
+  margin: var(--space-4) 0;
 }
 
 .headline-sub {
@@ -2114,7 +2130,7 @@ h3 {
 
 .section-title {
   font-size: 0.95rem;
-  margin: 1.5rem 0 0.5rem;
+  margin: var(--space-24) 0 var(--space-8);
 }
 
 .exact-table .num-cell,
@@ -2128,7 +2144,7 @@ h3 {
 }
 
 .exact-table .bar-cell {
-  padding-right: 0.75rem;
+  padding-right: var(--space-12);
 }
 
 .exact-table .bar.muted {
@@ -2147,16 +2163,16 @@ h3 {
 .curve-wrap {
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  padding: 0.75rem;
+  padding: var(--space-12);
   background: rgba(0, 0, 0, 0.15);
 }
 
 .curve-legend {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-16);
   justify-content: center;
   font-size: 0.75rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--space-4);
 }
 
 .curve-legend .lg::before {
@@ -2167,7 +2183,7 @@ h3 {
   border-top-width: 2px;
   border-top-style: solid;
   vertical-align: middle;
-  margin-right: 0.35rem;
+  margin-right: var(--space-6);
 }
 
 .curve-legend .lg.atleast {
@@ -2216,15 +2232,15 @@ h3 {
 
 /* Quick stats */
 .quick-stats {
-  margin-top: 1.5rem;
-  padding: 1rem;
+  margin-top: var(--space-24);
+  padding: var(--space-16);
   border: 1px solid #3a3a52;
   border-radius: 8px;
   background: rgba(var(--accent-rgb), 0.06);
 }
 
 .quick-stats h3 {
-  margin: 0 0 0.6rem;
+  margin: 0 0 var(--space-10);
   font-size: 0.9rem;
   color: var(--accent-text-soft);
 }
@@ -2232,7 +2248,7 @@ h3 {
 .quick-stats div {
   font-size: 0.85rem;
   color: #ccc;
-  margin-bottom: 0.3rem;
+  margin-bottom: var(--space-4);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2339,8 +2355,8 @@ h3 {
 .pt-topbar {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  padding: 10px 16px;
+  gap: var(--space-20);
+  padding: var(--space-10) var(--space-16);
   border-bottom: 1px solid var(--border-faint);
   background: var(--panel-tint);
   flex-wrap: wrap;
@@ -2349,7 +2365,7 @@ h3 {
 .pt-brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
   font-size: 17px;
   font-weight: 700;
 }
@@ -2357,7 +2373,7 @@ h3 {
 .pt-life {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-6);
 }
 
 .pt-life-btn {
@@ -2394,12 +2410,12 @@ h3 {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-8);
   flex-wrap: wrap;
 }
 
 .pt-btn {
-  padding: 0.4rem 0.9rem;
+  padding: var(--space-6) var(--space-16);
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -2430,7 +2446,7 @@ h3 {
   color: var(--text-muted);
   cursor: pointer;
   font-size: 1.2rem;
-  padding: 0 0.4rem;
+  padding: 0 var(--space-6);
 }
 
 .pt-close:hover {
@@ -2441,7 +2457,7 @@ h3 {
 .pt-battlefield {
   flex: 1;
   overflow: auto;
-  padding: 12px 16px;
+  padding: var(--space-12) var(--space-16);
   display: flex;
   flex-direction: column;
   background:
@@ -2456,7 +2472,7 @@ h3 {
   letter-spacing: 0.08em;
   color: var(--text-muted);
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-bottom: var(--space-6);
 }
 
 /* A pile label that opens the zone's side panel. */
@@ -2505,15 +2521,15 @@ h3 {
 .pt-empty-hint {
   color: var(--text-dim);
   font-size: 0.85rem;
-  padding: 2rem 0;
+  padding: var(--space-32) 0;
 }
 
 /* Bottom bar: hand + piles */
 .pt-bottombar {
   display: flex;
-  gap: 1.5rem;
+  gap: var(--space-24);
   align-items: flex-end;
-  padding: 10px 16px 14px;
+  padding: var(--space-10) var(--space-16) var(--space-16);
   border-top: 1px solid var(--border-faint);
   background: var(--panel);
   /* Above the battlefield so upward-opening card menus aren't occluded. */
@@ -2529,14 +2545,14 @@ h3 {
 .pt-hand-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-8);
   /* No overflow clipping — card menus open upward past the row's edge. */
-  padding-bottom: 4px;
+  padding-bottom: var(--space-4);
 }
 
 .pt-piles {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-16);
   flex-shrink: 0;
 }
 
@@ -2620,7 +2636,7 @@ h3 {
   flex-direction: column;
   justify-content: space-between;
   height: 100%;
-  padding: 6px;
+  padding: var(--space-6);
   text-align: left;
   font-size: 0.62rem;
   line-height: 1.25;
@@ -2666,7 +2682,7 @@ h3 {
   bottom: calc(100% + 4px);
   z-index: 20;
   margin: 0;
-  padding: 0.25rem;
+  padding: var(--space-4);
   list-style: none;
   min-width: 10rem;
   background: var(--panel);
@@ -2683,7 +2699,7 @@ h3 {
 .pt-menu button {
   display: block;
   width: 100%;
-  padding: 0.35rem 0.6rem;
+  padding: var(--space-6) var(--space-10);
   border: none;
   background: none;
   color: inherit;
@@ -2708,7 +2724,7 @@ h3 {
   left: 0;
   z-index: 30;
   min-width: 12rem;
-  padding: 0.35rem;
+  padding: var(--space-6);
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -2723,7 +2739,7 @@ h3 {
 .pt-popover-item {
   display: block;
   width: 100%;
-  padding: 0.35rem 0.6rem;
+  padding: var(--space-6) var(--space-10);
   border: none;
   background: none;
   color: inherit;
@@ -2742,7 +2758,7 @@ h3 {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-12);
 }
 
 .pt-token-pt {
@@ -2754,8 +2770,8 @@ h3 {
 .pt-counter-row {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.25rem 0.4rem;
+  gap: var(--space-8);
+  padding: var(--space-4) var(--space-6);
 }
 
 .pt-counter-name {
@@ -2781,7 +2797,7 @@ h3 {
   left: -6px;
   min-width: 1.3rem;
   height: 1.3rem;
-  padding: 0 0.25rem;
+  padding: 0 var(--space-4);
   border-radius: 999px;
   background: #5a9e63;
   color: #fff;
@@ -2820,7 +2836,7 @@ h3 {
   right: -8px;
   min-width: 1.4rem;
   height: 1.4rem;
-  padding: 0 0.3rem;
+  padding: 0 var(--space-4);
   border-radius: 999px;
   background: var(--accent);
   color: #fff;
@@ -2866,9 +2882,9 @@ h3 {
 .pt-preview-proxy {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-8);
   aspect-ratio: 92 / 128;
-  padding: 1rem;
+  padding: var(--space-16);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   background: var(--panel-tint);
@@ -2906,7 +2922,7 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: var(--space-10) var(--space-12);
   border-bottom: 1px solid var(--border-faint);
   font-weight: 600;
 }
@@ -2914,7 +2930,7 @@ h3 {
 .pt-library-preview {
   display: flex;
   justify-content: center;
-  padding: 12px;
+  padding: var(--space-12);
   border-bottom: 1px solid var(--border-faint);
 }
 
@@ -2925,13 +2941,13 @@ h3 {
 }
 
 .pt-library-filter {
-  padding: 8px 12px;
+  padding: var(--space-8) var(--space-12);
   border-bottom: 1px solid var(--border-faint);
 }
 
 .pt-library-filter input {
   width: 100%;
-  padding: 0.4rem 0.55rem;
+  padding: var(--space-6) var(--space-8);
   border-radius: 6px;
   border: 1px solid var(--border-subtle);
   background: var(--panel-tint);
@@ -2951,8 +2967,8 @@ h3 {
 .pt-library-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.3rem 0.6rem;
+  gap: var(--space-8);
+  padding: var(--space-4) var(--space-10);
   border-bottom: 1px solid var(--border-faint);
   font-size: 0.85rem;
   cursor: grab;
@@ -2981,19 +2997,19 @@ h3 {
 
 .pt-library-actions {
   display: inline-flex;
-  gap: 0.2rem;
+  gap: var(--space-4);
 }
 
 .pt-library-actions .take {
-  padding: 0.1rem 0.3rem;
+  padding: var(--space-2) var(--space-4);
   font-size: 0.68rem;
 }
 
 .pt-library-foot {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-8);
   justify-content: flex-end;
-  padding: 10px 12px;
+  padding: var(--space-10) var(--space-12);
   border-top: 1px solid var(--border-faint);
 }
 
@@ -3009,19 +3025,19 @@ button.pt-cardback:hover {
 
 /* ---- Deck stats (below the Brewer workspace) ---- */
 .deck-stats {
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
+  margin-top: var(--space-24);
+  padding-top: var(--space-20);
   border-top: 1px solid var(--border-subtle);
 }
 
 .deck-stats h3 {
-  margin: 0 0 0.75rem;
+  margin: 0 0 var(--space-12);
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.4fr);
-  gap: 1.5rem;
+  gap: var(--space-24);
   align-items: start;
 }
 
@@ -3031,7 +3047,7 @@ button.pt-cardback:hover {
   letter-spacing: 0.05em;
   color: var(--text-faint);
   font-weight: 600;
-  margin-bottom: 0.6rem;
+  margin-bottom: var(--space-10);
 }
 
 .stats-sub {
@@ -3045,7 +3061,7 @@ button.pt-cardback:hover {
 .curve-bars {
   display: flex;
   align-items: flex-end;
-  gap: 6px;
+  gap: var(--space-6);
   height: 120px;
 }
 
@@ -3082,7 +3098,7 @@ button.pt-cardback:hover {
 }
 
 .curve-x {
-  margin-top: 0.3rem;
+  margin-top: var(--space-4);
   font-size: 0.72rem;
   color: var(--text-muted);
 }
@@ -3091,14 +3107,14 @@ button.pt-cardback:hover {
 .color-rows {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-6);
 }
 
 .color-row {
   display: grid;
   grid-template-columns: 1rem 4.2rem 1fr 2.6rem 5rem;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-8);
   font-size: 0.82rem;
 }
 
@@ -3150,23 +3166,23 @@ button.pt-cardback:hover {
 
 .guide-hero {
   text-align: center;
-  padding: 0.5rem 0 1.5rem;
+  padding: var(--space-8) 0 var(--space-24);
   border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-32);
 }
 
 .guide-hero .subtitle {
   max-width: 44rem;
-  margin: 0.25rem auto 1.25rem;
+  margin: var(--space-4) auto var(--space-20);
 }
 
 .guide-eq {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--space-10);
   flex-wrap: wrap;
   justify-content: center;
-  padding: 0.6rem 1.1rem;
+  padding: var(--space-10) var(--space-16);
   border: 1px solid #3a3a55;
   border-radius: 10px;
   background: var(--panel-tint);
@@ -3185,12 +3201,12 @@ button.pt-cardback:hover {
   color: #fff;
   background: var(--accent);
   border-radius: 6px;
-  padding: 0.1rem 0.6rem;
+  padding: var(--space-2) var(--space-10);
 }
 
 .guide-lede {
   max-width: 42rem;
-  margin: 1.25rem auto 0;
+  margin: var(--space-20) auto 0;
   color: var(--text-faint);
 }
 
@@ -3204,7 +3220,7 @@ button.pt-cardback:hover {
 
 .guide-note {
   color: var(--text-muted);
-  margin: 0.25rem 0 1.1rem;
+  margin: var(--space-4) 0 var(--space-16);
   max-width: 46rem;
 }
 
@@ -3212,7 +3228,7 @@ button.pt-cardback:hover {
 .guide-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
+  gap: var(--space-16);
 }
 
 .guide-cards-3 {
@@ -3223,16 +3239,16 @@ button.pt-cardback:hover {
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   background: var(--panel);
-  padding: 1rem 1.1rem;
+  padding: var(--space-16) var(--space-16);
 }
 
 .guide-card h3 {
-  margin: 0 0 0.35rem;
+  margin: 0 0 var(--space-6);
   color: #cbd0ff;
 }
 
 .guide-card p {
-  margin: 0 0 0.75rem;
+  margin: 0 0 var(--space-12);
   color: var(--text-faint);
   font-size: 0.92rem;
 }
@@ -3248,18 +3264,18 @@ button.pt-cardback:hover {
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 0.9rem;
+  gap: var(--space-16);
 }
 
 .guide-tenet,
 .guide-step {
   display: grid;
   grid-template-columns: 2rem 1fr;
-  gap: 0.9rem;
+  gap: var(--space-16);
   align-items: start;
   border: 1px solid var(--border-faint);
   border-radius: 10px;
-  padding: 0.85rem 1rem;
+  padding: var(--space-12) var(--space-16);
   background: var(--panel);
 }
 
@@ -3278,7 +3294,7 @@ button.pt-cardback:hover {
 
 .guide-tenet h3,
 .guide-step h3 {
-  margin: 0 0 0.2rem;
+  margin: 0 0 var(--space-4);
 }
 
 .guide-tenet p,
@@ -3290,8 +3306,8 @@ button.pt-cardback:hover {
 
 .guide-jump,
 .guide-cta {
-  margin-top: 0.6rem;
-  padding: 0.35rem 0.8rem;
+  margin-top: var(--space-10);
+  padding: var(--space-6) var(--space-12);
   border-radius: 6px;
   border: 1px solid var(--accent);
   background: transparent;
@@ -3318,16 +3334,16 @@ button.pt-cardback:hover {
   margin: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 0.5rem;
+  gap: var(--space-8);
 }
 
 .guide-role {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: var(--space-12);
   border: 1px solid var(--border-faint);
   border-radius: 8px;
-  padding: 0.5rem 0.75rem;
+  padding: var(--space-8) var(--space-12);
   background: var(--panel);
 }
 
@@ -3338,7 +3354,7 @@ button.pt-cardback:hover {
   color: #cbd0ff;
   background: #23233a;
   border-radius: 6px;
-  padding: 0.15rem 0.3rem;
+  padding: var(--space-2) var(--space-4);
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
 }
@@ -3349,7 +3365,7 @@ button.pt-cardback:hover {
 
 .guide-footer {
   border-top: 1px solid var(--border-subtle);
-  padding-top: 1rem;
+  padding-top: var(--space-16);
   color: var(--text-muted);
   font-size: 0.88rem;
 }
@@ -3407,7 +3423,8 @@ button.pt-cardback:hover {
 /* ---- Game plan + role targets ---- */
 
 .game-plan {
-  margin: 0.5rem 0 1rem;
+  margin: var(--space-8) 0 var(--space-16);
+  padding: 0 var(--ws-inset);
 }
 
 .game-plan-label {
@@ -3415,14 +3432,14 @@ button.pt-cardback:hover {
   font-size: 0.82rem;
   font-weight: 600;
   color: #ccc;
-  margin-bottom: 0.35rem;
+  margin-bottom: var(--space-6);
 }
 
 .game-plan-input {
   width: 100%;
   box-sizing: border-box;
   resize: vertical;
-  padding: 0.55rem 0.7rem;
+  padding: var(--space-8) var(--space-12);
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
   background: var(--panel);
@@ -3444,7 +3461,7 @@ button.pt-cardback:hover {
 
 .target-input {
   width: 3.2rem;
-  padding: 0.2rem 0.35rem;
+  padding: var(--space-4) var(--space-6);
   border-radius: 5px;
   border: 1px solid var(--border-subtle);
   background: var(--panel);
@@ -3477,8 +3494,8 @@ button.pt-cardback:hover {
 }
 
 .add-role {
-  margin-top: 0.6rem;
-  padding: 0.35rem 0.6rem;
+  margin-top: var(--space-10);
+  padding: var(--space-6) var(--space-10);
   border-radius: 6px;
   border: 1px dashed var(--border);
   background: transparent;
