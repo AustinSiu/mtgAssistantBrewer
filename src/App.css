@@ -335,15 +335,15 @@ h3 {
 }
 
 .matrix-table th.col-0 {
-  border-bottom-color: #5a9e63;
+  border-bottom-color: var(--subdeck-a, #5a9e63);
 }
 
 .matrix-table th.col-1 {
-  border-bottom-color: #c06a55;
+  border-bottom-color: var(--subdeck-b, #c06a55);
 }
 
 .matrix-table th.col-2 {
-  border-bottom-color: #8b7fd4;
+  border-bottom-color: var(--subdeck-c, #8b7fd4);
 }
 
 .sub-name {
@@ -1369,7 +1369,7 @@ h3 {
   width: 34px;
   height: 34px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #5a9e63, #8b7fd4);
+  background: linear-gradient(135deg, var(--subdeck-a, #5a9e63), var(--subdeck-c, #8b7fd4));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3070,7 +3070,7 @@ button.pt-cardback:hover {
   width: 100%;
   min-height: 2px;
   border-radius: 3px 3px 0 0;
-  background: linear-gradient(#8b7fd4, var(--accent));
+  background: linear-gradient(var(--subdeck-c, #8b7fd4), var(--accent));
 }
 
 .curve-n {
