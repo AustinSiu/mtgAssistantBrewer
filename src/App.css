@@ -13,15 +13,29 @@
  * explicit override, `:root[data-theme="…"]`.
  */
 :root {
-  /* Semantic colors (dark, default) */
-  --bg: #242424;
-  --panel: #1a1a1a;
-  --border: #555;
+  /* Surfaces (dark, default) */
+  --bg: #242424; /* page & canvas base */
+  --panel: #1a1a1a; /* panels / inputs */
+  --panel-tint: #1e1e2e; /* faintly accent-tinted panels (strategy/guide) */
+
+  /* Borders */
+  --border: #555; /* strong / interactive */
+  --border-subtle: #3a3a3a; /* dividers */
+  --border-faint: #2a2a2a; /* faint hairlines */
+
+  /* Text */
+  --text: rgba(255, 255, 255, 0.87); /* default body text */
+  --text-muted: #888; /* muted */
+  --text-dim: #666; /* dimmer secondary */
+  --text-faint: #aaa; /* faint labels / hints */
+
+  /* Accents */
   --accent: #646cff;
   --accent-rgb: 100, 108, 255; /* base accent as channels, for rgba() tints */
-  --accent-text: #8b92ff; /* accent-colored text & links (dark base) */
+  --accent-text: #8b92ff; /* accent-colored text & links */
   --accent-text-soft: #a7adff; /* softer accent text: headings, hover, 2nd links */
-  --text-muted: #888;
+
+  /* Status */
   --danger: #ff8a8a;
   --warning: #e8a33d;
   --success: #6ac48a;
@@ -42,12 +56,20 @@
   --space-6: 2rem;
 }
 
-/* Light theme: override only the tokens whose value changes. */
+/* Light theme: override only the tokens whose value changes. Kept in sync with
+   the @media block below via the shared --light-* custom-property set would be
+   ideal, but CSS can't alias groups, so the two blocks mirror each other. */
 :root[data-theme="light"] {
   --bg: #ffffff;
   --panel: #ffffff;
+  --panel-tint: #f4f4fa;
   --border: #ccc;
+  --border-subtle: #ddd;
+  --border-faint: #eee;
+  --text: #213547;
   --text-muted: #666;
+  --text-dim: #777;
+  --text-faint: #999;
   --danger: #c03030;
   --warning: #b07a1a;
   --success: #2e8b57;
@@ -57,8 +79,14 @@
   :root:not([data-theme="dark"]) {
     --bg: #ffffff;
     --panel: #ffffff;
+    --panel-tint: #f4f4fa;
     --border: #ccc;
+    --border-subtle: #ddd;
+    --border-faint: #eee;
+    --text: #213547;
     --text-muted: #666;
+    --text-dim: #777;
+    --text-faint: #999;
     --danger: #c03030;
     --warning: #b07a1a;
     --success: #2e8b57;
@@ -81,15 +109,15 @@
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 0.75rem;
 }
 
 .tab {
   padding: 0.5rem 1rem;
   border-radius: 6px;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   cursor: pointer;
   font-size: 0.9rem;
@@ -123,13 +151,13 @@ h3 {
 }
 
 .subtitle {
-  color: #888;
+  color: var(--text-muted);
   margin-top: 0;
   margin-bottom: 1.5rem;
 }
 
 .hint {
-  color: #888;
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
@@ -156,8 +184,8 @@ h3 {
   width: 100px;
   padding: 0.5rem 0.6rem;
   border-radius: 6px;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   font-size: 1rem;
 }
@@ -171,8 +199,8 @@ h3 {
 .preset {
   padding: 0.5rem 1rem;
   border-radius: 6px;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   cursor: pointer;
   font-size: 0.9rem;
@@ -194,7 +222,7 @@ h3 {
 .form-section {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .form-section label {
@@ -212,8 +240,8 @@ h3 {
   width: 100%;
   padding: 0.5rem 0.6rem;
   border-radius: 6px;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   font-size: 1rem;
 }
@@ -241,8 +269,8 @@ h3 {
   margin: 0;
   padding: 0.25rem;
   list-style: none;
-  background: #1a1a1a;
-  border: 1px solid #555;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 6px;
   max-height: 240px;
   overflow-y: auto;
@@ -263,7 +291,7 @@ h3 {
 }
 
 .suggestions li.no-match {
-  color: #888;
+  color: var(--text-muted);
   cursor: default;
 }
 
@@ -287,18 +315,18 @@ h3 {
 .matrix-table th {
   text-align: left;
   padding: 0.4rem 0.5rem;
-  border-bottom: 2px solid #444;
+  border-bottom: 2px solid var(--border-subtle);
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #aaa;
+  color: var(--text-faint);
   white-space: nowrap;
 }
 
 .th-hint {
   text-transform: none;
   letter-spacing: 0;
-  color: #666;
+  color: var(--text-dim);
   font-weight: 400;
 }
 
@@ -347,7 +375,7 @@ h3 {
 .sub-remove {
   background: none;
   border: none;
-  color: #777;
+  color: var(--text-dim);
   cursor: pointer;
   font-size: 0.8rem;
   margin-left: 0.4rem;
@@ -360,12 +388,12 @@ h3 {
 
 .matrix-table td {
   padding: 0.25rem 0.3rem;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid var(--border-faint);
   vertical-align: top;
 }
 
 .matrix-table td.num {
-  color: #888;
+  color: var(--text-muted);
   text-align: right;
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
@@ -376,8 +404,8 @@ h3 {
 .matrix-table input {
   padding: 0.35rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   font-size: 0.88rem;
   min-width: 0;
@@ -414,7 +442,7 @@ h3 {
 
 .suggest-btn {
   background: none;
-  border: 1px solid #555;
+  border: 1px solid var(--border);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.8rem;
@@ -459,7 +487,7 @@ h3 {
 /* ---- Suggestion strip ---- */
 
 .sugg-row td {
-  background: #16161e;
+  background: var(--panel-tint);
   padding: 0.5rem 0.75rem;
 }
 
@@ -472,16 +500,16 @@ h3 {
 
 .sugg-label {
   font-size: 0.8rem;
-  color: #aaa;
+  color: var(--text-faint);
   min-width: 160px;
   max-width: 300px;
   padding-top: 0.25rem;
 }
 
 .sugg {
-  border: 1px solid #444;
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  background: #1a1a2a;
+  background: var(--panel-tint);
   padding: 0.5rem 0.65rem;
   font-size: 0.83rem;
 }
@@ -497,7 +525,7 @@ h3 {
 }
 
 .sugg .meta {
-  color: #999;
+  color: var(--text-muted);
   font-size: 0.76rem;
   margin: 0.15rem 0 0.4rem;
 }
@@ -532,8 +560,8 @@ h3 {
 }
 
 .modal {
-  background: #1e1e2e;
-  border: 1px solid #444;
+  background: var(--panel-tint);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
   padding: 1.1rem 1.25rem;
@@ -546,7 +574,7 @@ h3 {
 
 .modal p {
   font-size: 0.88rem;
-  color: #bbb;
+  color: var(--text-faint);
 }
 
 .modal .actions {
@@ -559,7 +587,7 @@ h3 {
   display: block;
   margin-top: 0.8rem;
   font-size: 0.78rem;
-  color: #888;
+  color: var(--text-muted);
 }
 
 /* ---- Export to Moxfield modal ---- */
@@ -581,7 +609,7 @@ h3 {
   gap: 0.5rem 1.25rem;
   margin: 0.25rem 0 0.5rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .import-error {
@@ -608,8 +636,8 @@ h3 {
   width: 100%;
   padding: 0.5rem 0.6rem;
   border-radius: 6px;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   font-size: 0.85rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -692,17 +720,17 @@ h3 {
 .dist-table th {
   text-align: left;
   padding: 0.5rem 0.75rem;
-  border-bottom: 2px solid #444;
+  border-bottom: 2px solid var(--border-subtle);
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #aaa;
+  color: var(--text-faint);
 }
 
 .summary-table td,
 .dist-table td {
   padding: 0.4rem 0.75rem;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .summary-table tbody tr {
@@ -741,9 +769,9 @@ h3 {
 .detail {
   margin-top: 1.5rem;
   padding: 1rem;
-  border: 1px solid #333;
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: #1e1e2e;
+  background: var(--panel-tint);
 }
 
 /* ---- Deck List ---- */
@@ -772,15 +800,15 @@ h3 {
   margin: 0;
   font-size: 0.82rem;
   line-height: 1.4;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .paste-box textarea {
   width: 100%;
   padding: 0.5rem 0.6rem;
   border-radius: 6px;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   font-size: 0.9rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -807,8 +835,8 @@ h3 {
 
 .group-toggle .toggle {
   padding: 0.35rem 0.8rem;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   cursor: pointer;
   font-size: 0.85rem;
@@ -840,19 +868,19 @@ h3 {
   align-items: baseline;
   gap: 0.5rem;
   font-size: 0.95rem;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 0.35rem;
   margin-bottom: 0.25rem;
 }
 
 .group-count {
-  color: #888;
+  color: var(--text-muted);
   font-weight: 400;
 }
 
 .group-price {
   margin-left: auto;
-  color: #888;
+  color: var(--text-muted);
   font-weight: 400;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
@@ -877,7 +905,7 @@ h3 {
 
 .list-table td {
   padding: 0.3rem 0.5rem;
-  border-bottom: 1px solid #262626;
+  border-bottom: 1px solid var(--border-faint);
   vertical-align: middle;
 }
 
@@ -886,8 +914,8 @@ h3 {
 }
 
 .qty-cell .step {
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   width: 1.3rem;
   height: 1.3rem;
@@ -958,11 +986,11 @@ h3 {
 
 .mana-slash {
   margin: 0 2px;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .type-cell {
-  color: #aaa;
+  color: var(--text-faint);
   font-size: 0.82rem;
   white-space: nowrap;
   overflow: hidden;
@@ -973,8 +1001,8 @@ h3 {
   width: 6.5rem;
   padding: 0.2rem 0.4rem;
   border-radius: 5px;
-  border: 1px solid #444;
-  background: #1a1a1a;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel);
   color: inherit;
   font-size: 0.8rem;
 }
@@ -994,7 +1022,7 @@ h3 {
 .icon-btn {
   background: none;
   border: none;
-  color: #777;
+  color: var(--text-dim);
   cursor: pointer;
   font-size: 0.9rem;
   padding: 0 0.25rem;
@@ -1030,7 +1058,7 @@ h3 {
 .stat-num .stat-sub {
   font-size: 0.9rem;
   font-weight: 400;
-  color: #888;
+  color: var(--text-muted);
 }
 
 /* Success token — the 100/100 complete state. */
@@ -1046,7 +1074,7 @@ h3 {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .stat.colors {
@@ -1093,13 +1121,13 @@ h3 {
 
 .curve-n {
   font-size: 0.7rem;
-  color: #aaa;
+  color: var(--text-faint);
   height: 0.9rem;
 }
 
 .curve-mv {
   font-size: 0.7rem;
-  color: #888;
+  color: var(--text-muted);
   margin-top: 0.15rem;
 }
 
@@ -1362,7 +1390,7 @@ h3 {
 }
 
 .brand-intro {
-  color: #888;
+  color: var(--text-muted);
   font-size: 0.95rem;
   margin: 0 0 16px;
 }
@@ -1371,10 +1399,10 @@ h3 {
   list-style: none;
   margin: 0 0 24px;
   padding: 12px 14px;
-  border: 1px solid #2f2f38;
+  border: 1px solid var(--border-faint);
   border-left: 3px solid var(--accent);
   border-radius: 8px;
-  background: #16161e;
+  background: var(--panel-tint);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1398,8 +1426,8 @@ h3 {
   width: 100%;
   padding: 0.6rem 0.7rem;
   border-radius: 8px;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   font-size: 1rem;
 }
@@ -1416,12 +1444,12 @@ h3 {
   width: 1180px;
   max-width: 100%;
   margin: 0 auto;
-  background: #242424;
-  border: 1px solid #333;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-  color: rgba(255, 255, 255, 0.87);
+  color: var(--text);
 }
 
 /* Header bar */
@@ -1431,7 +1459,7 @@ h3 {
   justify-content: space-between;
   gap: 1rem;
   padding: 16px 20px;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid var(--border-faint);
   flex-wrap: wrap;
 }
 
@@ -1448,7 +1476,7 @@ h3 {
 
 .ws-commander-sub {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .ci-pips {
@@ -1483,13 +1511,13 @@ h3 {
 }
 
 .ws-count-total {
-  color: #666;
+  color: var(--text-dim);
   font-size: 15px;
 }
 
 .ws-count-label {
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -1497,8 +1525,8 @@ h3 {
 .ws-secondary {
   padding: 0.5rem 1.1rem;
   border-radius: 6px;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   font-weight: 500;
   font-size: 0.85rem;
@@ -1510,7 +1538,7 @@ h3 {
 }
 
 .ws-clear {
-  color: #888;
+  color: var(--text-muted);
   margin-top: 0;
 }
 
@@ -1532,12 +1560,12 @@ h3 {
 
 .matrix-caption {
   font-size: 13px;
-  color: #aaa;
+  color: var(--text-faint);
   margin-bottom: 8px;
 }
 
 .matrix-caption-hint {
-  color: #666;
+  color: var(--text-dim);
 }
 
 /* Matrix table (dark, self-contained) */
@@ -1551,18 +1579,18 @@ h3 {
 .brew-workspace .matrix-table th {
   text-align: left;
   padding: 0.4rem 0.5rem;
-  border-bottom: 2px solid #444;
+  border-bottom: 2px solid var(--border-subtle);
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #aaa;
+  color: var(--text-faint);
   white-space: nowrap;
 }
 
 .brew-workspace .matrix-table th.num-col {
   width: 44px;
   text-align: center;
-  color: #666;
+  color: var(--text-dim);
   padding: 0.4rem 0.35rem;
 }
 
@@ -1577,12 +1605,12 @@ h3 {
 
 .brew-workspace .matrix-table td {
   padding: 0.3rem 0.3rem;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid var(--border-faint);
   vertical-align: top;
 }
 
 .brew-workspace .matrix-table td.num {
-  color: #666;
+  color: var(--text-dim);
   font-size: 0.78rem;
   padding-top: 0.55rem;
   width: 44px;
@@ -1625,8 +1653,8 @@ h3 {
   width: 100%;
   padding: 0.35rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid #444;
-  background: #1a1a1a;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel);
   color: inherit;
   font-size: 0.86rem;
 }
@@ -1648,7 +1676,7 @@ h3 {
 }
 
 .brew-workspace .otag-line {
-  color: #666;
+  color: var(--text-dim);
   font-size: 0.72rem;
   margin-top: 0.15rem;
   min-height: 0.9rem;
@@ -1658,9 +1686,9 @@ h3 {
   width: 100%;
   padding: 0.35rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid #3a3a3a;
-  background: #181818;
-  color: #bbb;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel);
+  color: var(--text-faint);
   font-size: 0.78rem;
   font-family: inherit;
   line-height: 1.3;
@@ -1678,7 +1706,7 @@ h3 {
 }
 
 .brew-workspace .cell-td.active input {
-  border-color: #555;
+  border-color: var(--border);
 }
 
 .brew-workspace .cell-td.flagged input {
@@ -1716,8 +1744,8 @@ h3 {
 
 /* Autocomplete dropdown stays dark inside the card */
 .brew-workspace .suggestions {
-  background: #1a1a1a;
-  border-color: #555;
+  background: var(--panel);
+  border-color: var(--border);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
 }
 
@@ -1740,11 +1768,11 @@ h3 {
   border-bottom: none;
   /* Always the card color so the always-dark flyout isn't framed by the
      light-mode .sugg-row td background bleeding through its margin. */
-  background: #242424;
+  background: var(--bg);
 }
 
 .brew-workspace .sugg-strip {
-  background: #16161e;
+  background: var(--panel-tint);
   padding: 0.6rem 0.8rem;
   border-radius: 8px;
   border-left: 2px solid var(--accent);
@@ -1754,16 +1782,16 @@ h3 {
 
 .strip-label-row {
   font-size: 0.78rem;
-  color: #aaa;
+  color: var(--text-faint);
   margin-bottom: 0.5rem;
 }
 
 .strip-meta {
-  color: #666;
+  color: var(--text-dim);
 }
 
 .strip-empty {
-  color: #666;
+  color: var(--text-dim);
   font-size: 0.78rem;
 }
 
@@ -1774,9 +1802,9 @@ h3 {
 }
 
 .strip-card {
-  border: 1px solid #444;
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  background: #1a1a2a;
+  background: var(--panel-tint);
   padding: 0.5rem 0.6rem;
   font-size: 0.8rem;
 }
@@ -1788,7 +1816,7 @@ h3 {
 }
 
 .strip-card-meta {
-  color: #999;
+  color: var(--text-muted);
   font-size: 0.72rem;
   margin: 0.15rem 0 0.4rem;
   font-variant-numeric: tabular-nums;
@@ -1810,16 +1838,16 @@ h3 {
 .ws-rail {
   width: 280px;
   flex-shrink: 0;
-  border-left: 1px solid #2c2c2c;
+  border-left: 1px solid var(--border-faint);
   padding: 16px;
-  background: #1e1e2e;
+  background: var(--panel-tint);
 }
 
 .rail-heading {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #888;
+  color: var(--text-muted);
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -1827,7 +1855,7 @@ h3 {
 .rail-sub {
   text-transform: none;
   letter-spacing: 0;
-  color: #666;
+  color: var(--text-dim);
   font-weight: 600;
 }
 
@@ -1860,7 +1888,7 @@ h3 {
 
 .fill-track {
   height: 6px;
-  background: #111;
+  background: var(--panel);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -1893,7 +1921,7 @@ h3 {
 }
 
 .attention-dot.empty {
-  color: #888;
+  color: var(--text-muted);
 }
 
 .attention-dot.ok {
@@ -1918,7 +1946,7 @@ h3 {
   display: flex;
   gap: 4px;
   font-size: 0.64rem;
-  color: #666;
+  color: var(--text-dim);
   margin-top: 3px;
 }
 
@@ -1936,7 +1964,7 @@ h3 {
   .ws-rail {
     width: auto;
     border-left: none;
-    border-top: 1px solid #2c2c2c;
+    border-top: 1px solid var(--border-faint);
   }
 }
 
@@ -1978,9 +2006,9 @@ h3 {
 
 .hyp-params,
 .hyp-results {
-  border: 1px solid #333;
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  background: #1e1e2e;
+  background: var(--panel-tint);
   padding: 1.25rem;
 }
 
@@ -2031,7 +2059,7 @@ h3 {
   margin: 0 0 0.6rem;
   font-size: 0.82rem;
   line-height: 1.5;
-  color: #aaa;
+  color: var(--text-faint);
 }
 
 .how-it-works p:last-child {
@@ -2054,7 +2082,7 @@ h3 {
 
 /* Results */
 .headline {
-  border: 1px solid #333;
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 1.25rem;
   text-align: center;
@@ -2064,7 +2092,7 @@ h3 {
 
 .headline-label {
   font-size: 0.9rem;
-  color: #aaa;
+  color: var(--text-faint);
 }
 
 .headline-value {
@@ -2081,7 +2109,7 @@ h3 {
 
 .headline-sub {
   font-size: 0.85rem;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .section-title {
@@ -2112,12 +2140,12 @@ h3 {
 }
 
 .summary-table td.dim {
-  color: #888;
+  color: var(--text-muted);
 }
 
 /* Probability curve */
 .curve-wrap {
-  border: 1px solid #333;
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 0.75rem;
   background: rgba(0, 0, 0, 0.15);
@@ -2168,7 +2196,7 @@ h3 {
 }
 
 .curve-axis {
-  fill: #888;
+  fill: var(--text-muted);
   font-size: 11px;
 }
 
@@ -2277,8 +2305,8 @@ h3 {
   display: flex;
   flex-direction: column;
   overflow: hidden; /* the simulator owns the viewport — no page scrollbar */
-  background: #171717;
-  color: rgba(255, 255, 255, 0.87);
+  background: var(--panel);
+  color: var(--text);
   /* One card size across every zone (kept in sync with CARD_W/CARD_H). */
   --pt-cw: 120px;
   --pt-ch: 168px;
@@ -2289,22 +2317,22 @@ h3 {
    inside the dark overlay. `.playtest`-scoped selectors outrank the plain
    light-mode overrides. */
 .playtest .preset {
-  background: #1a1a1a;
-  border-color: #555;
+  background: var(--panel);
+  border-color: var(--border);
   color: rgba(255, 255, 255, 0.9);
 }
 
 .playtest .modal {
-  background: #1e1e2e;
-  border-color: #444;
+  background: var(--panel-tint);
+  border-color: var(--border-subtle);
 }
 
 .playtest .modal p {
-  color: #bbb;
+  color: var(--text-faint);
 }
 
 .playtest .hint {
-  color: #888;
+  color: var(--text-muted);
 }
 
 /* Top bar */
@@ -2313,8 +2341,8 @@ h3 {
   align-items: center;
   gap: 1.25rem;
   padding: 10px 16px;
-  border-bottom: 1px solid #2c2c2c;
-  background: #1e1e2e;
+  border-bottom: 1px solid var(--border-faint);
+  background: var(--panel-tint);
   flex-wrap: wrap;
 }
 
@@ -2336,8 +2364,8 @@ h3 {
   width: 1.6rem;
   height: 1.6rem;
   border-radius: 50%;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   cursor: pointer;
   font-size: 1rem;
@@ -2357,7 +2385,7 @@ h3 {
 }
 
 .pt-turn {
-  color: #aaa;
+  color: var(--text-faint);
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
 }
@@ -2373,8 +2401,8 @@ h3 {
 .pt-btn {
   padding: 0.4rem 0.9rem;
   border-radius: 999px;
-  border: 1px solid #555;
-  background: #1a1a1a;
+  border: 1px solid var(--border);
+  background: var(--panel);
   color: inherit;
   cursor: pointer;
   font-size: 0.85rem;
@@ -2399,7 +2427,7 @@ h3 {
 .pt-close {
   background: none;
   border: none;
-  color: #888;
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 1.2rem;
   padding: 0 0.4rem;
@@ -2426,7 +2454,7 @@ h3 {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #888;
+  color: var(--text-muted);
   font-weight: 600;
   margin-bottom: 6px;
 }
@@ -2475,7 +2503,7 @@ h3 {
 }
 
 .pt-empty-hint {
-  color: #666;
+  color: var(--text-dim);
   font-size: 0.85rem;
   padding: 2rem 0;
 }
@@ -2486,8 +2514,8 @@ h3 {
   gap: 1.5rem;
   align-items: flex-end;
   padding: 10px 16px 14px;
-  border-top: 1px solid #2c2c2c;
-  background: #1a1a1a;
+  border-top: 1px solid var(--border-faint);
+  background: var(--panel);
   /* Above the battlefield so upward-opening card menus aren't occluded. */
   position: relative;
   z-index: 10;
@@ -2521,7 +2549,7 @@ h3 {
 .pt-slot-empty {
   width: var(--pt-cw);
   height: var(--pt-ch);
-  border: 1px dashed #3a3a3a;
+  border: 1px dashed var(--border-subtle);
   border-radius: 6px;
 }
 
@@ -2529,7 +2557,7 @@ h3 {
   width: var(--pt-cw);
   height: var(--pt-ch);
   border-radius: 6px;
-  border: 1px solid #444;
+  border: 1px solid var(--border-subtle);
   background:
     radial-gradient(circle at 50% 42%, #4a3b28 0 18%, transparent 19%),
     linear-gradient(135deg, #6b4f2e, #3d2b16);
@@ -2560,9 +2588,9 @@ h3 {
   width: var(--pt-cw);
   height: var(--pt-ch);
   padding: 0;
-  border: 1px solid #444;
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  background: #1a1a2a;
+  background: var(--panel-tint);
   color: inherit;
   cursor: grab;
   overflow: hidden;
@@ -2604,11 +2632,11 @@ h3 {
 }
 
 .pt-proxy-cost {
-  color: #aaa;
+  color: var(--text-faint);
 }
 
 .pt-proxy-type {
-  color: #888;
+  color: var(--text-muted);
 }
 
 .pt-card-menu-btn {
@@ -2618,7 +2646,7 @@ h3 {
   width: 1.25rem;
   height: 1.25rem;
   border-radius: 4px;
-  border: 1px solid #555;
+  border: 1px solid var(--border);
   background: rgba(20, 20, 20, 0.85);
   color: #ccc;
   cursor: pointer;
@@ -2641,8 +2669,8 @@ h3 {
   padding: 0.25rem;
   list-style: none;
   min-width: 10rem;
-  background: #1a1a1a;
-  border: 1px solid #555;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
 }
@@ -2681,8 +2709,8 @@ h3 {
   z-index: 30;
   min-width: 12rem;
   padding: 0.35rem;
-  background: #1a1a1a;
-  border: 1px solid #555;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
 }
@@ -2841,9 +2869,9 @@ h3 {
   gap: 0.5rem;
   aspect-ratio: 92 / 128;
   padding: 1rem;
-  border: 1px solid #444;
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
-  background: #1a1a2a;
+  background: var(--panel-tint);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
 }
 
@@ -2868,7 +2896,7 @@ h3 {
   z-index: 210;
   display: flex;
   flex-direction: column;
-  background: #14141c;
+  background: var(--panel-tint);
   color: rgba(255, 255, 255, 0.9);
   border-left: 1px solid #33334a;
   box-shadow: -12px 0 30px rgba(0, 0, 0, 0.5);
@@ -2879,7 +2907,7 @@ h3 {
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  border-bottom: 1px solid #2a2a3a;
+  border-bottom: 1px solid var(--border-faint);
   font-weight: 600;
 }
 
@@ -2887,7 +2915,7 @@ h3 {
   display: flex;
   justify-content: center;
   padding: 12px;
-  border-bottom: 1px solid #2a2a3a;
+  border-bottom: 1px solid var(--border-faint);
 }
 
 .pt-library-preview img {
@@ -2898,21 +2926,21 @@ h3 {
 
 .pt-library-filter {
   padding: 8px 12px;
-  border-bottom: 1px solid #2a2a3a;
+  border-bottom: 1px solid var(--border-faint);
 }
 
 .pt-library-filter input {
   width: 100%;
   padding: 0.4rem 0.55rem;
   border-radius: 6px;
-  border: 1px solid #444;
-  background: #0f0f16;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel-tint);
   color: rgba(255, 255, 255, 0.9);
   font-size: 0.85rem;
 }
 
 .pt-library-filter input::placeholder {
-  color: #777;
+  color: var(--text-dim);
 }
 
 .pt-library-list {
@@ -2925,18 +2953,18 @@ h3 {
   align-items: center;
   gap: 0.5rem;
   padding: 0.3rem 0.6rem;
-  border-bottom: 1px solid #22222e;
+  border-bottom: 1px solid var(--border-faint);
   font-size: 0.85rem;
   cursor: grab;
   touch-action: none;
 }
 
 .pt-library-row:hover {
-  background: #20202e;
+  background: var(--panel-tint);
 }
 
 .pt-library-pos {
-  color: #888;
+  color: var(--text-muted);
   min-width: 1.6rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -2966,7 +2994,7 @@ h3 {
   gap: 0.5rem;
   justify-content: flex-end;
   padding: 10px 12px;
-  border-top: 1px solid #2a2a3a;
+  border-top: 1px solid var(--border-faint);
 }
 
 /* The library card back doubles as a View Library button */
@@ -2983,7 +3011,7 @@ button.pt-cardback:hover {
 .deck-stats {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .deck-stats h3 {
@@ -3001,7 +3029,7 @@ button.pt-cardback:hover {
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #aaa;
+  color: var(--text-faint);
   font-weight: 600;
   margin-bottom: 0.6rem;
 }
@@ -3009,7 +3037,7 @@ button.pt-cardback:hover {
 .stats-sub {
   text-transform: none;
   letter-spacing: 0;
-  color: #777;
+  color: var(--text-dim);
   font-weight: 400;
 }
 
@@ -3049,14 +3077,14 @@ button.pt-cardback:hover {
   position: absolute;
   top: -1.1rem;
   font-size: 0.7rem;
-  color: #aaa;
+  color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
 
 .curve-x {
   margin-top: 0.3rem;
   font-size: 0.72rem;
-  color: #888;
+  color: var(--text-muted);
 }
 
 /* Color breakdown */
@@ -3084,7 +3112,7 @@ button.pt-cardback:hover {
 .color-bar-track {
   height: 8px;
   border-radius: 999px;
-  background: #262630;
+  background: var(--panel-tint);
   overflow: hidden;
 }
 
@@ -3101,7 +3129,7 @@ button.pt-cardback:hover {
 }
 
 .color-prod {
-  color: #888;
+  color: var(--text-muted);
   font-size: 0.76rem;
   text-align: right;
 }
@@ -3123,7 +3151,7 @@ button.pt-cardback:hover {
 .guide-hero {
   text-align: center;
   padding: 0.5rem 0 1.5rem;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-subtle);
   margin-bottom: 2rem;
 }
 
@@ -3141,7 +3169,7 @@ button.pt-cardback:hover {
   padding: 0.6rem 1.1rem;
   border: 1px solid #3a3a55;
   border-radius: 10px;
-  background: #171728;
+  background: var(--panel-tint);
   font-size: 1.05rem;
 }
 
@@ -3150,7 +3178,7 @@ button.pt-cardback:hover {
 }
 
 .guide-eq-op {
-  color: #888;
+  color: var(--text-muted);
 }
 
 .guide-eq-total {
@@ -3163,7 +3191,7 @@ button.pt-cardback:hover {
 .guide-lede {
   max-width: 42rem;
   margin: 1.25rem auto 0;
-  color: #bbb;
+  color: var(--text-faint);
 }
 
 .guide-section {
@@ -3175,7 +3203,7 @@ button.pt-cardback:hover {
 }
 
 .guide-note {
-  color: #999;
+  color: var(--text-muted);
   margin: 0.25rem 0 1.1rem;
   max-width: 46rem;
 }
@@ -3192,9 +3220,9 @@ button.pt-cardback:hover {
 }
 
 .guide-card {
-  border: 1px solid #333;
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
-  background: #1a1a1a;
+  background: var(--panel);
   padding: 1rem 1.1rem;
 }
 
@@ -3205,7 +3233,7 @@ button.pt-cardback:hover {
 
 .guide-card p {
   margin: 0 0 0.75rem;
-  color: #bbb;
+  color: var(--text-faint);
   font-size: 0.92rem;
 }
 
@@ -3229,10 +3257,10 @@ button.pt-cardback:hover {
   grid-template-columns: 2rem 1fr;
   gap: 0.9rem;
   align-items: start;
-  border: 1px solid #2c2c2c;
+  border: 1px solid var(--border-faint);
   border-radius: 10px;
   padding: 0.85rem 1rem;
-  background: #161616;
+  background: var(--panel);
 }
 
 .guide-num {
@@ -3256,7 +3284,7 @@ button.pt-cardback:hover {
 .guide-tenet p,
 .guide-step p {
   margin: 0;
-  color: #aaa;
+  color: var(--text-faint);
   font-size: 0.92rem;
 }
 
@@ -3297,10 +3325,10 @@ button.pt-cardback:hover {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  border: 1px solid #2c2c2c;
+  border: 1px solid var(--border-faint);
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
-  background: #161616;
+  background: var(--panel);
 }
 
 .guide-role-count {
@@ -3320,9 +3348,9 @@ button.pt-cardback:hover {
 }
 
 .guide-footer {
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--border-subtle);
   padding-top: 1rem;
-  color: #888;
+  color: var(--text-muted);
   font-size: 0.88rem;
 }
 
@@ -3396,8 +3424,8 @@ button.pt-cardback:hover {
   resize: vertical;
   padding: 0.55rem 0.7rem;
   border-radius: 8px;
-  border: 1px solid #3a3a3a;
-  background: #161616;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel);
   color: inherit;
   font: inherit;
   font-size: 0.9rem;
@@ -3418,8 +3446,8 @@ button.pt-cardback:hover {
   width: 3.2rem;
   padding: 0.2rem 0.35rem;
   border-radius: 5px;
-  border: 1px solid #444;
-  background: #1a1a1a;
+  border: 1px solid var(--border-subtle);
+  background: var(--panel);
   color: inherit;
   font: inherit;
   font-size: 0.85rem;
@@ -3452,7 +3480,7 @@ button.pt-cardback:hover {
   margin-top: 0.6rem;
   padding: 0.35rem 0.6rem;
   border-radius: 6px;
-  border: 1px dashed #555;
+  border: 1px dashed var(--border);
   background: transparent;
   color: var(--accent-text-soft);
   cursor: pointer;
