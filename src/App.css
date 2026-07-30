@@ -59,6 +59,11 @@
   --space-20: 1.25rem;
   --space-24: 1.5rem;
   --space-32: 2rem;
+
+  /* Horizontal inset for a section inside the .brew-workspace card. The card
+     itself is full-bleed (no padding) so dividers and the rail's background can
+     span its full width — so every section must inset its own content. */
+  --ws-inset: var(--space-20);
 }
 
 /* Light theme: override only the tokens whose value changes. Kept in sync with
@@ -691,6 +696,12 @@ h3 {
 .error {
   color: #ff8a8a;
   margin-top: var(--space-16);
+}
+
+/* `.error` is shared with the Deck List tab, which sits inside the padded
+   `.app` container — so only the workspace copy needs the section inset. */
+.brew-workspace > .error {
+  padding: 0 var(--ws-inset);
 }
 
 .static-row {
@@ -1463,7 +1474,7 @@ h3 {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-16);
-  padding: var(--space-16) var(--space-20);
+  padding: var(--space-16) var(--ws-inset);
   border-bottom: 1px solid var(--border-faint);
   flex-wrap: wrap;
 }
@@ -1558,7 +1569,7 @@ h3 {
 
 .ws-matrix {
   flex: 1;
-  padding: var(--space-16) var(--space-20);
+  padding: var(--space-16) var(--ws-inset);
   min-width: 0;
   overflow-x: auto;
 }
@@ -3413,6 +3424,7 @@ button.pt-cardback:hover {
 
 .game-plan {
   margin: var(--space-8) 0 var(--space-16);
+  padding: 0 var(--ws-inset);
 }
 
 .game-plan-label {
